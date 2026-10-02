@@ -1,0 +1,27 @@
+{
+  "name": "Kotlin Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "fwcd.kotlin",
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-gradle"
+      ],
+      "settings": {
+        "java.configuration.runtimes": [
+          {
+            "name": "JavaSE-21",
+            "path": "/usr/local/sdkman/candidates/java/current",
+            "default": true
+          }
+        ]
+      }
+    }
+  },
+  "postCreateCommand": "cd ${containerWorkspaceFolder} && gradle wrapper --gradle-version 8.10.2 && ./gradlew --version",
+  "remoteUser": "vscode"
+}
