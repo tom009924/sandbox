@@ -44,4 +44,4 @@ H2コンソールは `http://localhost:8080/h2-console` で利用できます（
 ./gradlew test
 ```
 
-テストにはMockMvcによるコントローラーテストと、REST AssuredによるHTTP統合テストが含まれます。
+テストにはMockMvcによるコントローラーテストと、REST AssuredによるHTTP統合テストが含まれます。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。

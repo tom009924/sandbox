@@ -47,6 +47,13 @@ paths:
                 $ref: '#/components/schemas/Todo'
         '400':
           description: Invalid request body, including a blank title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/todos/{id}:
     parameters:
       - name: id
@@ -71,6 +78,13 @@ paths:
                 $ref: '#/components/schemas/Todo'
         '404':
           description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       tags:
         - Todos
@@ -94,8 +108,22 @@ paths:
                 $ref: '#/components/schemas/Todo'
         '400':
           description: Invalid request body, including a blank title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
         - Todos
@@ -106,6 +134,13 @@ paths:
           description: Todo deleted
         '404':
           description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     Todo:
@@ -125,6 +160,9 @@ components:
         completed:
           type: boolean
           example: false
+    ErrorResponse:
+      type: object
+      additionalProperties: true
     CreateTodoRequest:
       type: object
       required:

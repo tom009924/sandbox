@@ -1,5 +1,6 @@
 package com.example.todo
 
+import com.atlassian.oai.validator.restassured.OpenApiValidationFilter
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.hamcrest.Matchers.equalTo
@@ -9,11 +10,16 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import java.nio.file.Paths
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
 ) {
+    private val openApiValidationFilter = OpenApiValidationFilter(
+        Paths.get("docs/openapi.yaml").toAbsolutePath().toUri().toString(),
+    )
+
     @LocalServerPort
     private var port: Int = 0
 
@@ -26,6 +32,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     fun `create list update and delete todo over HTTP`() {
         val id = given()
             .port(port)
+            .filter(openApiValidationFilter)
             .contentType(ContentType.JSON)
             .body("""{"title":"  Buy milk  "}""")
             .`when`()
@@ -40,6 +47,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         given()
             .port(port)
+            .filter(openApiValidationFilter)
             .`when`()
             .get("/api/todos")
             .then()
@@ -48,6 +56,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         given()
             .port(port)
+            .filter(openApiValidationFilter)
             .contentType(ContentType.JSON)
             .body("""{"title":"Milk bought","completed":true}""")
             .`when`()
@@ -59,6 +68,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         given()
             .port(port)
+            .filter(openApiValidationFilter)
             .`when`()
             .delete("/api/todos/$id")
             .then()
@@ -66,6 +76,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         given()
             .port(port)
+            .filter(openApiValidationFilter)
             .`when`()
             .get("/api/todos/$id")
             .then()

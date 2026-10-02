@@ -28,7 +28,8 @@ dependencies {
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("io.rest-assured:rest-assured:5.5.0")
+    testImplementation("io.rest-assured:rest-assured:5.5.7")
+    testImplementation("com.atlassian.oai:openapi-request-validator-restassured:3.0.0")
 }
 
 tasks.test {
