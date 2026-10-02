@@ -1,21 +1,44 @@
-# Kotlin Dev Container
+# Kotlin Spring Boot CRUD API
 
-このプロジェクトは、VS Code の Dev Containers で Kotlin を開発するための最小構成です。
+Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。データはH2のインメモリデータベースに保存されます。
 
-## 使い方
+## 起動
 
-1. VS Code でこのフォルダを開く
-2. `Dev Containers: Reopen in Container` を実行する
-3. コンテナ起動後、自動で Gradle ラッパーが生成される
-4. ターミナルで次を実行する
+Java 21が必要です。プロジェクトのルートで次を実行してください。
 
 ```bash
-./gradlew run
+./gradlew bootRun
 ```
 
-## 含まれているもの
+APIのベースURLは `http://localhost:8080/api/todos` です。
 
-- Java 21
-- Kotlin 1.9.24
-- Gradle
-- Kotlin / Java / Gradle の VS Code 拡張
+## API
+
+| Method | Path | 説明 |
+| --- | --- | --- |
+| `GET` | `/api/todos` | Todo一覧 |
+| `GET` | `/api/todos/{id}` | Todo取得 |
+| `POST` | `/api/todos` | Todo作成 |
+| `PUT` | `/api/todos/{id}` | Todo更新 |
+| `DELETE` | `/api/todos/{id}` | Todo削除 |
+
+作成リクエスト:
+
+```json
+{"title":"Buy milk"}
+```
+
+更新リクエスト:
+
+```json
+{"title":"Buy milk","completed":true}
+```
+
+存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。
+H2コンソールは `http://localhost:8080/h2-console` で利用できます（JDBC URL: `jdbc:h2:mem:todos`）。
+
+## テスト
+
+```bash
+./gradlew test
+```
