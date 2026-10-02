@@ -11,6 +11,7 @@ Java 21が必要です。プロジェクトのルートで次を実行してく�
 ```
 
 APIのベースURLは `http://localhost:8080/api/todos` です。
+OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 
 ## API
 
