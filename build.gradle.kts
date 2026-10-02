@@ -4,10 +4,22 @@ plugins {
     kotlin("plugin.jpa") version "1.9.24"
     id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
+    id("io.gitlab.arturbosch.detekt") version "1.23.6"
 }
 
 group = "com.example"
 version = "1.0.0"
+
+detekt {
+    autoCorrect = true
+    source.setFrom(
+        files(
+            "src/main/kotlin",
+            "src/test/kotlin",
+            "src/integrationTest/kotlin",
+        ),
+    )
+}
 
 java {
     toolchain {
