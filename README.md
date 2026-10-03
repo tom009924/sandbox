@@ -10,6 +10,13 @@ Java 21が必要です。プロジェクトのルートで次を実行してく�
 ./gradlew bootRun
 ```
 
+Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
+
+```bash
+gh auth login
+gh auth status
+```
+
 GradleのビルドキャッシュとKotlinのインクリメンタルコンパイルを有効にし、メモリ使用量を抑えるためGradleの並列ワーカー数を1に制限しています。
 
 APIのベースURLは `http://localhost:8080/api/todos` です。
