@@ -68,3 +68,18 @@ REST AssuredによるHTTP統合テストは、ユニットテストの後に次�
 ```
 
 `check`を実行するとDetekt、ユニットテスト、インテグレーションテストを順に実行します。
+
+## AI コーディングエージェント設定
+
+本リポジトリでは、Antigravity および GitHub Copilot に対応した共通スキルとルールを一元管理しています。
+
+- **共通スキル (Runbook)**: [`.github/skills/`](.github/skills/)
+  - [`run-tests`](.github/skills/run-tests/SKILL.md): テスト・静的解析の実行とトラブルシューティング
+  - [`update-api`](.github/skills/update-api/SKILL.md): OpenAPI仕様と実装コードの整合性同期
+  - [`run-app`](.github/skills/run-app/SKILL.md): アプリケーションのローカル起動と動作確認
+- **共通ガイドライン**: [`.github/rules/guidelines.md`](.github/rules/guidelines.md)
+- **エージェント個別設定**:
+  - Antigravity: [`.agents/skills.json`](.agents/skills.json)（`.github/skills` を探索先として設定）、[`AGENTS.md`](AGENTS.md)
+  - GitHub Copilot: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+
+
