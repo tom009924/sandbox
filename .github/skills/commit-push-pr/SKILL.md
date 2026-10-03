@@ -10,17 +10,18 @@ Use this skill when explicitly asked to commit changes, push the feature branch,
 ## Safety rules
 
 - Never commit or push changes directly to the default branch.
+- Make all requested file edits and preparation in a dedicated feature-branch worktree. Never edit files in the default-branch worktree, even if you plan to commit them to a feature branch later.
 - Never reset, amend, rebase, or force-push the default branch or an existing feature branch.
 - Preserve pre-existing worktree changes. Stage and commit only files in scope for the user's request.
 - Do not merge the pull request or change branch-protection/ruleset settings.
 - Do not include secrets, credentials, or unrelated files in commits or pull-request text.
-- If the requested changes exist only as uncommitted changes in the default-branch worktree, do not discard, stash, or transfer them implicitly. Ask the user how to proceed.
+- If the requested changes exist only as uncommitted changes in the default-branch worktree, do not discard, stash, or transfer them implicitly. Ask the user how to proceed before creating or editing anything.
 
 ## Workflow
 
 1. Inspect the repository root, remotes, current branch, default branch, status, and staged/unstaged diffs. Determine the default branch from `refs/remotes/origin/HEAD`; if it cannot be identified, ask the user rather than assuming a branch name.
 2. Fetch the default branch. If fetching fails, stop before creating a branch or worktree and report the error.
-3. Confirm the requested changes are available in the intended worktree and that there are no conflicting pre-existing changes. If a clean feature worktree is needed, ensure the proposed branch name and sibling path do not already exist, then create it from the fetched `origin/<default-branch>`. Never overwrite or reuse an existing branch/worktree.
+3. Create a dedicated feature branch and sibling worktree from the fetched `origin/<default-branch>`. Confirm that neither the proposed branch name nor worktree path already exists; never overwrite or reuse an existing branch/worktree. If the requested edits are already present only in the default-branch worktree, stop and ask the user how to proceed rather than copying them implicitly.
 4. Implement or prepare only the requested changes in the feature worktree. Run relevant validation and report environmental failures accurately.
 5. Review the complete status and diff. Stage only intended files, inspect the staged diff, and create a Conventional Commit. Include any repository-required commit trailers. Verify the resulting commit; do not amend it.
 6. Push only the feature branch, without force:
