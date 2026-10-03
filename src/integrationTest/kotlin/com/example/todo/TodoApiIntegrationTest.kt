@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus
 import java.nio.file.Paths
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Suppress("TooManyFunctions")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
 ) {
