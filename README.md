@@ -10,6 +10,8 @@ Java 21が必要です。プロジェクトのルートで次を実行してく�
 ./gradlew bootRun
 ```
 
+GradleのビルドキャッシュとKotlinのインクリメンタルコンパイルを有効にし、メモリ使用量を抑えるためGradleの並列ワーカー数を1に制限しています。
+
 APIのベースURLは `http://localhost:8080/api/todos` です。
 OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 

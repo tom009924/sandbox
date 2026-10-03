@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.http.HttpStatus
 import java.nio.file.Paths
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -29,7 +30,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun `create list update and delete todo over HTTP`() {
+    fun createListUpdateAndDeleteTodoOverHttp() {
         val id = given()
             .port(port)
             .filter(openApiValidationFilter)
@@ -38,7 +39,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .post("/api/todos")
             .then()
-            .statusCode(201)
+            .statusCode(HttpStatus.CREATED.value())
             .body("title", equalTo("Buy milk"))
             .body("completed", equalTo(false))
             .extract()
@@ -51,7 +52,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .get("/api/todos")
             .then()
-            .statusCode(200)
+            .statusCode(HttpStatus.OK.value())
             .body("id", hasItem(id.toInt()))
 
         given()
@@ -62,7 +63,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .put("/api/todos/$id")
             .then()
-            .statusCode(200)
+            .statusCode(HttpStatus.OK.value())
             .body("title", equalTo("Milk bought"))
             .body("completed", equalTo(true))
 
@@ -72,7 +73,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .delete("/api/todos/$id")
             .then()
-            .statusCode(204)
+            .statusCode(HttpStatus.NO_CONTENT.value())
 
         given()
             .port(port)
@@ -80,11 +81,11 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .get("/api/todos/$id")
             .then()
-            .statusCode(404)
+            .statusCode(HttpStatus.NOT_FOUND.value())
     }
 
     @Test
-    fun `reject blank todo title over HTTP`() {
+    fun rejectBlankTodoTitleOverHttp() {
         given()
             .port(port)
             .contentType(ContentType.JSON)
@@ -92,6 +93,6 @@ class TodoApiIntegrationTest @Autowired constructor(
             .`when`()
             .post("/api/todos")
             .then()
-            .statusCode(400)
+            .statusCode(HttpStatus.BAD_REQUEST.value())
     }
 }
