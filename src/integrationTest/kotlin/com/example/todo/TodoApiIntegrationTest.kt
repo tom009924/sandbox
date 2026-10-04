@@ -61,7 +61,13 @@ class TodoApiIntegrationTest @Autowired constructor(
             .contentType(ContentType.JSON)
             .body(
                 """
-                {"title":"  Buy milk  ","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH"}
+                {
+                  "title":"  Buy milk  ",
+                  "description":"Buy before the weekend",
+                  "dueDate":"2025-04-18",
+                  "priority":"HIGH",
+                  "estimatedMinutes":30
+                }
                 """.trimIndent(),
             )
             .`when`()
@@ -71,6 +77,46 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("description", equalTo("Buy before the weekend"))
             .body("dueDate", equalTo("2025-04-18"))
             .body("priority", equalTo("HIGH"))
+            .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
+    }
+
+    @Test
+    fun createAndUpdateTodoAcceptEstimatedMinutesMinimumAndRejectValuesBelowIt() {
+        val todoId = validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk","estimatedMinutes":0}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+            .extract()
+            .path<String>("id")
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk","completed":true,"estimatedMinutes":0}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk","estimatedMinutes":-1}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk","completed":true,"estimatedMinutes":-1}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
     }
 
     @Test
@@ -163,6 +209,7 @@ class TodoApiIntegrationTest @Autowired constructor(
                 description = "Buy before the weekend",
                 dueDate = dueDate,
                 priority = TodoPriority.HIGH,
+                estimatedMinutes = 30,
             ),
         )
         val todoId = requireNotNull(todo.id)
@@ -178,6 +225,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("description", equalTo("Buy before the weekend"))
             .body("dueDate", equalTo("2025-04-18"))
             .body("priority", equalTo("HIGH"))
+            .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
     }
 
     @Test
@@ -198,7 +246,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .contentType(ContentType.JSON)
             .body(
                 """
-                {"title":"Milk bought","completed":true,"description":"Purchased","dueDate":"2025-04-19","priority":"LOW"}
+                {
+                  "title":"Milk bought",
+                  "completed":true,
+                  "description":"Purchased",
+                  "dueDate":"2025-04-19",
+                  "priority":"LOW",
+                  "estimatedMinutes":45
+                }
                 """.trimIndent(),
             )
             .`when`()
@@ -210,6 +265,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("description", equalTo("Purchased"))
             .body("dueDate", equalTo("2025-04-19"))
             .body("priority", equalTo("LOW"))
+            .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
 
         validatedRequest()
             .contentType(ContentType.JSON)
@@ -221,6 +277,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("description", equalTo(null))
             .body("dueDate", equalTo(null))
             .body("priority", equalTo("MEDIUM"))
+            .body("estimatedMinutes", equalTo(null))
     }
 
     @Test
@@ -306,6 +363,9 @@ class TodoApiIntegrationTest @Autowired constructor(
             .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
 
     private companion object {
+        const val ESTIMATED_MINUTES = 30
+        const val UPDATED_ESTIMATED_MINUTES = 45
+        const val MIN_ESTIMATED_MINUTES = 0
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
         val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
@@ -365,6 +425,27 @@ class TodoApiIntegrationTest @Autowired constructor(
                                     ),
                                 )
                             }
+                            propSchema.minimum?.let { minimum ->
+                                val numericBound = minimum
+                                constraints.add(
+                                    OpenApiConstraint(
+                                        method,
+                                        path,
+                                        propName,
+                                        OpenApiConstraintType.MINIMUM_BOUNDARY,
+                                        numericBound = numericBound,
+                                    ),
+                                )
+                                constraints.add(
+                                    OpenApiConstraint(
+                                        method,
+                                        path,
+                                        propName,
+                                        OpenApiConstraintType.BELOW_MINIMUM,
+                                        numericBound = numericBound,
+                                    ),
+                                )
+                            }
                         }
                     }
                     constraints
@@ -405,6 +486,7 @@ class TodoApiIntegrationTest @Autowired constructor(
                                 WhitelistRules.messageHasKey("validation.request.body.schema.pattern"),
                                 WhitelistRules.messageHasKey("validation.request.body.schema.required"),
                                 WhitelistRules.messageHasKey("validation.request.body.schema.enum"),
+                                WhitelistRules.messageHasKey("validation.request.body.schema.minimum"),
                             ),
                         ),
                     ),

@@ -13,6 +13,7 @@ data class TodoCommand(
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: TodoPriority = TodoPriority.MEDIUM,
+    val estimatedMinutes: Int? = null,
 )
 
 class TodoService(private val todoRepository: TodoRepository) {
@@ -27,6 +28,7 @@ class TodoService(private val todoRepository: TodoRepository) {
                 description = command.description,
                 dueDate = command.dueDate,
                 priority = command.priority,
+                estimatedMinutes = command.estimatedMinutes,
             ),
         )
 
@@ -39,6 +41,7 @@ class TodoService(private val todoRepository: TodoRepository) {
                 description = command.description,
                 dueDate = command.dueDate,
                 priority = command.priority,
+                estimatedMinutes = command.estimatedMinutes,
             ),
         )
     }

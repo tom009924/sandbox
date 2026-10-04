@@ -25,6 +25,7 @@ class TodoServiceTest {
                 description = "Buy before the weekend",
                 dueDate = dueDate,
                 priority = TodoPriority.HIGH,
+                estimatedMinutes = 30,
             ),
         )
 
@@ -33,6 +34,7 @@ class TodoServiceTest {
         assertEquals("Buy before the weekend", todo.description)
         assertEquals(dueDate, todo.dueDate)
         assertEquals(TodoPriority.HIGH, todo.priority)
+        assertEquals(30, todo.estimatedMinutes)
         assertTrue(todo.id != null)
     }
 
@@ -51,6 +53,7 @@ class TodoServiceTest {
                 description = "Purchased",
                 dueDate = dueDate,
                 priority = TodoPriority.LOW,
+                estimatedMinutes = 45,
             ),
         )
 
@@ -60,6 +63,7 @@ class TodoServiceTest {
         assertEquals("Purchased", updated.description)
         assertEquals(dueDate, updated.dueDate)
         assertEquals(TodoPriority.LOW, updated.priority)
+        assertEquals(45, updated.estimatedMinutes)
     }
 
     @Test

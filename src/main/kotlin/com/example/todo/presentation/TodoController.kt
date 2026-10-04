@@ -7,6 +7,7 @@ import com.example.todo.domain.model.TodoPriority
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -26,6 +27,8 @@ data class CreateTodoRequest(
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: TodoPriority = TodoPriority.MEDIUM,
+    @field:Min(0)
+    val estimatedMinutes: Int? = null,
 )
 
 data class UpdateTodoRequest(
@@ -36,6 +39,8 @@ data class UpdateTodoRequest(
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: TodoPriority = TodoPriority.MEDIUM,
+    @field:Min(0)
+    val estimatedMinutes: Int? = null,
 )
 
 data class TodoResponse(
@@ -45,6 +50,7 @@ data class TodoResponse(
     val description: String?,
     val dueDate: LocalDate?,
     val priority: TodoPriority,
+    val estimatedMinutes: Int?,
 )
 
 @RestController
@@ -67,6 +73,7 @@ class TodoController(private val todoService: TodoService) {
                 description = request.description,
                 dueDate = request.dueDate,
                 priority = request.priority,
+                estimatedMinutes = request.estimatedMinutes,
             ),
         ).toResponse()
 
@@ -83,6 +90,7 @@ class TodoController(private val todoService: TodoService) {
                 description = request.description,
                 dueDate = request.dueDate,
                 priority = request.priority,
+                estimatedMinutes = request.estimatedMinutes,
             ),
         ).toResponse()
 
@@ -99,5 +107,6 @@ class TodoController(private val todoService: TodoService) {
         description = description,
         dueDate = dueDate,
         priority = priority,
+        estimatedMinutes = estimatedMinutes,
     )
 }

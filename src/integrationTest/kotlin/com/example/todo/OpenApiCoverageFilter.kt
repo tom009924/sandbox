@@ -8,6 +8,7 @@ import io.restassured.response.Response
 import io.restassured.specification.FilterableRequestSpecification
 import io.restassured.specification.FilterableResponseSpecification
 import io.swagger.v3.oas.models.PathItem.HttpMethod
+import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -31,6 +32,7 @@ data class OpenApiConstraint(
     val constraintType: OpenApiConstraintType,
     val pattern: String? = null,
     val enumValue: String? = null,
+    val numericBound: BigDecimal? = null,
 ) {
     init {
         require(constraintType != OpenApiConstraintType.PATTERN || pattern != null) {
@@ -39,16 +41,25 @@ data class OpenApiConstraint(
         require(constraintType != OpenApiConstraintType.ENUM || enumValue != null) {
             "An enum value is required for ENUM constraints"
         }
+        require(
+            (constraintType != OpenApiConstraintType.MINIMUM_BOUNDARY &&
+                constraintType != OpenApiConstraintType.BELOW_MINIMUM) || numericBound != null,
+        ) {
+            "A numeric bound is required for minimum constraints"
+        }
     }
 
     override fun toString(): String =
-        "$method $path -> $property (${constraintType.name.lowercase()}${enumValue?.let { ": $it" } ?: ""})"
+        "$method $path -> $property (${
+            constraintType.name.lowercase()}${enumValue?.let { ": $it" } ?: numericBound?.let { ": $it" } ?: ""})"
 }
 
 enum class OpenApiConstraintType {
     REQUIRED,
     PATTERN,
     ENUM,
+    MINIMUM_BOUNDARY,
+    BELOW_MINIMUM,
 }
 
 /**
@@ -94,6 +105,7 @@ class OpenApiCoverageFilter(
         }
         if (statusCode in SUCCESS_STATUS_RANGE && requestBody != null) {
             recordEnumValues(method, actualPath, requestBody)
+            recordMinimumBoundaries(method, actualPath, requestBody)
         }
 
         return response
@@ -117,6 +129,12 @@ class OpenApiCoverageFilter(
                     !Regex(requireNotNull(constraint.pattern)).containsMatchIn(node.asText())
             }
             OpenApiConstraintType.ENUM -> false
+            OpenApiConstraintType.MINIMUM_BOUNDARY -> false
+            OpenApiConstraintType.BELOW_MINIMUM -> {
+                val node = rootNode.get(constraint.property)
+                node != null && node.isNumber &&
+                    node.decimalValue().compareTo(requireNotNull(constraint.numericBound)) < 0
+            }
         }
 
     private fun recordEnumValues(method: HttpMethod, actualPath: String, requestBody: String) {
@@ -128,6 +146,22 @@ class OpenApiCoverageFilter(
                     matchesPath(actualPath, it.path)
             }
             .filter { rootNode.path(it.property).asText() == it.enumValue }
+            .forEach(coveredConstraintsInternal::add)
+    }
+
+    private fun recordMinimumBoundaries(method: HttpMethod, actualPath: String, requestBody: String) {
+        val rootNode = objectMapper.readTree(requestBody)
+        expectedConstraints.asSequence()
+            .filter {
+                it.constraintType == OpenApiConstraintType.MINIMUM_BOUNDARY &&
+                    it.method == method &&
+                    matchesPath(actualPath, it.path)
+            }
+            .filter {
+                val node = rootNode.get(it.property)
+                node != null && node.isNumber &&
+                    node.decimalValue().compareTo(requireNotNull(it.numericBound)) == 0
+            }
             .forEach(coveredConstraintsInternal::add)
     }
 
