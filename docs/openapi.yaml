@@ -41,6 +41,7 @@ paths:
               description: Buy before the weekend
               dueDate: '2025-04-18'
               priority: HIGH
+              estimatedMinutes: 30
       responses:
         '201':
           description: Todo created
@@ -104,6 +105,7 @@ paths:
               description: Purchased
               dueDate: '2025-04-18'
               priority: LOW
+              estimatedMinutes: 30
       responses:
         '200':
           description: Todo updated
@@ -157,6 +159,7 @@ components:
         - description
         - dueDate
         - priority
+        - estimatedMinutes
       properties:
         id:
           type: string
@@ -179,6 +182,12 @@ components:
           example: '2025-04-18'
         priority:
           $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          example: 30
     ErrorResponse:
       type: object
       additionalProperties: true
@@ -205,6 +214,11 @@ components:
           allOf:
             - $ref: '#/components/schemas/TodoPriority'
           default: MEDIUM
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
     UpdateTodoRequest:
       type: object
       required:
@@ -232,6 +246,11 @@ components:
           allOf:
             - $ref: '#/components/schemas/TodoPriority'
           default: MEDIUM
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
     TodoPriority:
       type: string
       enum:

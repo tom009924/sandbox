@@ -10,4 +10,5 @@ data class Todo(
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: TodoPriority = TodoPriority.MEDIUM,
+    val estimatedMinutes: Int? = null,
 )

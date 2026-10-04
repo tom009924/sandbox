@@ -35,11 +35,12 @@ OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 作成リクエスト:
 
 ```json
-{"title":"Buy milk","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH"}
+{"title":"Buy milk","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH","estimatedMinutes":30}
 ```
 
 Todoの`id`にはUUIDを使用します。作成レスポンスに含まれる`id`を、取得・更新・削除の各エンドポイントで使用してください。
 `description`と`dueDate`は省略可能です。`dueDate`は`YYYY-MM-DD`形式で、`priority`は`LOW`・`MEDIUM`・`HIGH`のいずれかです。優先度を省略すると`MEDIUM`になります。
+`estimatedMinutes`は任意の0以上の整数です。所要時間が未定の場合は省略できます。
 
 ## アーキテクチャ
 
@@ -56,10 +57,10 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 更新リクエスト:
 
 ```json
-{"title":"Buy milk","completed":true,"description":"Purchased","dueDate":"2025-04-18","priority":"LOW"}
+{"title":"Buy milk","completed":true,"description":"Purchased","dueDate":"2025-04-18","priority":"LOW","estimatedMinutes":30}
 ```
 
-`PUT`ではTodoを置き換えます。`description`または`dueDate`を省略すると未設定になり、`priority`を省略すると`MEDIUM`になります。
+`PUT`ではTodoを置き換えます。`description`、`dueDate`または`estimatedMinutes`を省略すると未設定になり、`priority`を省略すると`MEDIUM`になります。
 
 存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。
 H2コンソールは `http://localhost:8080/h2-console` で利用できます（JDBC URL: `jdbc:h2:mem:todos`）。

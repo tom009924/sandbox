@@ -29,6 +29,7 @@ class TodoRepositoryAdapter(
         description = description,
         dueDate = dueDate,
         priority = priority,
+        estimatedMinutes = estimatedMinutes,
     )
 
     private fun Todo.toEntity() = TodoJpaEntity(
@@ -38,5 +39,6 @@ class TodoRepositoryAdapter(
         description = description,
         dueDate = dueDate,
         priority = priority,
+        estimatedMinutes = estimatedMinutes,
     )
 }

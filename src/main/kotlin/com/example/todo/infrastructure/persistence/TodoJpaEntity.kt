@@ -14,6 +14,7 @@ import java.util.UUID
 
 @Entity
 @Table(name = "todos")
+@Suppress("LongParameterList")
 class TodoJpaEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -34,4 +35,7 @@ class TodoJpaEntity(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var priority: TodoPriority = TodoPriority.MEDIUM,
+
+    @Column
+    var estimatedMinutes: Int? = null,
 )

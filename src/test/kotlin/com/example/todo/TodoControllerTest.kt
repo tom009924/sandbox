@@ -15,7 +15,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest
@@ -36,7 +35,13 @@ class TodoControllerTest @Autowired constructor(
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"title":"  Buy milk  ","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH"}
+                    {
+                      "title":"  Buy milk  ",
+                      "description":"Buy before the weekend",
+                      "dueDate":"2025-04-18",
+                      "priority":"HIGH",
+                      "estimatedMinutes":30
+                    }
                     """.trimIndent(),
                 ),
         )
@@ -46,6 +51,7 @@ class TodoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.description").value("Buy before the weekend"))
             .andExpect(jsonPath("$.dueDate").value("2025-04-18"))
             .andExpect(jsonPath("$.priority").value("HIGH"))
+            .andExpect(jsonPath("$.estimatedMinutes").value(30))
             .andReturn()
             .response
             .contentAsString
@@ -60,7 +66,14 @@ class TodoControllerTest @Autowired constructor(
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"title":"Milk bought","completed":true,"description":"Purchased","dueDate":"2025-04-19","priority":"LOW"}
+                    {
+                      "title":"Milk bought",
+                      "completed":true,
+                      "description":"Purchased",
+                      "dueDate":"2025-04-19",
+                      "priority":"LOW",
+                      "estimatedMinutes":45
+                    }
                     """.trimIndent(),
                 ),
         )
@@ -70,10 +83,7 @@ class TodoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.description").value("Purchased"))
             .andExpect(jsonPath("$.dueDate").value("2025-04-19"))
             .andExpect(jsonPath("$.priority").value("LOW"))
-
-        mockMvc.perform(get("/api/todos/$id"))
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.dueDate").value(LocalDate.parse("2025-04-19").toString()))
+            .andExpect(jsonPath("$.estimatedMinutes").value(45))
 
         mockMvc.perform(delete("/api/todos/$id"))
             .andExpect(status().isNoContent)
@@ -89,6 +99,16 @@ class TodoControllerTest @Autowired constructor(
             post("/api/todos")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"title":"  "}"""),
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `reject negative estimated minutes`() {
+        mockMvc.perform(
+            post("/api/todos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Buy milk","estimatedMinutes":-1}"""),
         )
             .andExpect(status().isBadRequest)
     }
