@@ -9,35 +9,53 @@ import io.swagger.v3.oas.models.PathItem.HttpMethod
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * REST Assured filter that tracks which OpenAPI endpoints have been requested during tests.
+ * Represents an expected OpenAPI response definition (HTTP method, path pattern, and status code).
+ */
+data class OpenApiResponse(
+    val method: HttpMethod,
+    val path: String,
+    val statusCode: Int,
+) {
+    override fun toString(): String = "$method $path -> $statusCode"
+}
+
+/**
+ * REST Assured filter that tracks which OpenAPI responses (method, path, status code)
+ * have been exercised during tests.
  */
 class OpenApiCoverageFilter(
-    private val expectedEndpoints: Set<Pair<HttpMethod, String>>,
+    private val expectedResponses: Set<OpenApiResponse>,
 ) : Filter {
-    private val coveredEndpointsInternal: MutableSet<Pair<HttpMethod, String>> = ConcurrentHashMap.newKeySet()
+    private val coveredResponsesInternal: MutableSet<OpenApiResponse> = ConcurrentHashMap.newKeySet()
 
-    val coveredEndpoints: Set<Pair<HttpMethod, String>>
-        get() = coveredEndpointsInternal
+    val coveredResponses: Set<OpenApiResponse>
+        get() = coveredResponsesInternal
 
     override fun filter(
         requestSpec: FilterableRequestSpecification,
         responseSpec: FilterableResponseSpecification,
         ctx: FilterContext,
     ): Response {
+        val response = ctx.next(requestSpec, responseSpec)
+
         val method = runCatching {
             HttpMethod.valueOf(requestSpec.method.uppercase())
         }.getOrNull()
 
         if (method != null) {
             val actualPath = requestSpec.derivedPath
-            for (endpoint in expectedEndpoints) {
-                if (endpoint.first == method && matchesPath(actualPath, endpoint.second)) {
-                    coveredEndpointsInternal.add(endpoint)
+            val statusCode = response.statusCode
+            for (expected in expectedResponses) {
+                if (expected.method == method &&
+                    expected.statusCode == statusCode &&
+                    matchesPath(actualPath, expected.path)
+                ) {
+                    coveredResponsesInternal.add(expected)
                 }
             }
         }
 
-        return ctx.next(requestSpec, responseSpec)
+        return response
     }
 
     private fun matchesPath(actualPath: String, templatePath: String): Boolean {
