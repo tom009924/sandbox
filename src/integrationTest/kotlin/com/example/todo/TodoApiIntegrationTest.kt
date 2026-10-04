@@ -59,6 +59,17 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun createTodoWithMissingTitleReturnsBadRequest() {
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("{}")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+    }
+
+    @Test
     fun listTodosReturnsEmptyListWhenNoTodosExist() {
         validatedRequest()
             .`when`()
@@ -135,6 +146,34 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun updateTodoWithMissingTitleReturnsBadRequest() {
+        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("""{"completed":true}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+    }
+
+    @Test
+    fun updateTodoWithMissingCompletedReturnsBadRequest() {
+        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Milk bought"}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+    }
+
+    @Test
     fun updateMissingTodoReturnsNotFound() {
         validatedRequest()
             .contentType(ContentType.JSON)
@@ -179,20 +218,58 @@ class TodoApiIntegrationTest @Autowired constructor(
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
         val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
 
-        val expectedResponses: Set<OpenApiResponse> = run {
-            val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
-                "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
+        val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
+            "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
+        }
+
+        val expectedResponses: Set<OpenApiResponse> = openAPI.paths.flatMap { (path, pathItem) ->
+            pathItem.readOperationsMap().flatMap { (method, operation) ->
+                operation.responses.keys.mapNotNull { it.toIntOrNull() }.map { statusCode ->
+                    OpenApiResponse(method, path, statusCode)
+                }
             }
+        }.toSet()
+
+        val expectedConstraints: Set<OpenApiConstraint> = run {
+            val schemas = openAPI.components?.schemas.orEmpty()
             openAPI.paths.flatMap { (path, pathItem) ->
                 pathItem.readOperationsMap().flatMap { (method, operation) ->
-                    operation.responses.keys.mapNotNull { it.toIntOrNull() }.map { statusCode ->
-                        OpenApiResponse(method, path, statusCode)
+                    val schemaRef = operation.requestBody?.content?.get("application/json")?.schema?.`$ref`
+                    val schemaName = schemaRef?.substringAfterLast("/")
+                    val schema = schemas[schemaName]
+
+                    val constraints = mutableListOf<OpenApiConstraint>()
+                    if (schema != null) {
+                        schema.required?.forEach { requiredProp ->
+                            constraints.add(
+                                OpenApiConstraint(
+                                    method,
+                                    path,
+                                    requiredProp,
+                                    OpenApiConstraintType.REQUIRED,
+                                ),
+                            )
+                        }
+                        schema.properties?.forEach { (propName, propSchema) ->
+                            propSchema.pattern?.let { pattern ->
+                                constraints.add(
+                                    OpenApiConstraint(
+                                        method,
+                                        path,
+                                        propName,
+                                        OpenApiConstraintType.PATTERN,
+                                        pattern,
+                                    ),
+                                )
+                            }
+                        }
                     }
+                    constraints
                 }
             }.toSet()
         }
 
-        val openApiCoverageFilter = OpenApiCoverageFilter(expectedResponses)
+        val openApiCoverageFilter = OpenApiCoverageFilter(expectedResponses, expectedConstraints)
 
         val openApiValidationFilter = OpenApiValidationFilter(
             OpenApiInteractionValidator.createFor(openApiSpecUrl).build(),
@@ -201,7 +278,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             OpenApiInteractionValidator.createFor(openApiSpecUrl)
                 .withWhitelist(
                     ValidationErrorsWhitelist.create().withRule(
-                        "Allow invalid title pattern only for validation error requests",
+                        "Allow invalid title pattern and missing required fields for validation error requests",
                         WhitelistRules.allOf(
                             WhitelistRules.isRequest(),
                             WhitelistRules.anyOf(
@@ -209,7 +286,10 @@ class TodoApiIntegrationTest @Autowired constructor(
                                 WhitelistRules.methodIs(PathItem.HttpMethod.PUT),
                             ),
                             WhitelistRules.pathContainsSubstring("/api/todos"),
-                            WhitelistRules.messageHasKey("validation.request.body.schema.pattern"),
+                            WhitelistRules.anyOf(
+                                WhitelistRules.messageHasKey("validation.request.body.schema.pattern"),
+                                WhitelistRules.messageHasKey("validation.request.body.schema.required"),
+                            ),
                         ),
                     ),
                 )
@@ -224,6 +304,17 @@ class TodoApiIntegrationTest @Autowired constructor(
                 missingResponses.isEmpty(),
                 "The following OpenAPI responses were not exercised in integration tests: " +
                     missingResponses.joinToString { it.toString() },
+            )
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun verifyAllOpenApiConstraintsCovered() {
+            val missingConstraints = expectedConstraints - openApiCoverageFilter.coveredConstraints
+            assertTrue(
+                missingConstraints.isEmpty(),
+                "The following OpenAPI validation constraints were not exercised in integration tests: " +
+                    missingConstraints.joinToString { it.toString() },
             )
         }
     }
