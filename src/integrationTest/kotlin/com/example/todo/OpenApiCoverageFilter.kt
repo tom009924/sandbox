@@ -30,19 +30,25 @@ data class OpenApiConstraint(
     val property: String,
     val constraintType: OpenApiConstraintType,
     val pattern: String? = null,
+    val enumValue: String? = null,
 ) {
     init {
         require(constraintType != OpenApiConstraintType.PATTERN || pattern != null) {
             "A pattern is required for PATTERN constraints"
         }
+        require(constraintType != OpenApiConstraintType.ENUM || enumValue != null) {
+            "An enum value is required for ENUM constraints"
+        }
     }
 
-    override fun toString(): String = "$method $path -> $property (${constraintType.name.lowercase()})"
+    override fun toString(): String =
+        "$method $path -> $property (${constraintType.name.lowercase()}${enumValue?.let { ": $it" } ?: ""})"
 }
 
 enum class OpenApiConstraintType {
     REQUIRED,
     PATTERN,
+    ENUM,
 }
 
 /**
@@ -86,6 +92,9 @@ class OpenApiCoverageFilter(
         if (statusCode == BAD_REQUEST_STATUS && requestBody != null) {
             recordConstraints(method, actualPath, requestBody)
         }
+        if (statusCode in SUCCESS_STATUS_RANGE && requestBody != null) {
+            recordEnumValues(method, actualPath, requestBody)
+        }
 
         return response
     }
@@ -107,7 +116,20 @@ class OpenApiCoverageFilter(
                 node != null && node.isTextual &&
                     !Regex(requireNotNull(constraint.pattern)).containsMatchIn(node.asText())
             }
+            OpenApiConstraintType.ENUM -> false
         }
+
+    private fun recordEnumValues(method: HttpMethod, actualPath: String, requestBody: String) {
+        val rootNode = objectMapper.readTree(requestBody)
+        expectedConstraints.asSequence()
+            .filter {
+                it.constraintType == OpenApiConstraintType.ENUM &&
+                    it.method == method &&
+                    matchesPath(actualPath, it.path)
+            }
+            .filter { rootNode.path(it.property).asText() == it.enumValue }
+            .forEach(coveredConstraintsInternal::add)
+    }
 
     private fun matchesPath(actualPath: String, templatePath: String): Boolean {
         val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
@@ -116,6 +138,7 @@ class OpenApiCoverageFilter(
 
     private companion object {
         const val BAD_REQUEST_STATUS = 400
+        val SUCCESS_STATUS_RANGE = 200..299
         val objectMapper = ObjectMapper()
     }
 }
