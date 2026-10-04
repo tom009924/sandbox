@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest
@@ -33,11 +34,18 @@ class TodoControllerTest @Autowired constructor(
         val created = mockMvc.perform(
             post("/api/todos")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"title":"  Buy milk  "}"""),
+                .content(
+                    """
+                    {"title":"  Buy milk  ","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH"}
+                    """.trimIndent(),
+                ),
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.title").value("Buy milk"))
             .andExpect(jsonPath("$.completed").value(false))
+            .andExpect(jsonPath("$.description").value("Buy before the weekend"))
+            .andExpect(jsonPath("$.dueDate").value("2025-04-18"))
+            .andExpect(jsonPath("$.priority").value("HIGH"))
             .andReturn()
             .response
             .contentAsString
@@ -50,11 +58,22 @@ class TodoControllerTest @Autowired constructor(
         mockMvc.perform(
             put("/api/todos/$id")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"title":"Milk bought","completed":true}"""),
+                .content(
+                    """
+                    {"title":"Milk bought","completed":true,"description":"Purchased","dueDate":"2025-04-19","priority":"LOW"}
+                    """.trimIndent(),
+                ),
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.title").value("Milk bought"))
             .andExpect(jsonPath("$.completed").value(true))
+            .andExpect(jsonPath("$.description").value("Purchased"))
+            .andExpect(jsonPath("$.dueDate").value("2025-04-19"))
+            .andExpect(jsonPath("$.priority").value("LOW"))
+
+        mockMvc.perform(get("/api/todos/$id"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.dueDate").value(LocalDate.parse("2025-04-19").toString()))
 
         mockMvc.perform(delete("/api/todos/$id"))
             .andExpect(status().isNoContent)
@@ -72,6 +91,19 @@ class TodoControllerTest @Autowired constructor(
                 .content("""{"title":"  "}"""),
         )
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `use defaults for omitted optional metadata`() {
+        mockMvc.perform(
+            post("/api/todos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Buy milk"}"""),
+        )
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.description").doesNotExist())
+            .andExpect(jsonPath("$.dueDate").doesNotExist())
+            .andExpect(jsonPath("$.priority").value("MEDIUM"))
     }
 
     @Test

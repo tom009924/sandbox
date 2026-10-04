@@ -1,6 +1,7 @@
 package com.example.todo
 
 import com.example.todo.domain.model.Todo
+import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.TodoRepository
 import com.atlassian.oai.validator.OpenApiInteractionValidator
 import com.atlassian.oai.validator.restassured.OpenApiValidationFilter
@@ -22,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.HttpStatus
 import java.nio.file.Paths
+import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -48,6 +50,27 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.CREATED.value())
             .body("title", equalTo("Buy milk"))
             .body("completed", equalTo(false))
+            .body("description", equalTo(null))
+            .body("dueDate", equalTo(null))
+            .body("priority", equalTo("MEDIUM"))
+    }
+
+    @Test
+    fun createTodoWithMetadataReturnsCreatedTodo() {
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body(
+                """
+                {"title":"  Buy milk  ","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH"}
+                """.trimIndent(),
+            )
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .body("description", equalTo("Buy before the weekend"))
+            .body("dueDate", equalTo("2025-04-18"))
+            .body("priority", equalTo("HIGH"))
     }
 
     @Test
@@ -96,7 +119,16 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun getTodoReturnsMatchingTodo() {
-        val todo = todoRepository.save(Todo(title = "Buy milk", completed = true))
+        val dueDate = LocalDate.parse("2025-04-18")
+        val todo = todoRepository.save(
+            Todo(
+                title = "Buy milk",
+                completed = true,
+                description = "Buy before the weekend",
+                dueDate = dueDate,
+                priority = TodoPriority.HIGH,
+            ),
+        )
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -107,6 +139,9 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("id", equalTo(todoId.toString()))
             .body("title", equalTo("Buy milk"))
             .body("completed", equalTo(true))
+            .body("description", equalTo("Buy before the weekend"))
+            .body("dueDate", equalTo("2025-04-18"))
+            .body("priority", equalTo("HIGH"))
     }
 
     @Test
@@ -125,13 +160,31 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         validatedRequest()
             .contentType(ContentType.JSON)
-            .body("""{"title":"Milk bought","completed":true}""")
+            .body(
+                """
+                {"title":"Milk bought","completed":true,"description":"Purchased","dueDate":"2025-04-19","priority":"LOW"}
+                """.trimIndent(),
+            )
             .`when`()
             .put("/api/todos/$todoId")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("title", equalTo("Milk bought"))
             .body("completed", equalTo(true))
+            .body("description", equalTo("Purchased"))
+            .body("dueDate", equalTo("2025-04-19"))
+            .body("priority", equalTo("LOW"))
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Milk bought","completed":true}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("description", equalTo(null))
+            .body("dueDate", equalTo(null))
+            .body("priority", equalTo("MEDIUM"))
     }
 
     @Test

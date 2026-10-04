@@ -38,6 +38,9 @@ paths:
               $ref: '#/components/schemas/CreateTodoRequest'
             example:
               title: Buy milk
+              description: Buy before the weekend
+              dueDate: '2025-04-18'
+              priority: HIGH
       responses:
         '201':
           description: Todo created
@@ -98,6 +101,9 @@ paths:
             example:
               title: Buy milk
               completed: true
+              description: Purchased
+              dueDate: '2025-04-18'
+              priority: LOW
       responses:
         '200':
           description: Todo updated
@@ -148,6 +154,9 @@ components:
         - id
         - title
         - completed
+        - description
+        - dueDate
+        - priority
       properties:
         id:
           type: string
@@ -159,6 +168,17 @@ components:
         completed:
           type: boolean
           example: false
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
     ErrorResponse:
       type: object
       additionalProperties: true
@@ -172,6 +192,19 @@ components:
           pattern: '\S'
           description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
           example: Buy milk
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TodoPriority'
+          default: MEDIUM
     UpdateTodoRequest:
       type: object
       required:
@@ -186,3 +219,23 @@ components:
         completed:
           type: boolean
           example: true
+        description:
+          type: string
+          nullable: true
+          example: Purchased
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TodoPriority'
+          default: MEDIUM
+    TodoPriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+      default: MEDIUM
