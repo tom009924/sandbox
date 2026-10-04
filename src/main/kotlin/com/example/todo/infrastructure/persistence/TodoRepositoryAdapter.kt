@@ -26,11 +26,17 @@ class TodoRepositoryAdapter(
         id = id,
         title = title,
         completed = completed,
+        description = description,
+        dueDate = dueDate,
+        priority = priority,
     )
 
     private fun Todo.toEntity() = TodoJpaEntity(
         id = id,
         title = title,
         completed = completed,
+        description = description,
+        dueDate = dueDate,
+        priority = priority,
     )
 }

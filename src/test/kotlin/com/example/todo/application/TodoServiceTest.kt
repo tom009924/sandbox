@@ -2,12 +2,14 @@ package com.example.todo.application
 
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.Todo
+import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.TodoRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 import java.util.UUID
 
 class TodoServiceTest {
@@ -16,22 +18,48 @@ class TodoServiceTest {
 
     @Test
     fun `create trims title and returns generated id`() {
-        val todo = service.create("  Buy milk  ")
+        val dueDate = LocalDate.parse("2025-04-18")
+        val todo = service.create(
+            TodoCommand(
+                title = "  Buy milk  ",
+                description = "Buy before the weekend",
+                dueDate = dueDate,
+                priority = TodoPriority.HIGH,
+            ),
+        )
 
         assertEquals("Buy milk", todo.title)
         assertFalse(todo.completed)
+        assertEquals("Buy before the weekend", todo.description)
+        assertEquals(dueDate, todo.dueDate)
+        assertEquals(TodoPriority.HIGH, todo.priority)
         assertTrue(todo.id != null)
     }
 
     @Test
     fun `update changes title and completed state`() {
-        val created = service.create("Buy milk")
+        val created = service.create(
+            TodoCommand(title = "Buy milk", dueDate = LocalDate.parse("2025-04-18")),
+        )
+        val dueDate = LocalDate.parse("2025-04-19")
 
-        val updated = service.update(requireNotNull(created.id), "  Milk bought  ", true)
+        val updated = service.update(
+            requireNotNull(created.id),
+            TodoCommand(
+                title = "  Milk bought  ",
+                completed = true,
+                description = "Purchased",
+                dueDate = dueDate,
+                priority = TodoPriority.LOW,
+            ),
+        )
 
         assertEquals(created.id, updated.id)
         assertEquals("Milk bought", updated.title)
         assertTrue(updated.completed)
+        assertEquals("Purchased", updated.description)
+        assertEquals(dueDate, updated.dueDate)
+        assertEquals(TodoPriority.LOW, updated.priority)
     }
 
     @Test
