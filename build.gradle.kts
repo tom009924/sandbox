@@ -50,6 +50,7 @@ dependencies {
     runtimeOnly("com.h2database:h2")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
     add(integrationTestSourceSet.implementationConfigurationName, "io.rest-assured:rest-assured:5.5.7")
     add(
         integrationTestSourceSet.implementationConfigurationName,

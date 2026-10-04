@@ -50,6 +50,7 @@ Todo機能は依存関係を内側へ向けたレイヤード構成です。
 - `infrastructure`: Spring Data JPA、永続化Entity、Repositoryアダプター
 
 ControllerはApplication Serviceを呼び出し、Domainが定義するRepositoryポートをInfrastructureが実装します。
+この依存方向とDomain/Applicationのフレームワーク非依存はArchUnitのアーキテクチャテストで検証します。
 
 更新リクエスト:
 
