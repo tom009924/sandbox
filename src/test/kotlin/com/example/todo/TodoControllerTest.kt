@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -39,11 +40,11 @@ class TodoControllerTest @Autowired constructor(
             .andReturn()
             .response
             .contentAsString
-        val id = Regex(""""id":(\d+)""").find(created)!!.groupValues[1]
+        val id = UUID.fromString(Regex(""""id":"([^"]+)"""").find(created)!!.groupValues[1])
 
         mockMvc.perform(get("/api/todos"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$[0].id").value(id.toInt()))
+            .andExpect(jsonPath("$[0].id").value(id.toString()))
 
         mockMvc.perform(
             put("/api/todos/$id")

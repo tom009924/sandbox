@@ -61,9 +61,8 @@ paths:
         required: true
         description: Todo identifier
         schema:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          format: uuid
     get:
       tags:
         - Todos
@@ -151,9 +150,9 @@ components:
         - completed
       properties:
         id:
-          type: integer
-          format: int64
-          example: 1
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
         title:
           type: string
           example: Buy milk
