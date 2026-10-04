@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
+import java.util.UUID
 
 data class CreateTodoRequest(
     @field:NotBlank
@@ -28,7 +29,7 @@ data class UpdateTodoRequest(
 )
 
 data class TodoResponse(
-    val id: Long,
+    val id: UUID,
     val title: String,
     val completed: Boolean,
 )
@@ -41,7 +42,7 @@ class TodoController(private val todoRepository: TodoRepository) {
         todoRepository.findAll().map { it.toResponse() }
 
     @GetMapping("/{id}")
-    fun get(@PathVariable id: Long): TodoResponse =
+    fun get(@PathVariable id: UUID): TodoResponse =
         findTodo(id).toResponse()
 
     @PostMapping
@@ -51,7 +52,7 @@ class TodoController(private val todoRepository: TodoRepository) {
 
     @PutMapping("/{id}")
     fun update(
-        @PathVariable id: Long,
+        @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateTodoRequest,
     ): TodoResponse {
         val todo = findTodo(id)
@@ -62,12 +63,12 @@ class TodoController(private val todoRepository: TodoRepository) {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: Long) {
+    fun delete(@PathVariable id: UUID) {
         val todo = findTodo(id)
         todoRepository.delete(todo)
     }
 
-    private fun findTodo(id: Long): Todo =
+    private fun findTodo(id: UUID): Todo =
         todoRepository.findById(id).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Todo $id not found")
         }

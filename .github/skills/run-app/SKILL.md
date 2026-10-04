@@ -28,15 +28,16 @@ curl -X POST http://localhost:8080/api/todos \
 ```
 
 ### Todo更新
+`{id}`には作成レスポンスで返されたUUIDを指定します。
 ```bash
-curl -X PUT http://localhost:8080/api/todos/1 \
+curl -X PUT http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000 \
   -H "Content-Type: application/json" \
   -d '{"title":"Buy milk","completed":true}'
 ```
 
 ### Todo削除
 ```bash
-curl -X DELETE http://localhost:8080/api/todos/1
+curl -X DELETE http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ## 3. H2 データベースコンソール

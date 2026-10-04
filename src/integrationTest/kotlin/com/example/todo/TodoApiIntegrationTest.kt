@@ -20,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.HttpStatus
 import java.nio.file.Paths
+import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Suppress("TooManyFunctions")
@@ -88,7 +89,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .get("/api/todos")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("id", hasItem(requireNotNull(todo.id).toInt()))
+            .body("id", hasItem(requireNotNull(todo.id).toString()))
     }
 
     @Test
@@ -101,7 +102,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .get("/api/todos/$todoId")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("id", equalTo(todoId.toInt()))
+            .body("id", equalTo(todoId.toString()))
             .body("title", equalTo("Buy milk"))
             .body("completed", equalTo(true))
     }
@@ -214,7 +215,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
 
     private companion object {
-        const val MISSING_TODO_ID = 999_999L
+        val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
         val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
 

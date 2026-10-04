@@ -38,6 +38,8 @@ OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 {"title":"Buy milk"}
 ```
 
+Todoの`id`にはUUIDを使用します。作成レスポンスに含まれる`id`を、取得・更新・削除の各エンドポイントで使用してください。
+
 更新リクエスト:
 
 ```json
@@ -81,5 +83,4 @@ REST AssuredによるHTTP統合テストは、ユニットテストの後に次�
 - **エージェント個別設定**:
   - Antigravity: [`.agents/skills.json`](.agents/skills.json)（`.github/skills` を探索先として設定）、[`AGENTS.md`](AGENTS.md)
   - GitHub Copilot: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
-
 
