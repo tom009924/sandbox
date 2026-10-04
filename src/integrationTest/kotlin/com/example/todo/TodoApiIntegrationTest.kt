@@ -179,16 +179,20 @@ class TodoApiIntegrationTest @Autowired constructor(
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
         val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
 
-        val expectedEndpoints: Set<Pair<PathItem.HttpMethod, String>> = run {
+        val expectedResponses: Set<OpenApiResponse> = run {
             val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
                 "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
             }
             openAPI.paths.flatMap { (path, pathItem) ->
-                pathItem.readOperationsMap().keys.map { method -> method to path }
+                pathItem.readOperationsMap().flatMap { (method, operation) ->
+                    operation.responses.keys.mapNotNull { it.toIntOrNull() }.map { statusCode ->
+                        OpenApiResponse(method, path, statusCode)
+                    }
+                }
             }.toSet()
         }
 
-        val openApiCoverageFilter = OpenApiCoverageFilter(expectedEndpoints)
+        val openApiCoverageFilter = OpenApiCoverageFilter(expectedResponses)
 
         val openApiValidationFilter = OpenApiValidationFilter(
             OpenApiInteractionValidator.createFor(openApiSpecUrl).build(),
@@ -214,12 +218,12 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         @JvmStatic
         @AfterAll
-        fun verifyAllOpenApiEndpointsCovered() {
-            val missingEndpoints = expectedEndpoints - openApiCoverageFilter.coveredEndpoints
+        fun verifyAllOpenApiResponsesCovered() {
+            val missingResponses = expectedResponses - openApiCoverageFilter.coveredResponses
             assertTrue(
-                missingEndpoints.isEmpty(),
-                "The following OpenAPI endpoints were not requested in integration tests: " +
-                    missingEndpoints.joinToString { (method, path) -> "$method $path" },
+                missingResponses.isEmpty(),
+                "The following OpenAPI responses were not exercised in integration tests: " +
+                    missingResponses.joinToString { it.toString() },
             )
         }
     }
