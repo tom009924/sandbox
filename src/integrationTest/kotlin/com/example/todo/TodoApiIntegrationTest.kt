@@ -7,9 +7,12 @@ import com.atlassian.oai.validator.whitelist.rule.WhitelistRules
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import io.swagger.v3.oas.models.PathItem
+import io.swagger.v3.parser.OpenAPIV3Parser
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -168,11 +171,25 @@ class TodoApiIntegrationTest @Autowired constructor(
     private fun validatedRequest(invalidRequest: Boolean = false) =
         given()
             .port(port)
+            .filter(openApiCoverageFilter)
             .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
 
     private companion object {
         const val MISSING_TODO_ID = 999_999L
-        val openApiSpecUrl = Paths.get("docs/openapi.yaml").toAbsolutePath().toUri().toString()
+        const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
+        val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
+
+        val expectedEndpoints: Set<Pair<PathItem.HttpMethod, String>> = run {
+            val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
+                "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
+            }
+            openAPI.paths.flatMap { (path, pathItem) ->
+                pathItem.readOperationsMap().keys.map { method -> method to path }
+            }.toSet()
+        }
+
+        val openApiCoverageFilter = OpenApiCoverageFilter(expectedEndpoints)
+
         val openApiValidationFilter = OpenApiValidationFilter(
             OpenApiInteractionValidator.createFor(openApiSpecUrl).build(),
         )
@@ -194,5 +211,16 @@ class TodoApiIntegrationTest @Autowired constructor(
                 )
                 .build(),
         )
+
+        @JvmStatic
+        @AfterAll
+        fun verifyAllOpenApiEndpointsCovered() {
+            val missingEndpoints = expectedEndpoints - openApiCoverageFilter.coveredEndpoints
+            assertTrue(
+                missingEndpoints.isEmpty(),
+                "The following OpenAPI endpoints were not requested in integration tests: " +
+                    missingEndpoints.joinToString { (method, path) -> "$method $path" },
+            )
+        }
     }
 }

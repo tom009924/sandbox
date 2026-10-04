@@ -61,7 +61,7 @@ MockMvcによるコントローラーテストを実行します。静的解析�
 
 Detektは自動修正可能なルールを実行時に自動修正します。
 
-REST AssuredによるHTTP統合テストは、ユニットテストの後に次で実行されます。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。
+REST AssuredによるHTTP統合テストは、ユニットテストの後に次で実行されます。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイントがテストされているかも自動検証します。
 
 ```bash
 ./gradlew integrationTest
