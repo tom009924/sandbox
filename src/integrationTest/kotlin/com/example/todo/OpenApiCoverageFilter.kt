@@ -7,13 +7,12 @@ import io.restassured.filter.FilterContext
 import io.restassured.response.Response
 import io.restassured.specification.FilterableRequestSpecification
 import io.restassured.specification.FilterableResponseSpecification
+import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.PathItem.HttpMethod
+import io.swagger.v3.oas.models.media.Schema
 import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Represents an expected OpenAPI response definition (HTTP method, path pattern, and status code).
- */
 data class OpenApiResponse(
     val method: HttpMethod,
     val path: String,
@@ -22,53 +21,92 @@ data class OpenApiResponse(
     override fun toString(): String = "$method $path -> $statusCode"
 }
 
-/**
- * Represents an expected OpenAPI request validation constraint (e.g. required field, pattern).
- */
-data class OpenApiConstraint(
+data class OpenApiProperty(
     val method: HttpMethod,
     val path: String,
-    val property: String,
-    val constraintType: OpenApiConstraintType,
-    val pattern: String? = null,
-    val enumValue: String? = null,
-    val numericBound: BigDecimal? = null,
+    val name: String,
+)
+
+sealed class OpenApiConstraint(val property: OpenApiProperty) {
+    data class Required(val target: OpenApiProperty) : OpenApiConstraint(target)
+
+    data class Pattern(val target: OpenApiProperty, val pattern: String) : OpenApiConstraint(target)
+
+    data class EnumValue(val target: OpenApiProperty, val value: String) : OpenApiConstraint(target)
+
+    data class MinimumBoundary(val target: OpenApiProperty, val minimum: BigDecimal) : OpenApiConstraint(target)
+
+    data class BelowMinimum(val target: OpenApiProperty, val minimum: BigDecimal) : OpenApiConstraint(target)
+
+    override fun toString(): String = when (this) {
+        is Required -> "${property.name} (required)"
+        is Pattern -> "${property.name} (pattern: $pattern)"
+        is EnumValue -> "${property.name} (enum: $value)"
+        is MinimumBoundary -> "${property.name} (minimum: $minimum)"
+        is BelowMinimum -> "${property.name} (below minimum: $minimum)"
+    }.let { "${property.method} ${property.path} -> $it" }
+}
+
+data class OpenApiCoverageDefinition(
+    val responses: Set<OpenApiResponse>,
+    val constraints: Set<OpenApiConstraint>,
 ) {
-    init {
-        require(constraintType != OpenApiConstraintType.PATTERN || pattern != null) {
-            "A pattern is required for PATTERN constraints"
-        }
-        require(constraintType != OpenApiConstraintType.ENUM || enumValue != null) {
-            "An enum value is required for ENUM constraints"
-        }
-        require(
-            (constraintType != OpenApiConstraintType.MINIMUM_BOUNDARY &&
-                constraintType != OpenApiConstraintType.BELOW_MINIMUM) || numericBound != null,
-        ) {
-            "A numeric bound is required for minimum constraints"
+    companion object {
+        fun from(openApi: OpenAPI): OpenApiCoverageDefinition {
+            val schemas = openApi.components?.schemas.orEmpty()
+            val operations = openApi.paths.orEmpty().flatMap { (path, pathItem) ->
+                pathItem.readOperationsMap().map { (method, operation) ->
+                    Triple(path, method, operation)
+                }
+            }
+            val responses = operations.flatMap { (path, method, operation) ->
+                operation.responses.keys.mapNotNull { it.toIntOrNull() }
+                    .map { statusCode -> OpenApiResponse(method, path, statusCode) }
+            }.toSet()
+            val constraints = operations.flatMap { (path, method, operation) ->
+                val schemaReference =
+                    operation.requestBody?.content?.get("application/json")?.schema?.`$ref`
+                val schema = schemas[schemaReference?.substringAfterLast("/")]
+                schema?.toConstraints(method, path, schemas).orEmpty()
+            }.toSet()
+            return OpenApiCoverageDefinition(responses, constraints)
         }
     }
-
-    override fun toString(): String =
-        "$method $path -> $property (${
-            constraintType.name.lowercase()}${enumValue?.let { ": $it" } ?: numericBound?.let { ": $it" } ?: ""})"
 }
 
-enum class OpenApiConstraintType {
-    REQUIRED,
-    PATTERN,
-    ENUM,
-    MINIMUM_BOUNDARY,
-    BELOW_MINIMUM,
+private fun Schema<*>.toConstraints(
+    method: HttpMethod,
+    path: String,
+    schemas: Map<String, Schema<*>>,
+): List<OpenApiConstraint> {
+    val required = required.orEmpty().map { propertyName ->
+        OpenApiConstraint.Required(OpenApiProperty(method, path, propertyName))
+    }
+    val properties = properties.orEmpty().flatMap { (name, schemaValue) ->
+        val property = OpenApiProperty(method, path, name)
+        buildList {
+            schemaValue.pattern?.let { add(OpenApiConstraint.Pattern(property, it)) }
+            schemaValue.enumValues(schemas).forEach { add(OpenApiConstraint.EnumValue(property, it)) }
+            schemaValue.minimum?.let { minimum ->
+                add(OpenApiConstraint.MinimumBoundary(property, minimum))
+                add(OpenApiConstraint.BelowMinimum(property, minimum))
+            }
+        }
+    }
+    return required + properties
 }
 
-/**
- * REST Assured filter that tracks which OpenAPI responses (method, path, status code)
- * and request validation constraints have been exercised during tests.
- */
+private fun Schema<*>.enumValues(schemas: Map<String, Schema<*>>): Set<String> {
+    val directValues = enum.orEmpty().map { it.toString() }
+    val referencedValues = allOf.orEmpty().flatMap { component ->
+        val schemaName = component.`$ref`?.substringAfterLast("/")
+        schemas[schemaName]?.enum.orEmpty().map { it.toString() }
+    }
+    return (directValues + referencedValues).toSet()
+}
+
 class OpenApiCoverageFilter(
-    private val expectedResponses: Set<OpenApiResponse>,
-    private val expectedConstraints: Set<OpenApiConstraint> = emptySet(),
+    private val definition: OpenApiCoverageDefinition,
 ) : Filter {
     private val coveredResponsesInternal: MutableSet<OpenApiResponse> = ConcurrentHashMap.newKeySet()
     private val coveredConstraintsInternal: MutableSet<OpenApiConstraint> = ConcurrentHashMap.newKeySet()
@@ -87,88 +125,86 @@ class OpenApiCoverageFilter(
         val requestBody = requestSpec.getBody<Any>()?.toString()
         val response = ctx.next(requestSpec, responseSpec)
         val method = HttpMethod.valueOf(requestSpec.method.uppercase())
-
         val actualPath = requestSpec.derivedPath
         val statusCode = response.statusCode
 
-        for (expected in expectedResponses) {
-            if (expected.method == method &&
-                expected.statusCode == statusCode &&
-                matchesPath(actualPath, expected.path)
-            ) {
-                coveredResponsesInternal.add(expected)
-            }
+        recordResponse(method, actualPath, statusCode)
+        if (requestBody != null) {
+            val body = objectMapper.readTree(requestBody)
+            recordViolatedConstraints(method, actualPath, statusCode, body)
+            recordSatisfiedConstraints(method, actualPath, statusCode, body)
         }
-
-        if (statusCode == BAD_REQUEST_STATUS && requestBody != null) {
-            recordConstraints(method, actualPath, requestBody)
-        }
-        if (statusCode in SUCCESS_STATUS_RANGE && requestBody != null) {
-            recordEnumValues(method, actualPath, requestBody)
-            recordMinimumBoundaries(method, actualPath, requestBody)
-        }
-
         return response
     }
 
-    private fun recordConstraints(method: HttpMethod, actualPath: String, requestBody: String) {
-        val rootNode = objectMapper.readTree(requestBody)
-        expectedConstraints.asSequence()
-            .filter { it.method == method && matchesPath(actualPath, it.path) }
-            .filter { isViolated(it, rootNode) }
+    private fun recordResponse(method: HttpMethod, actualPath: String, statusCode: Int) {
+        definition.responses.asSequence()
+            .filter { it.method == method && it.statusCode == statusCode }
+            .filter { matchesPath(actualPath, it.path) }
+            .forEach(coveredResponsesInternal::add)
+    }
+
+    private fun recordViolatedConstraints(
+        method: HttpMethod,
+        actualPath: String,
+        statusCode: Int,
+        body: JsonNode,
+    ) {
+        if (statusCode != BAD_REQUEST_STATUS) return
+        matchingConstraints(method, actualPath)
+            .filter { it.isViolatedBy(body) }
             .forEach(coveredConstraintsInternal::add)
     }
 
-    private fun isViolated(constraint: OpenApiConstraint, rootNode: JsonNode): Boolean =
-        when (constraint.constraintType) {
-            OpenApiConstraintType.REQUIRED ->
-                !rootNode.has(constraint.property) || rootNode.get(constraint.property).isNull
-            OpenApiConstraintType.PATTERN -> {
-                val node = rootNode.get(constraint.property)
-                node != null && node.isTextual &&
-                    !Regex(requireNotNull(constraint.pattern)).containsMatchIn(node.asText())
-            }
-            OpenApiConstraintType.ENUM -> false
-            OpenApiConstraintType.MINIMUM_BOUNDARY -> false
-            OpenApiConstraintType.BELOW_MINIMUM -> {
-                val node = rootNode.get(constraint.property)
-                node != null && node.isNumber &&
-                    node.decimalValue().compareTo(requireNotNull(constraint.numericBound)) < 0
-            }
+    private fun recordSatisfiedConstraints(
+        method: HttpMethod,
+        actualPath: String,
+        statusCode: Int,
+        body: JsonNode,
+    ) {
+        if (statusCode !in SUCCESS_STATUS_RANGE) return
+        matchingConstraints(method, actualPath)
+            .filter { it.isSatisfiedBy(body) }
+            .forEach(coveredConstraintsInternal::add)
+    }
+
+    private fun matchingConstraints(method: HttpMethod, actualPath: String) =
+        definition.constraints.asSequence().filter {
+            it.property.method == method && matchesPath(actualPath, it.property.path)
         }
-
-    private fun recordEnumValues(method: HttpMethod, actualPath: String, requestBody: String) {
-        val rootNode = objectMapper.readTree(requestBody)
-        expectedConstraints.asSequence()
-            .filter {
-                it.constraintType == OpenApiConstraintType.ENUM &&
-                    it.method == method &&
-                    matchesPath(actualPath, it.path)
-            }
-            .filter { rootNode.path(it.property).asText() == it.enumValue }
-            .forEach(coveredConstraintsInternal::add)
-    }
-
-    private fun recordMinimumBoundaries(method: HttpMethod, actualPath: String, requestBody: String) {
-        val rootNode = objectMapper.readTree(requestBody)
-        expectedConstraints.asSequence()
-            .filter {
-                it.constraintType == OpenApiConstraintType.MINIMUM_BOUNDARY &&
-                    it.method == method &&
-                    matchesPath(actualPath, it.path)
-            }
-            .filter {
-                val node = rootNode.get(it.property)
-                node != null && node.isNumber &&
-                    node.decimalValue().compareTo(requireNotNull(it.numericBound)) == 0
-            }
-            .forEach(coveredConstraintsInternal::add)
-    }
 
     private fun matchesPath(actualPath: String, templatePath: String): Boolean {
         val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
         return actualPath.matches(Regex("^$regexPattern$"))
     }
+
+    private fun OpenApiConstraint.isViolatedBy(body: JsonNode): Boolean =
+        when (this) {
+            is OpenApiConstraint.Required ->
+                !body.has(property.name) || body.get(property.name).isNull
+            is OpenApiConstraint.Pattern -> {
+                val node = body.get(property.name)
+                node != null && node.isTextual && !Regex(pattern).containsMatchIn(node.asText())
+            }
+            is OpenApiConstraint.EnumValue,
+            is OpenApiConstraint.MinimumBoundary -> false
+            is OpenApiConstraint.BelowMinimum -> {
+                val node = body.get(property.name)
+                node != null && node.isNumber && node.decimalValue().compareTo(minimum) < 0
+            }
+        }
+
+    private fun OpenApiConstraint.isSatisfiedBy(body: JsonNode): Boolean =
+        when (this) {
+            is OpenApiConstraint.EnumValue -> body.path(property.name).asText() == value
+            is OpenApiConstraint.MinimumBoundary -> {
+                val node = body.get(property.name)
+                node != null && node.isNumber && node.decimalValue().compareTo(minimum) == 0
+            }
+            is OpenApiConstraint.Required,
+            is OpenApiConstraint.Pattern,
+            is OpenApiConstraint.BelowMinimum -> false
+        }
 
     private companion object {
         const val BAD_REQUEST_STATUS = 400

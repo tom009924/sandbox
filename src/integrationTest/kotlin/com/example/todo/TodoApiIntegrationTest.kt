@@ -374,98 +374,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
         }
 
-        val expectedResponses: Set<OpenApiResponse> = openAPI.paths.flatMap { (path, pathItem) ->
-            pathItem.readOperationsMap().flatMap { (method, operation) ->
-                operation.responses.keys.mapNotNull { it.toIntOrNull() }.map { statusCode ->
-                    OpenApiResponse(method, path, statusCode)
-                }
-            }
-        }.toSet()
-
-        val expectedConstraints: Set<OpenApiConstraint> = run {
-            val schemas = openAPI.components?.schemas.orEmpty()
-            openAPI.paths.flatMap { (path, pathItem) ->
-                pathItem.readOperationsMap().flatMap { (method, operation) ->
-                    val schemaRef = operation.requestBody?.content?.get("application/json")?.schema?.`$ref`
-                    val schemaName = schemaRef?.substringAfterLast("/")
-                    val schema = schemas[schemaName]
-
-                    val constraints = mutableListOf<OpenApiConstraint>()
-                    if (schema != null) {
-                        schema.required?.forEach { requiredProp ->
-                            constraints.add(
-                                OpenApiConstraint(
-                                    method,
-                                    path,
-                                    requiredProp,
-                                    OpenApiConstraintType.REQUIRED,
-                                ),
-                            )
-                        }
-                        schema.properties?.forEach { (propName, propSchema) ->
-                            propSchema.pattern?.let { pattern ->
-                                constraints.add(
-                                    OpenApiConstraint(
-                                        method,
-                                        path,
-                                        propName,
-                                        OpenApiConstraintType.PATTERN,
-                                        pattern,
-                                    ),
-                                )
-                            }
-                            enumValues(propSchema, schemas).forEach { enumValue ->
-                                constraints.add(
-                                    OpenApiConstraint(
-                                        method,
-                                        path,
-                                        propName,
-                                        OpenApiConstraintType.ENUM,
-                                        enumValue = enumValue,
-                                    ),
-                                )
-                            }
-                            propSchema.minimum?.let { minimum ->
-                                val numericBound = minimum
-                                constraints.add(
-                                    OpenApiConstraint(
-                                        method,
-                                        path,
-                                        propName,
-                                        OpenApiConstraintType.MINIMUM_BOUNDARY,
-                                        numericBound = numericBound,
-                                    ),
-                                )
-                                constraints.add(
-                                    OpenApiConstraint(
-                                        method,
-                                        path,
-                                        propName,
-                                        OpenApiConstraintType.BELOW_MINIMUM,
-                                        numericBound = numericBound,
-                                    ),
-                                )
-                            }
-                        }
-                    }
-                    constraints
-                }
-            }.toSet()
-        }
-
-        private fun enumValues(
-            schema: io.swagger.v3.oas.models.media.Schema<*>,
-            schemas: Map<String, io.swagger.v3.oas.models.media.Schema<*>>,
-        ): Set<String> {
-            val directValues = schema.enum.orEmpty().map { it.toString() }
-            val referencedValues = schema.allOf.orEmpty().flatMap { component ->
-                val schemaName = component.`$ref`?.substringAfterLast("/")
-                schemas[schemaName]?.enum.orEmpty().map { it.toString() }
-            }
-            return (directValues + referencedValues).toSet()
-        }
-
-        val openApiCoverageFilter = OpenApiCoverageFilter(expectedResponses, expectedConstraints)
+        val coverageDefinition = OpenApiCoverageDefinition.from(openAPI)
+        val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
 
         val openApiValidationFilter = OpenApiValidationFilter(
             OpenApiInteractionValidator.createFor(openApiSpecUrl).build(),
@@ -497,7 +407,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         @JvmStatic
         @AfterAll
         fun verifyAllOpenApiResponsesCovered() {
-            val missingResponses = expectedResponses - openApiCoverageFilter.coveredResponses
+            val missingResponses = coverageDefinition.responses - openApiCoverageFilter.coveredResponses
             assertTrue(
                 missingResponses.isEmpty(),
                 "The following OpenAPI responses were not exercised in integration tests: " +
@@ -508,7 +418,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         @JvmStatic
         @AfterAll
         fun verifyAllOpenApiConstraintsCovered() {
-            val missingConstraints = expectedConstraints - openApiCoverageFilter.coveredConstraints
+            val missingConstraints = coverageDefinition.constraints - openApiCoverageFilter.coveredConstraints
             assertTrue(
                 missingConstraints.isEmpty(),
                 "The following OpenAPI validation constraints were not exercised in integration tests: " +
