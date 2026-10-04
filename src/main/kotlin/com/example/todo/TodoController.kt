@@ -2,6 +2,7 @@ package com.example.todo
 
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -22,7 +23,8 @@ data class CreateTodoRequest(
 data class UpdateTodoRequest(
     @field:NotBlank
     val title: String,
-    val completed: Boolean,
+    @field:NotNull
+    val completed: Boolean?,
 )
 
 data class TodoResponse(
@@ -54,7 +56,7 @@ class TodoController(private val todoRepository: TodoRepository) {
     ): TodoResponse {
         val todo = findTodo(id)
         todo.title = request.title.trim()
-        todo.completed = request.completed
+        todo.completed = requireNotNull(request.completed) { "completed is required" }
         return todoRepository.save(todo).toResponse()
     }
 
