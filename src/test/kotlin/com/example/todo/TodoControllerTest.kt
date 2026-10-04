@@ -1,5 +1,6 @@
 package com.example.todo
 
+import com.example.todo.infrastructure.persistence.SpringDataTodoRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,11 +21,11 @@ import java.util.UUID
 @AutoConfigureMockMvc
 class TodoControllerTest @Autowired constructor(
     private val mockMvc: MockMvc,
-    private val todoRepository: TodoRepository,
+    private val springDataTodoRepository: SpringDataTodoRepository,
 ) {
     @BeforeEach
     fun cleanDatabase() {
-        todoRepository.deleteAll()
+        springDataTodoRepository.deleteAll()
     }
 
     @Test
@@ -71,5 +72,15 @@ class TodoControllerTest @Autowired constructor(
                 .content("""{"title":"  "}"""),
         )
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `return not found for missing todo`() {
+        mockMvc.perform(get("/api/todos/$MISSING_TODO_ID"))
+            .andExpect(status().isNotFound)
+    }
+
+    private companion object {
+        val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
     }
 }

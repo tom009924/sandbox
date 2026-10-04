@@ -1,5 +1,7 @@
 package com.example.todo
 
+import com.example.todo.domain.model.Todo
+import com.example.todo.domain.repository.TodoRepository
 import com.atlassian.oai.validator.OpenApiInteractionValidator
 import com.atlassian.oai.validator.restassured.OpenApiValidationFilter
 import com.atlassian.oai.validator.whitelist.ValidationErrorsWhitelist
@@ -32,7 +34,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @BeforeEach
     fun cleanDatabase() {
-        todoRepository.deleteAll()
+        todoRepository.findAll().forEach(todoRepository::delete)
     }
 
     @Test
@@ -196,7 +198,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.NO_CONTENT.value())
 
-        assert(!todoRepository.existsById(todoId))
+        assert(todoRepository.findById(todoId) == null)
     }
 
     @Test

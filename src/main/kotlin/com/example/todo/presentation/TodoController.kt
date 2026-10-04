@@ -1,5 +1,7 @@
-package com.example.todo
+package com.example.todo.presentation
 
+import com.example.todo.application.TodoService
+import com.example.todo.domain.model.Todo
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
@@ -13,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 data class CreateTodoRequest(
@@ -36,42 +37,32 @@ data class TodoResponse(
 
 @RestController
 @RequestMapping("/api/todos")
-class TodoController(private val todoRepository: TodoRepository) {
+class TodoController(private val todoService: TodoService) {
     @GetMapping
     fun list(): List<TodoResponse> =
-        todoRepository.findAll().map { it.toResponse() }
+        todoService.list().map { it.toResponse() }
 
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID): TodoResponse =
-        findTodo(id).toResponse()
+        todoService.get(id).toResponse()
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: CreateTodoRequest): TodoResponse =
-        todoRepository.save(Todo(title = request.title.trim())).toResponse()
+        todoService.create(request.title).toResponse()
 
     @PutMapping("/{id}")
     fun update(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateTodoRequest,
-    ): TodoResponse {
-        val todo = findTodo(id)
-        todo.title = request.title.trim()
-        todo.completed = requireNotNull(request.completed) { "completed is required" }
-        return todoRepository.save(todo).toResponse()
-    }
+    ): TodoResponse =
+        todoService.update(id, request.title, requireNotNull(request.completed)).toResponse()
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun delete(@PathVariable id: UUID) {
-        val todo = findTodo(id)
-        todoRepository.delete(todo)
+        todoService.delete(id)
     }
-
-    private fun findTodo(id: UUID): Todo =
-        todoRepository.findById(id).orElseThrow {
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Todo $id not found")
-        }
 
     private fun Todo.toResponse() = TodoResponse(
         id = requireNotNull(id),

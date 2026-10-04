@@ -40,6 +40,17 @@ OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 
 Todoの`id`にはUUIDを使用します。作成レスポンスに含まれる`id`を、取得・更新・削除の各エンドポイントで使用してください。
 
+## アーキテクチャ
+
+Todo機能は依存関係を内側へ向けたレイヤード構成です。
+
+- `presentation`: REST Controller、HTTP DTO、例外からHTTPレスポンスへの変換
+- `application`: Todoのユースケースと業務処理
+- `domain`: Todoモデル、Repositoryポート、ドメイン例外
+- `infrastructure`: Spring Data JPA、永続化Entity、Repositoryアダプター
+
+ControllerはApplication Serviceを呼び出し、Domainが定義するRepositoryポートをInfrastructureが実装します。
+
 更新リクエスト:
 
 ```json
@@ -83,4 +94,3 @@ REST AssuredによるHTTP統合テストは、ユニットテストの後に次�
 - **エージェント個別設定**:
   - Antigravity: [`.agents/skills.json`](.agents/skills.json)（`.github/skills` を探索先として設定）、[`AGENTS.md`](AGENTS.md)
   - GitHub Copilot: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
-

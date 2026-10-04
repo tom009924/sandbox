@@ -1,4 +1,4 @@
-package com.example.todo
+package com.example.todo.infrastructure.persistence
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -10,7 +10,7 @@ import java.util.UUID
 
 @Entity
 @Table(name = "todos")
-class Todo(
+class TodoJpaEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
