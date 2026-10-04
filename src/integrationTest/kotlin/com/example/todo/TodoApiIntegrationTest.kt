@@ -74,6 +74,31 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun createAndUpdateTodoAcceptEveryPriorityValue() {
+        TodoPriority.values().forEach { priority ->
+            val todoId = validatedRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("priority", equalTo(priority.name))
+                .extract()
+                .path<String>("id")
+
+            validatedRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"Milk bought","completed":true,"priority":"${priority.name}"}""")
+                .`when`()
+                .put("/api/todos/$todoId")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("priority", equalTo(priority.name))
+        }
+    }
+
+    @Test
     fun createTodoWithBlankTitleReturnsBadRequest() {
         validatedRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
@@ -89,6 +114,17 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
             .body("{}")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+    }
+
+    @Test
+    fun createTodoWithInvalidPriorityReturnsBadRequest() {
+        validatedRequest(invalidRequest = true)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk","priority":"URGENT"}""")
             .`when`()
             .post("/api/todos")
             .then()
@@ -318,11 +354,34 @@ class TodoApiIntegrationTest @Autowired constructor(
                                     ),
                                 )
                             }
+                            enumValues(propSchema, schemas).forEach { enumValue ->
+                                constraints.add(
+                                    OpenApiConstraint(
+                                        method,
+                                        path,
+                                        propName,
+                                        OpenApiConstraintType.ENUM,
+                                        enumValue = enumValue,
+                                    ),
+                                )
+                            }
                         }
                     }
                     constraints
                 }
             }.toSet()
+        }
+
+        private fun enumValues(
+            schema: io.swagger.v3.oas.models.media.Schema<*>,
+            schemas: Map<String, io.swagger.v3.oas.models.media.Schema<*>>,
+        ): Set<String> {
+            val directValues = schema.enum.orEmpty().map { it.toString() }
+            val referencedValues = schema.allOf.orEmpty().flatMap { component ->
+                val schemaName = component.`$ref`?.substringAfterLast("/")
+                schemas[schemaName]?.enum.orEmpty().map { it.toString() }
+            }
+            return (directValues + referencedValues).toSet()
         }
 
         val openApiCoverageFilter = OpenApiCoverageFilter(expectedResponses, expectedConstraints)
@@ -345,6 +404,7 @@ class TodoApiIntegrationTest @Autowired constructor(
                             WhitelistRules.anyOf(
                                 WhitelistRules.messageHasKey("validation.request.body.schema.pattern"),
                                 WhitelistRules.messageHasKey("validation.request.body.schema.required"),
+                                WhitelistRules.messageHasKey("validation.request.body.schema.enum"),
                             ),
                         ),
                     ),
