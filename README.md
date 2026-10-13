@@ -44,6 +44,7 @@ OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 {"title":"Buy milk","description":"Buy before the weekend","dueDate":"2025-04-18","priority":"HIGH","estimatedMinutes":30}
 ```
 
+Todo作成では `Idempotency-Key` ヘッダーが必須です。キーは1〜255文字で、大文字小文字を区別します。同じキーと同じリクエストを24時間以内に再送すると最初の `201` レスポンスを再返却し、同じキーを異なるリクエストに使うと `409 Conflict` を返します。
 Todoの`id`にはUUIDを使用します。作成レスポンスに含まれる`id`を、取得・更新・削除の各エンドポイントで使用してください。
 `description`と`dueDate`は省略可能です。`dueDate`は`YYYY-MM-DD`形式で、`priority`は`LOW`・`MEDIUM`・`HIGH`のいずれかです。優先度を省略すると`MEDIUM`になります。
 `estimatedMinutes`は任意の0以上の整数です。所要時間が未定の場合は省略できます。

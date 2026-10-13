@@ -25,9 +25,11 @@ curl -X GET http://localhost:8080/api/todos
 ### Todo新規作成
 ```bash
 curl -X POST http://localhost:8080/api/todos \
+  -H "Idempotency-Key: create-todo-1" \
   -H "Content-Type: application/json" \
   -d '{"title":"Buy milk"}'
 ```
+Todo作成では一意な `Idempotency-Key` が必須です。同じキー・同じリクエストは24時間以内なら最初の作成レスポンスを再返却し、同じキーで異なるリクエストを送ると `409 Conflict` を返します。
 
 ### Todo更新
 `{id}`には作成レスポンスで返されたUUIDを指定します。
