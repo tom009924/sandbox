@@ -69,7 +69,7 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 
 `PUT`ではTodoを置き換えます。`description`、`dueDate`または`estimatedMinutes`を省略すると未設定になり、`priority`を省略すると`MEDIUM`になります。
 
-存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request`、Spannerへのアクセスに失敗した場合は `503 Service Unavailable` を返します。
+存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。Todo作成時にSpannerへのアクセスに失敗した場合は `503 Service Unavailable` を返します。
 
 ## テスト
 
