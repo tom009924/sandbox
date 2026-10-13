@@ -46,4 +46,4 @@ jobs:
         env:
           SPANNER_EMULATOR_HOST: localhost:8666
           SPANNER_PROXY_CONTROL_URL: http://localhost:8474
-        run: ./gradlew check --no-daemon
+        run: ./gradlew check :spanner-proxy:check --no-daemon

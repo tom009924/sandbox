@@ -6,7 +6,8 @@ services:
       - "9020:9020"
   spanner-proxy:
     build:
-      context: ./tools/spanner-proxy
+      context: .
+      dockerfile: tools/spanner-proxy/Dockerfile
     ports:
       - "8666:8666"
       - "127.0.0.1:8474:8474"
