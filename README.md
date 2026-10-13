@@ -11,6 +11,7 @@ Java 21が必要です。プロジェクトのルートで次を実行してく�
 ```
 
 Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
+Docker-in-DockerとDocker Compose v2も使えます。Dev Containerを再ビルドした後、`docker version` と `docker compose version` で確認してください。
 
 ```bash
 gh auth login
