@@ -7,12 +7,12 @@ Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。ローカ
 Java 21が必要です。プロジェクトのルートで次を実行してください。
 
 ```bash
-docker compose up -d spanner-emulator
-export SPANNER_EMULATOR_HOST=localhost:9010
+docker compose up -d
+export SPANNER_EMULATOR_HOST=localhost:8666
 ./gradlew bootRun
 ```
 
-Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
+Spannerへの接続はSQLを認識するSpanner gRPC proxy経由です。通常はRPCを透過的に転送し、統合テストから `INSERT INTO todos` のRPCだけを選択して失敗させられます。Toxiproxyは使用しません。アプリを起動するだけなら `SPANNER_PROXY_CONTROL_URL` は不要です。Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
 
 Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
@@ -69,11 +69,13 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 
 `PUT`ではTodoを置き換えます。`description`、`dueDate`または`estimatedMinutes`を省略すると未設定になり、`priority`を省略すると`MEDIUM`になります。
 
-存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。
+存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。Todo作成時にSpannerへのアクセスに失敗した場合は `503 Service Unavailable` を返します。
 
 ## テスト
 
 ```bash
+docker compose up -d
+export SPANNER_EMULATOR_HOST=localhost:8666
 ./gradlew test
 ```
 
@@ -88,8 +90,9 @@ Detektは自動修正可能なルールを実行時に自動修正します。
 MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` を設定してください。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
 
 ```bash
-docker compose up -d spanner-emulator
-export SPANNER_EMULATOR_HOST=localhost:9010
+docker compose up -d
+export SPANNER_EMULATOR_HOST=localhost:8666
+export SPANNER_PROXY_CONTROL_URL=http://localhost:8474
 ./gradlew integrationTest
 ```
 

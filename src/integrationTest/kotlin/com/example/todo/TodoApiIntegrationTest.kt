@@ -339,6 +339,33 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun createTodoReturnsServiceUnavailableWhenTodoInsertFails() {
+        val existingTodo = todoRepository.save(Todo(title = "Existing todo"))
+        val existingTodoId = requireNotNull(existingTodo.id)
+        val initialTodoCount = todoRepository.findAll().size
+
+        SpannerProxyFaultInjector().failTodoInsert().use {
+            validatedRequest()
+                .`when`()
+                .get("/api/todos/$existingTodoId")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("title", equalTo("Existing todo"))
+
+            validatedPostRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"New todo"}""")
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .body("message", equalTo("The database is temporarily unavailable"))
+        }
+
+        assertEquals(initialTodoCount, todoRepository.findAll().size)
+    }
+
+    @Test
     fun updateTodoWithBlankTitleReturnsBadRequest() {
         val todo = todoRepository.save(Todo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)

@@ -4,3 +4,11 @@ services:
     ports:
       - "9010:9010"
       - "9020:9020"
+  spanner-proxy:
+    build:
+      context: ./tools/spanner-proxy
+    ports:
+      - "8666:8666"
+      - "127.0.0.1:8474:8474"
+    depends_on:
+      - spanner-emulator
