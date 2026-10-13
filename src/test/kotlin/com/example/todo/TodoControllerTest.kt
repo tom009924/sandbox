@@ -136,6 +136,7 @@ class TodoControllerTest @Autowired constructor(
         listOf(" ", "k".repeat(256)).forEach { idempotencyKey ->
             mockMvc.perform(createRequest("""{"title":"Buy milk"}""", idempotencyKey))
                 .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.message").value("Invalid request parameters"))
         }
     }
 
