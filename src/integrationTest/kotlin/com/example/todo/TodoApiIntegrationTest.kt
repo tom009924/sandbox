@@ -15,6 +15,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -41,7 +42,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoReturnsCreatedTodo() {
-        validatedRequest()
+        validatedPostRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"  Buy milk  "}""")
             .`when`()
@@ -56,8 +57,65 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    fun createTodoReplaysOriginalResponseForSameIdempotencyKey() {
+        val idempotencyKey = UUID.randomUUID().toString()
+        val initialTodoCount = todoRepository.findAll().size
+
+        val originalId = validatedPostRequest(idempotencyKey = idempotencyKey)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .extract()
+            .path<String>("id")
+
+        val todoId = UUID.fromString(originalId)
+        val createdTodo = requireNotNull(todoRepository.findById(todoId))
+        todoRepository.save(createdTodo.copy(title = "Changed after creation"))
+
+        validatedPostRequest(idempotencyKey = idempotencyKey)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .body("id", equalTo(originalId))
+            .body("title", equalTo("Buy milk"))
+
+        assertEquals(initialTodoCount + 1, todoRepository.findAll().size)
+    }
+
+    @Test
+    fun createTodoReturnsConflictWhenIdempotencyKeyIsReusedForDifferentRequest() {
+        val idempotencyKey = UUID.randomUUID().toString()
+        val initialTodoCount = todoRepository.findAll().size
+
+        validatedPostRequest(idempotencyKey = idempotencyKey)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        validatedPostRequest(idempotencyKey = idempotencyKey)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy bread"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CONFLICT.value())
+            .body("message", equalTo("Idempotency key '$idempotencyKey' was already used with a different request"))
+
+        assertEquals(initialTodoCount + 1, todoRepository.findAll().size)
+    }
+
+    @Test
     fun createTodoWithMetadataReturnsCreatedTodo() {
-        validatedRequest()
+        validatedPostRequest()
             .contentType(ContentType.JSON)
             .body(
                 """
@@ -82,7 +140,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createAndUpdateTodoAcceptEstimatedMinutesMinimumAndRejectValuesBelowIt() {
-        val todoId = validatedRequest()
+        val todoId = validatedPostRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"Buy milk","estimatedMinutes":0}""")
             .`when`()
@@ -102,7 +160,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
 
-        validatedRequest(invalidRequest = true)
+        validatedPostRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
             .body("""{"title":"Buy milk","estimatedMinutes":-1}""")
             .`when`()
@@ -122,7 +180,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @Test
     fun createAndUpdateTodoAcceptEveryPriorityValue() {
         TodoPriority.values().forEach { priority ->
-            val todoId = validatedRequest()
+            val todoId = validatedPostRequest()
                 .contentType(ContentType.JSON)
                 .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
                 .`when`()
@@ -146,7 +204,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoWithBlankTitleReturnsBadRequest() {
-        validatedRequest(invalidRequest = true)
+        validatedPostRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
             .body("""{"title":"  "}""")
             .`when`()
@@ -157,7 +215,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoWithMissingTitleReturnsBadRequest() {
-        validatedRequest(invalidRequest = true)
+        validatedPostRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
             .body("{}")
             .`when`()
@@ -168,7 +226,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoWithInvalidPriorityReturnsBadRequest() {
-        validatedRequest(invalidRequest = true)
+        validatedPostRequest(invalidRequest = true)
             .contentType(ContentType.JSON)
             .body("""{"title":"Buy milk","priority":"URGENT"}""")
             .`when`()
@@ -356,11 +414,19 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.NOT_FOUND.value())
     }
 
-    private fun validatedRequest(invalidRequest: Boolean = false) =
+    private fun validatedRequest(
+        invalidRequest: Boolean = false,
+    ) =
         given()
             .port(port)
             .filter(openApiCoverageFilter)
             .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
+
+    private fun validatedPostRequest(
+        invalidRequest: Boolean = false,
+        idempotencyKey: String = UUID.randomUUID().toString(),
+    ) = validatedRequest(invalidRequest)
+        .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
         const val ESTIMATED_MINUTES = 30

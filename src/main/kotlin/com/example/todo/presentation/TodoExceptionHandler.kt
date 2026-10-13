@@ -1,5 +1,6 @@
 package com.example.todo.presentation
 
+import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.exception.TodoNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -11,5 +12,10 @@ class TodoExceptionHandler {
     @ExceptionHandler(TodoNotFoundException::class)
     fun handleTodoNotFound(exception: TodoNotFoundException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
+    @ExceptionHandler(IdempotencyConflictException::class)
+    fun handleIdempotencyConflict(exception: IdempotencyConflictException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
             .body(mapOf("message" to requireNotNull(exception.message)))
 }

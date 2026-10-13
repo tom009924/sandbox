@@ -1,5 +1,6 @@
 package com.example.todo
 
+import com.example.todo.infrastructure.persistence.SpringDataIdempotencyRecordRepository
 import com.example.todo.infrastructure.persistence.SpringDataTodoRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -22,19 +23,19 @@ import java.util.UUID
 class TodoControllerTest @Autowired constructor(
     private val mockMvc: MockMvc,
     private val springDataTodoRepository: SpringDataTodoRepository,
+    private val springDataIdempotencyRecordRepository: SpringDataIdempotencyRecordRepository,
 ) {
     @BeforeEach
     fun cleanDatabase() {
         springDataTodoRepository.deleteAll()
+        springDataIdempotencyRecordRepository.deleteAll()
     }
 
     @Test
     fun `create list update and delete todo`() {
         val created = mockMvc.perform(
-            post("/api/todos")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
+            createRequest(
+                """
                     {
                       "title":"  Buy milk  ",
                       "description":"Buy before the weekend",
@@ -43,7 +44,7 @@ class TodoControllerTest @Autowired constructor(
                       "estimatedMinutes":30
                     }
                     """.trimIndent(),
-                ),
+            ),
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.title").value("Buy milk"))
@@ -96,9 +97,7 @@ class TodoControllerTest @Autowired constructor(
     @Test
     fun `reject blank title`() {
         mockMvc.perform(
-            post("/api/todos")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"title":"  "}"""),
+            createRequest("""{"title":"  "}"""),
         )
             .andExpect(status().isBadRequest)
     }
@@ -106,9 +105,7 @@ class TodoControllerTest @Autowired constructor(
     @Test
     fun `reject negative estimated minutes`() {
         mockMvc.perform(
-            post("/api/todos")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"title":"Buy milk","estimatedMinutes":-1}"""),
+            createRequest("""{"title":"Buy milk","estimatedMinutes":-1}"""),
         )
             .andExpect(status().isBadRequest)
     }
@@ -116,9 +113,7 @@ class TodoControllerTest @Autowired constructor(
     @Test
     fun `use defaults for omitted optional metadata`() {
         mockMvc.perform(
-            post("/api/todos")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"title":"Buy milk"}"""),
+            createRequest("""{"title":"Buy milk"}"""),
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.description").doesNotExist())
@@ -127,10 +122,36 @@ class TodoControllerTest @Autowired constructor(
     }
 
     @Test
+    fun `require idempotency key for create`() {
+        mockMvc.perform(
+            post("/api/todos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Buy milk"}"""),
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `reject blank and overlong idempotency keys`() {
+        listOf(" ", "k".repeat(256)).forEach { idempotencyKey ->
+            mockMvc.perform(createRequest("""{"title":"Buy milk"}""", idempotencyKey))
+                .andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
     fun `return not found for missing todo`() {
         mockMvc.perform(get("/api/todos/$MISSING_TODO_ID"))
             .andExpect(status().isNotFound)
     }
+
+    private fun createRequest(
+        body: String,
+        idempotencyKey: String = UUID.randomUUID().toString(),
+    ) = post("/api/todos")
+        .header("Idempotency-Key", idempotencyKey)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body)
 
     private companion object {
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
