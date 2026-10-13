@@ -16,6 +16,11 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    services:
+      spanner-emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,4 +35,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run checks
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
         run: ./gradlew check --no-daemon

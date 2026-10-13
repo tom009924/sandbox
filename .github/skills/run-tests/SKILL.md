@@ -12,6 +12,8 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 ### 1. 全検証の実行（推奨）
 静的解析 (Detekt) → ユニットテスト → 統合テスト (OpenAPI 検証含む) を一括で実行します。
 ```bash
+docker compose up -d spanner-emulator
+export SPANNER_EMULATOR_HOST=localhost:9010
 ./gradlew check
 ```
 
@@ -19,6 +21,8 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 
 - **ユニットテストのみ (MockMvc)**:
   ```bash
+  docker compose up -d spanner-emulator
+  export SPANNER_EMULATOR_HOST=localhost:9010
   ./gradlew test
   ```
 - **静的コード解析のみ (Detekt)**:
@@ -28,6 +32,8 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ※ 自動修正可能なスタイル違反は自動で修正されます。
 - **結合テストのみ (REST Assured + OpenAPI Validator)**:
   ```bash
+  docker compose up -d spanner-emulator
+  export SPANNER_EMULATOR_HOST=localhost:9010
   ./gradlew integrationTest
   ```
 
