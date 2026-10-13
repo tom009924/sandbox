@@ -14,4 +14,4 @@
 タスクに応じて、[.github/skills/](.github/skills/) 配下の各スキルを参照・実行してください:
 - [run-tests](.github/skills/run-tests/SKILL.md): 単体・統合テスト、Detekt 静的解析の実行とエラー対処
 - [update-api](.github/skills/update-api/SKILL.md): OpenAPI仕様と実装コードの整合性を保つAPI更新手順
-- [run-app](.github/skills/run-app/SKILL.md): Spring Boot アプリケーションの起動と cURL / H2コンソール確認
+- [run-app](.github/skills/run-app/SKILL.md): Cloud Spanner Emulatorを利用したSpring Bootアプリケーションの起動とAPI確認

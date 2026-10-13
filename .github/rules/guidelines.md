@@ -5,7 +5,7 @@
 ## 1. 技術スタック
 - **言語**: Kotlin 1.9 (Java 21)
 - **フレームワーク**: Spring Boot 3.3 (Web, Data JPA, Validation)
-- **データベース**: H2 Database (In-Memory: `jdbc:h2:mem:todos`)
+- **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析**: Detekt 1.23
 - **テスト**: JUnit 5, MockMvc, REST Assured, Atlassian OpenAPI Request Validator
 - **API仕様**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml))

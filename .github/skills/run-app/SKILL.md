@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Spring Boot アプリケーションをローカル起動し、REST APIの動作確認や H2 コンソールでのデータ確認を行う手順
+description: Spring Boot アプリケーションをCloud Spanner Emulatorとともにローカル起動し、REST APIを確認する手順
 ---
 
 # アプリケーション起動と動作確認手順 (Run App)
@@ -9,6 +9,8 @@ description: Spring Boot アプリケーションをローカル起動し、REST
 
 ## 1. アプリケーションの起動
 ```bash
+docker compose up -d spanner-emulator
+export SPANNER_EMULATOR_HOST=localhost:9010
 ./gradlew bootRun
 ```
 ※ アプリケーションはポート `8080` で起動します。
@@ -40,8 +42,8 @@ curl -X PUT http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000
 curl -X DELETE http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000
 ```
 
-## 3. H2 データベースコンソール
-- **URL**: `http://localhost:8080/h2-console`
-- **JDBC URL**: `jdbc:h2:mem:todos`
-- **ユーザー名**: `sa` (パスワード空)
-ブラウザからテーブル内容やデータを確認する際に利用できます。
+## 3. Emulator の停止
+```bash
+docker compose down
+```
+Emulatorはインメモリのため、停止するとデータベースと保存データは消去されます。
