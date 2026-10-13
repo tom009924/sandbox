@@ -16,11 +16,6 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
-    services:
-      spanner-emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:latest
-        ports:
-          - 9010:9010
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -34,7 +29,20 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Start Spanner Emulator and Toxiproxy
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 60); do
+            if curl --silent --output /dev/null --max-time 2 http://localhost:8474/proxies/spanner \
+              && curl --silent --output /dev/null --max-time 2 http://localhost:9020; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --show-error http://localhost:8474/proxies/spanner > /dev/null
+
       - name: Run checks
         env:
-          SPANNER_EMULATOR_HOST: localhost:9010
+          SPANNER_EMULATOR_HOST: localhost:8666
+          TOXIPROXY_CONTROL_URL: http://localhost:8474
         run: ./gradlew check --no-daemon

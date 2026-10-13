@@ -9,8 +9,8 @@ description: Spring Boot アプリケーションをCloud Spanner Emulatorとと
 
 ## 1. アプリケーションの起動
 ```bash
-docker compose up -d spanner-emulator
-export SPANNER_EMULATOR_HOST=localhost:9010
+docker compose up -d
+export SPANNER_EMULATOR_HOST=localhost:8666
 ./gradlew bootRun
 ```
 ※ アプリケーションはポート `8080` で起動します。

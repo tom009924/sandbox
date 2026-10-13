@@ -15,6 +15,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -278,6 +279,32 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo(null))
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
+    }
+
+    @Test
+    fun updateTodoReturnsServiceUnavailableWhenSpannerFailsAfterRead() {
+        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("title", equalTo("Buy milk"))
+
+        SpannerProxyFaultInjector().resetSpannerConnections().use {
+            validatedRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"Milk bought","completed":true}""")
+                .`when`()
+                .put("/api/todos/$todoId")
+                .then()
+                .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .body("message", equalTo("The database is temporarily unavailable"))
+        }
+
+        assertEquals("Buy milk", todoRepository.findById(todoId)?.title)
     }
 
     @Test
