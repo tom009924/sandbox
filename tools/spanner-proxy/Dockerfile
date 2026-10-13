@@ -1,14 +1,10 @@
-FROM golang:1.24.4-alpine AS build
+FROM gradle:8.10.2-jdk21 AS build
 
-WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
-COPY main.go ./
-COPY main_test.go ./
-RUN CGO_ENABLED=0 go test ./...
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /spanner-proxy .
+WORKDIR /workspace
+COPY . .
+RUN ./gradlew :spanner-proxy:installDist --no-daemon
 
-FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /spanner-proxy /spanner-proxy
+FROM eclipse-temurin:21-jre
+COPY --from=build /workspace/spanner-proxy/build/install/spanner-proxy /opt/spanner-proxy
 EXPOSE 8666 8474
-ENTRYPOINT ["/spanner-proxy"]
+ENTRYPOINT ["/opt/spanner-proxy/bin/spanner-proxy"]

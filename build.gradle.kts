@@ -17,6 +17,8 @@ detekt {
             "src/main/kotlin",
             "src/test/kotlin",
             "src/integrationTest/kotlin",
+            "spanner-proxy/src/main/kotlin",
+            "spanner-proxy/src/test/kotlin",
         ),
     )
 }

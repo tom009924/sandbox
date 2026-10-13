@@ -12,7 +12,7 @@ export SPANNER_EMULATOR_HOST=localhost:8666
 ./gradlew bootRun
 ```
 
-Spannerへの接続はSQLを認識するSpanner gRPC proxy経由です。通常はRPCを透過的に転送し、統合テストから `INSERT INTO todos` のRPCだけを選択して失敗させられます。Toxiproxyは使用しません。アプリを起動するだけなら `SPANNER_PROXY_CONTROL_URL` は不要です。Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
+Spannerへの接続はKotlin/JVM製のSQL認識型Spanner gRPC proxy経由です（`:spanner-proxy` モジュール）。通常はRPCを透過的に転送し、統合テストから `INSERT INTO todos` のRPCだけを選択して失敗させられます。Toxiproxyは使用しません。アプリを起動するだけなら `SPANNER_PROXY_CONTROL_URL` は不要です。Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
 
 Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
