@@ -339,29 +339,30 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun updateTodoReturnsServiceUnavailableWhenSpannerFailsAfterRead() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
+    fun createTodoReturnsServiceUnavailableWhenTodoInsertFails() {
+        val existingTodo = todoRepository.save(Todo(title = "Existing todo"))
+        val existingTodoId = requireNotNull(existingTodo.id)
+        val initialTodoCount = todoRepository.findAll().size
 
-        validatedRequest()
-            .`when`()
-            .get("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("title", equalTo("Buy milk"))
-
-        SpannerProxyFaultInjector().resetSpannerConnections().use {
+        SpannerProxyFaultInjector().failTodoInsert().use {
             validatedRequest()
-                .contentType(ContentType.JSON)
-                .body("""{"title":"Milk bought","completed":true}""")
                 .`when`()
-                .put("/api/todos/$todoId")
+                .get("/api/todos/$existingTodoId")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("title", equalTo("Existing todo"))
+
+            validatedPostRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"New todo"}""")
+                .`when`()
+                .post("/api/todos")
                 .then()
                 .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value())
                 .body("message", equalTo("The database is temporarily unavailable"))
         }
 
-        assertEquals("Buy milk", todoRepository.findById(todoId)?.title)
+        assertEquals(initialTodoCount, todoRepository.findAll().size)
     }
 
     @Test

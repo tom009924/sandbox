@@ -1,8 +1,0 @@
-[
-  {
-    "name": "spanner",
-    "listen": "0.0.0.0:8666",
-    "upstream": "spanner-emulator:9010",
-    "enabled": true
-  }
-]

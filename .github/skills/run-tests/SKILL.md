@@ -14,7 +14,7 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 ```bash
 docker compose up -d
 export SPANNER_EMULATOR_HOST=localhost:8666
-export TOXIPROXY_CONTROL_URL=http://localhost:8474
+export SPANNER_PROXY_CONTROL_URL=http://localhost:8474
 ./gradlew check
 ```
 
@@ -24,7 +24,7 @@ export TOXIPROXY_CONTROL_URL=http://localhost:8474
   ```bash
   docker compose up -d
   export SPANNER_EMULATOR_HOST=localhost:8666
-  export TOXIPROXY_CONTROL_URL=http://localhost:8474
+  export SPANNER_PROXY_CONTROL_URL=http://localhost:8474
   ./gradlew test
   ```
 - **静的コード解析のみ (Detekt)**:
@@ -36,7 +36,7 @@ export TOXIPROXY_CONTROL_URL=http://localhost:8474
   ```bash
   docker compose up -d
   export SPANNER_EMULATOR_HOST=localhost:8666
-  export TOXIPROXY_CONTROL_URL=http://localhost:8474
+  export SPANNER_PROXY_CONTROL_URL=http://localhost:8474
   ./gradlew integrationTest
   ```
 
