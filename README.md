@@ -16,6 +16,7 @@ Spanner Emulatorはデータベースとインスタンスを自動作成しま�
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
 
 Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
+Docker-in-DockerとDocker Compose v2も使えます。Dev Containerを再ビルドした後、`docker version` と `docker compose version` で確認してください。
 
 ```bash
 gh auth login
