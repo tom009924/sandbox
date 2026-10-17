@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
@@ -139,7 +142,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun createAndUpdateTodoAcceptEstimatedMinutesMinimumAndRejectValuesBelowIt() {
+    fun createAndUpdateTodoAcceptEstimatedMinutesMinimum() {
         val todoId = validatedPostRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"Buy milk","estimatedMinutes":0}""")
@@ -159,78 +162,53 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+    }
 
-        validatedPostRequest(invalidRequest = true)
+    @ParameterizedTest(name = "Priority: {0}")
+    @EnumSource(TodoPriority::class)
+    fun createAndUpdateTodoAcceptEveryPriorityValue(priority: TodoPriority) {
+        val todoId = validatedPostRequest()
             .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk","estimatedMinutes":-1}""")
+            .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
             .`when`()
             .post("/api/todos")
             .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
+            .statusCode(HttpStatus.CREATED.value())
+            .body("priority", equalTo(priority.name))
+            .extract()
+            .path<String>("id")
 
-        validatedRequest(invalidRequest = true)
+        validatedRequest()
             .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk","completed":true,"estimatedMinutes":-1}""")
+            .body("""{"title":"Milk bought","completed":true,"priority":"${priority.name}"}""")
             .`when`()
             .put("/api/todos/$todoId")
             .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
+            .statusCode(HttpStatus.OK.value())
+            .body("priority", equalTo(priority.name))
     }
 
-    @Test
-    fun createAndUpdateTodoAcceptEveryPriorityValue() {
-        TodoPriority.values().forEach { priority ->
-            val todoId = validatedPostRequest()
-                .contentType(ContentType.JSON)
-                .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
-                .`when`()
-                .post("/api/todos")
-                .then()
-                .statusCode(HttpStatus.CREATED.value())
-                .body("priority", equalTo(priority.name))
-                .extract()
-                .path<String>("id")
-
-            validatedRequest()
-                .contentType(ContentType.JSON)
-                .body("""{"title":"Milk bought","completed":true,"priority":"${priority.name}"}""")
-                .`when`()
-                .put("/api/todos/$todoId")
-                .then()
-                .statusCode(HttpStatus.OK.value())
-                .body("priority", equalTo(priority.name))
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("com.example.todo.TodoApiTestCases#validationErrorTestCases")
+    fun validationErrorsReturnBadRequest(tc: ValidationErrorTestCase) {
+        val targetId = if (tc.needsExistingTodo) {
+            val todo = todoRepository.save(Todo(title = "Buy milk"))
+            requireNotNull(todo.id)
+        } else {
+            null
         }
-    }
 
-    @Test
-    fun createTodoWithBlankTitleReturnsBadRequest() {
-        validatedPostRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"  "}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-    }
+        val request = if (tc.method == PathItem.HttpMethod.POST) {
+            validatedPostRequest(invalidRequest = true)
+        } else {
+            validatedRequest(invalidRequest = true)
+        }
 
-    @Test
-    fun createTodoWithMissingTitleReturnsBadRequest() {
-        validatedPostRequest(invalidRequest = true)
+        request
             .contentType(ContentType.JSON)
-            .body("{}")
+            .body(tc.requestBody)
             .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-    }
-
-    @Test
-    fun createTodoWithInvalidPriorityReturnsBadRequest() {
-        validatedPostRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk","priority":"URGENT"}""")
-            .`when`()
-            .post("/api/todos")
+            .request(tc.method.name, tc.pathProvider(targetId))
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
     }
@@ -286,13 +264,31 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
     }
 
-    @Test
-    fun getMissingTodoReturnsNotFound() {
-        validatedRequest()
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("com.example.todo.TodoApiTestCases#notFoundTestCases")
+    fun missingTodoReturnsNotFound(tc: NotFoundTestCase) {
+        val request = validatedRequest()
+        if (tc.requestBody != null) {
+            request.contentType(ContentType.JSON).body(tc.requestBody)
+        }
+
+        request
             .`when`()
-            .get("/api/todos/$MISSING_TODO_ID")
+            .request(tc.method.name, "/api/todos/$MISSING_TODO_ID")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+    }
+
+    @Test
+    fun verifyAllOasOperationsHaveAcceptanceCriteriaInTests() {
+        val oasExpectedResponses = coverageDefinition.operationResponses
+        val testDefinedOperations = TodoApiTestCases.acceptanceCriteriaMap.keys
+        val missing = oasExpectedResponses - testDefinedOperations
+        assertTrue(
+            missing.isEmpty(),
+            "The following OAS operation responses do not have corresponding acceptance criteria in tests: " +
+                missing.joinToString { "${it.first} -> ${it.second}" },
+        )
     }
 
     @Test
@@ -338,58 +334,6 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("estimatedMinutes", equalTo(null))
     }
 
-    @Test
-    fun updateTodoWithBlankTitleReturnsBadRequest() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
-
-        validatedRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"  ","completed":true}""")
-            .`when`()
-            .put("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-    }
-
-    @Test
-    fun updateTodoWithMissingTitleReturnsBadRequest() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
-
-        validatedRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"completed":true}""")
-            .`when`()
-            .put("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-    }
-
-    @Test
-    fun updateTodoWithMissingCompletedReturnsBadRequest() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
-
-        validatedRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Milk bought"}""")
-            .`when`()
-            .put("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-    }
-
-    @Test
-    fun updateMissingTodoReturnsNotFound() {
-        validatedRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Milk bought","completed":true}""")
-            .`when`()
-            .put("/api/todos/$MISSING_TODO_ID")
-            .then()
-            .statusCode(HttpStatus.NOT_FOUND.value())
-    }
 
     @Test
     fun deleteTodoRemovesStoredTodo() {
@@ -405,14 +349,6 @@ class TodoApiIntegrationTest @Autowired constructor(
         assert(todoRepository.findById(todoId) == null)
     }
 
-    @Test
-    fun deleteMissingTodoReturnsNotFound() {
-        validatedRequest()
-            .`when`()
-            .delete("/api/todos/$MISSING_TODO_ID")
-            .then()
-            .statusCode(HttpStatus.NOT_FOUND.value())
-    }
 
     private fun validatedRequest(
         invalidRequest: Boolean = false,
