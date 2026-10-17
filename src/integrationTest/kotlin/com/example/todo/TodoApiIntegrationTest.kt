@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.infrastructure.pubsub.PubSubProperties
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -500,11 +501,15 @@ class TodoApiIntegrationTest @Autowired constructor(
     @TestConfiguration
     class PubSubTestConfiguration {
         @Bean(destroyMethod = "close")
-        fun pubSubTestReceiver(pubSubProperties: PubSubProperties): PubSubTestReceiver =
+        fun pubSubTestReceiver(
+            pubSubProperties: PubSubProperties,
+            objectMapper: ObjectMapper,
+        ): PubSubTestReceiver =
             PubSubTestReceiver(
                 projectId = pubSubProperties.projectId,
                 topicId = pubSubProperties.topicId,
                 emulatorHost = pubSubProperties.emulatorHost,
+                objectMapper = objectMapper,
             )
     }
 
