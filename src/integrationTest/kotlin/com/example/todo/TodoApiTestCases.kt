@@ -68,6 +68,7 @@ object TodoApiTestCases {
                 "Creation with full metadata (description, dueDate, priority, estimatedMinutes)",
                 "Boundary minimum estimatedMinutes (0)",
                 "All priority enum values (LOW, MEDIUM, HIGH)",
+                "Publish CREATED event to Pub/Sub with todo payload",
             ),
         ),
         AcceptanceCriterion(
@@ -113,6 +114,7 @@ object TodoApiTestCases {
                 "Update stored todo and clear optional fields",
                 "All priority enum values (LOW, MEDIUM, HIGH)",
                 "Boundary minimum estimatedMinutes (0)",
+                "Publish UPDATED event to Pub/Sub with updated todo payload",
             ),
         ),
         AcceptanceCriterion(
@@ -140,6 +142,7 @@ object TodoApiTestCases {
             summary = "Todo deleted",
             scenarios = listOf(
                 "Delete stored todo and verify removal from database",
+                "Publish DELETED event to Pub/Sub with null todo payload",
             ),
         ),
         AcceptanceCriterion(
