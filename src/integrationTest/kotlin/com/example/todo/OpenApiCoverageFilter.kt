@@ -14,11 +14,12 @@ import java.math.BigDecimal
 import java.util.concurrent.ConcurrentHashMap
 
 data class OpenApiResponse(
+    val operationId: String,
     val method: HttpMethod,
     val path: String,
     val statusCode: Int,
 ) {
-    override fun toString(): String = "$method $path -> $statusCode"
+    override fun toString(): String = "$operationId ($method $path -> $statusCode)"
 }
 
 data class OpenApiProperty(
@@ -51,6 +52,9 @@ data class OpenApiCoverageDefinition(
     val responses: Set<OpenApiResponse>,
     val constraints: Set<OpenApiConstraint>,
 ) {
+    val operationResponses: Set<Pair<String, Int>>
+        get() = responses.map { it.operationId to it.statusCode }.toSet()
+
     companion object {
         fun from(openApi: OpenAPI): OpenApiCoverageDefinition {
             val schemas = openApi.components?.schemas.orEmpty()
@@ -60,8 +64,9 @@ data class OpenApiCoverageDefinition(
                 }
             }
             val responses = operations.flatMap { (path, method, operation) ->
+                val operationId = operation.operationId ?: "${method.name.lowercase()}${path.replace("/", "_")}"
                 operation.responses.keys.mapNotNull { it.toIntOrNull() }
-                    .map { statusCode -> OpenApiResponse(method, path, statusCode) }
+                    .map { statusCode -> OpenApiResponse(operationId, method, path, statusCode) }
             }.toSet()
             val constraints = operations.flatMap { (path, method, operation) ->
                 val schemaReference =
