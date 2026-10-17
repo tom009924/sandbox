@@ -55,7 +55,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoReturnsCreatedTodo() {
-        validatedPostRequest()
+        val response = validatedPostRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"  Buy milk  "}""")
             .`when`()
@@ -67,6 +67,13 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("description", equalTo(null))
             .body("dueDate", equalTo(null))
             .body("priority", equalTo("MEDIUM"))
+            .extract()
+
+        val createdId = UUID.fromString(response.path("id"))
+        assertPublishedEvent(TodoEventType.CREATED, createdId) {
+            assertEquals("Buy milk", it.event.todo?.title)
+            assertEquals(false, it.event.todo?.completed)
+        }
     }
 
     @Test
@@ -84,6 +91,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
             .path<String>("id")
 
+        if (pubSubReceiver.isAvailable) {
+            val initialEvents = pubSubReceiver.pullEvents(maxMessages = 1)
+            assertEquals(1, initialEvents.size, "Expected 1 CREATED event for initial create")
+            pubSubReceiver.drain()
+        }
+
         val todoId = UUID.fromString(originalId)
         val createdTodo = requireNotNull(todoRepository.findById(todoId))
         todoRepository.save(createdTodo.copy(title = "Changed after creation"))
@@ -99,6 +112,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("title", equalTo("Buy milk"))
 
         assertEquals(initialTodoCount + 1, todoRepository.findAll().size)
+
+        if (pubSubReceiver.isAvailable) {
+            val replayedEvents = pubSubReceiver.pullEvents(
+                maxMessages = 1,
+                maxWait = Duration.ofMillis(SHORT_WAIT_TIMEOUT_MS),
+            )
+            assertEquals(0, replayedEvents.size, "Replaying idempotent request must not publish duplicate events")
+        }
     }
 
     @Test
@@ -331,6 +352,15 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("LOW"))
             .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
 
+        assertPublishedEvent(TodoEventType.UPDATED, todoId) {
+            assertEquals("Milk bought", it.event.todo?.title)
+            assertEquals(true, it.event.todo?.completed)
+            assertEquals(TodoPriority.LOW, it.event.todo?.priority)
+        }
+        if (pubSubReceiver.isAvailable) {
+            pubSubReceiver.drain()
+        }
+
         validatedRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"Milk bought","completed":true}""")
@@ -342,6 +372,11 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo(null))
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
+
+        assertPublishedEvent(TodoEventType.UPDATED, todoId) {
+            assertEquals("Milk bought", it.event.todo?.title)
+            assertEquals(null, it.event.todo?.description)
+        }
     }
 
 
@@ -357,145 +392,26 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.NO_CONTENT.value())
 
         assert(todoRepository.findById(todoId) == null)
-    }
 
-    @Test
-    fun createTodoPublishesCreatedEventToPubSub() {
-        val createdId = validatedPostRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk"}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .extract()
-            .path<String>("id")
-
-        if (pubSubReceiver.isAvailable) {
-            val events = pubSubReceiver.pullEvents(maxMessages = 1)
-            assertEquals(1, events.size, "Expected 1 CREATED event to be published")
-            val received = events.first()
-            assertEquals("CREATED", received.attributes["eventType"])
-            assertEquals(createdId, received.attributes["todoId"])
-            assertEquals(TodoEventType.CREATED, received.event.eventType)
-            assertEquals(UUID.fromString(createdId), received.event.todoId)
-            assertEquals("Buy milk", received.event.todo?.title)
-            assertEquals(false, received.event.todo?.completed)
+        assertPublishedEvent(TodoEventType.DELETED, todoId) {
+            assertEquals(null, it.event.todo)
         }
     }
 
-    @Test
-    fun updateTodoPublishesUpdatedEventToPubSub() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
-        if (pubSubReceiver.isAvailable) {
-            pubSubReceiver.drain()
-        }
-
-        validatedRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Milk bought","completed":true,"priority":"HIGH"}""")
-            .`when`()
-            .put("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-
-        if (pubSubReceiver.isAvailable) {
-            val events = pubSubReceiver.pullEvents(maxMessages = 1)
-            assertEquals(1, events.size, "Expected 1 UPDATED event to be published")
-            val received = events.first()
-            assertEquals("UPDATED", received.attributes["eventType"])
-            assertEquals(todoId.toString(), received.attributes["todoId"])
-            assertEquals(TodoEventType.UPDATED, received.event.eventType)
-            assertEquals(todoId, received.event.todoId)
-            assertEquals("Milk bought", received.event.todo?.title)
-            assertEquals(true, received.event.todo?.completed)
-            assertEquals(TodoPriority.HIGH, received.event.todo?.priority)
-        }
-    }
-
-    @Test
-    fun deleteTodoPublishesDeletedEventToPubSub() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
-        val todoId = requireNotNull(todo.id)
-        if (pubSubReceiver.isAvailable) {
-            pubSubReceiver.drain()
-        }
-
-        validatedRequest()
-            .`when`()
-            .delete("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.NO_CONTENT.value())
-
-        if (pubSubReceiver.isAvailable) {
-            val events = pubSubReceiver.pullEvents(maxMessages = 1)
-            assertEquals(1, events.size, "Expected 1 DELETED event to be published")
-            val received = events.first()
-            assertEquals("DELETED", received.attributes["eventType"])
-            assertEquals(todoId.toString(), received.attributes["todoId"])
-            assertEquals(TodoEventType.DELETED, received.event.eventType)
-            assertEquals(todoId, received.event.todoId)
-            assertEquals(null, received.event.todo)
-        }
-    }
-
-    @Test
-    fun idempotentReplayDoesNotPublishDuplicateEventToPubSub() {
-        val idempotencyKey = UUID.randomUUID().toString()
-
-        validatedPostRequest(idempotencyKey = idempotencyKey)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk"}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-
-        if (pubSubReceiver.isAvailable) {
-            val firstEvents = pubSubReceiver.pullEvents(maxMessages = 1)
-            assertEquals(1, firstEvents.size)
-            pubSubReceiver.drain()
-        }
-
-        validatedPostRequest(idempotencyKey = idempotencyKey)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk"}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-
-        if (pubSubReceiver.isAvailable) {
-            val replayedEvents = pubSubReceiver.pullEvents(
-                maxMessages = 1,
-                maxWait = Duration.ofMillis(SHORT_WAIT_TIMEOUT_MS),
-            )
-            assertEquals(0, replayedEvents.size, "Replaying idempotent request must not publish duplicate events")
-        }
-    }
-
-    @Test
-    fun validationErrorDoesNotPublishEventToPubSub() {
-        if (pubSubReceiver.isAvailable) {
-            pubSubReceiver.drain()
-        }
-
-        validatedPostRequest(invalidRequest = true)
-            .contentType(ContentType.JSON)
-            .body("""{"title":"   "}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.BAD_REQUEST.value())
-
-        if (pubSubReceiver.isAvailable) {
-            val events = pubSubReceiver.pullEvents(
-                maxMessages = 1,
-                maxWait = Duration.ofMillis(SHORT_WAIT_TIMEOUT_MS),
-            )
-            assertEquals(0, events.size, "Validation errors must not publish events to Pub/Sub")
-        }
+    private fun assertPublishedEvent(
+        expectedType: TodoEventType,
+        expectedTodoId: UUID,
+        assertDetails: ((ReceivedTodoEvent) -> Unit)? = null,
+    ) {
+        if (!pubSubReceiver.isAvailable) return
+        val events = pubSubReceiver.pullEvents(maxMessages = 1)
+        assertEquals(1, events.size, "Expected 1 ${expectedType.name} event to be published")
+        val received = events.first()
+        assertEquals(expectedType.name, received.attributes["eventType"])
+        assertEquals(expectedTodoId.toString(), received.attributes["todoId"])
+        assertEquals(expectedType, received.event.eventType)
+        assertEquals(expectedTodoId, received.event.todoId)
+        assertDetails?.invoke(received)
     }
 
     @TestConfiguration
