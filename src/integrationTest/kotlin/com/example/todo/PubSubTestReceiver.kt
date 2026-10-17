@@ -142,6 +142,7 @@ class PubSubTestReceiver(
             val request = PullRequest.newBuilder()
                 .setMaxMessages(maxMessages - result.size)
                 .setSubscription(subscriptionName.toString())
+                .setReturnImmediately(true)
                 .build()
             val response = stub.pullCallable().call(request)
             if (response.receivedMessagesList.isNotEmpty()) {
@@ -174,6 +175,7 @@ class PubSubTestReceiver(
             val request = PullRequest.newBuilder()
                 .setMaxMessages(DRAIN_BATCH_SIZE)
                 .setSubscription(subscriptionName.toString())
+                .setReturnImmediately(true)
                 .build()
             val response = stub.pullCallable().call(request)
             if (response.receivedMessagesList.isEmpty()) {
