@@ -1,5 +1,8 @@
 package com.example.todo.application
 
+import com.example.todo.domain.event.TodoEvent
+import com.example.todo.domain.event.TodoEventType
+import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.IdempotencyRecord
@@ -27,14 +30,15 @@ data class TodoCommand(
 class TodoService(
     private val todoRepository: TodoRepository,
     private val idempotencyRecordRepository: IdempotencyRecordRepository,
+    private val todoEventPublisher: TodoEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
 ) {
     fun list(): List<Todo> = todoRepository.findAll()
 
     fun get(id: UUID): Todo = findTodo(id)
 
-    fun create(command: TodoCommand): Todo =
-        todoRepository.save(
+    fun create(command: TodoCommand): Todo {
+        val saved = todoRepository.save(
             Todo(
                 title = command.title.trim(),
                 description = command.description,
@@ -43,6 +47,16 @@ class TodoService(
                 estimatedMinutes = command.estimatedMinutes,
             ),
         )
+        todoEventPublisher.publish(
+            TodoEvent(
+                eventType = TodoEventType.CREATED,
+                timestamp = clock.instant(),
+                todoId = requireNotNull(saved.id),
+                todo = saved,
+            ),
+        )
+        return saved
+    }
 
     fun createIdempotent(key: String, command: TodoCommand): Todo {
         val now = clock.instant()
@@ -70,7 +84,7 @@ class TodoService(
 
     fun update(id: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id)
-        return todoRepository.save(
+        val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
                 completed = command.completed,
@@ -80,10 +94,28 @@ class TodoService(
                 estimatedMinutes = command.estimatedMinutes,
             ),
         )
+        todoEventPublisher.publish(
+            TodoEvent(
+                eventType = TodoEventType.UPDATED,
+                timestamp = clock.instant(),
+                todoId = id,
+                todo = updated,
+            ),
+        )
+        return updated
     }
 
     fun delete(id: UUID) {
-        todoRepository.delete(findTodo(id))
+        val todo = findTodo(id)
+        todoRepository.delete(todo)
+        todoEventPublisher.publish(
+            TodoEvent(
+                eventType = TodoEventType.DELETED,
+                timestamp = clock.instant(),
+                todoId = id,
+                todo = null,
+            ),
+        )
     }
 
     private fun findTodo(id: UUID): Todo =

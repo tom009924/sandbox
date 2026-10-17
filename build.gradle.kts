@@ -47,6 +47,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("com.google.cloud:google-cloud-spanner-hibernate-dialect:3.9.1")
     runtimeOnly("com.google.cloud:google-cloud-spanner-jdbc:2.29.1")
+    implementation("com.google.cloud:google-cloud-pubsub:1.137.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
