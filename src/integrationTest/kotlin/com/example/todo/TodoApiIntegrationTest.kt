@@ -30,26 +30,6 @@ import java.nio.file.Paths
 import java.time.LocalDate
 import java.util.UUID
 
-data class ValidationErrorTestCase(
-    val description: String,
-    val operationId: String,
-    val method: PathItem.HttpMethod,
-    val pathProvider: (createdId: UUID?) -> String,
-    val requestBody: String,
-    val needsExistingTodo: Boolean = false,
-) {
-    override fun toString(): String = "[$operationId] $description"
-}
-
-data class NotFoundTestCase(
-    val description: String,
-    val operationId: String,
-    val method: PathItem.HttpMethod,
-    val requestBody: String? = null,
-) {
-    override fun toString(): String = "[$operationId] $description"
-}
-
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Suppress("TooManyFunctions")
 class TodoApiIntegrationTest @Autowired constructor(
@@ -209,7 +189,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("validationErrorTestCases")
+    @MethodSource("com.example.todo.TodoApiTestCases#validationErrorTestCases")
     fun validationErrorsReturnBadRequest(tc: ValidationErrorTestCase) {
         val targetId = if (tc.needsExistingTodo) {
             val todo = todoRepository.save(Todo(title = "Buy milk"))
@@ -285,7 +265,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("notFoundTestCases")
+    @MethodSource("com.example.todo.TodoApiTestCases#notFoundTestCases")
     fun missingTodoReturnsNotFound(tc: NotFoundTestCase) {
         val request = validatedRequest()
         if (tc.requestBody != null) {
@@ -302,7 +282,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @Test
     fun verifyAllOasOperationsHaveAcceptanceCriteriaInTests() {
         val oasExpectedResponses = coverageDefinition.operationResponses
-        val testDefinedOperations = ACCEPTANCE_CRITERIA_MAP.keys
+        val testDefinedOperations = TodoApiTestCases.acceptanceCriteriaMap.keys
         val missing = oasExpectedResponses - testDefinedOperations
         assertTrue(
             missing.isEmpty(),
@@ -424,121 +404,6 @@ class TodoApiIntegrationTest @Autowired constructor(
                     ),
                 )
                 .build(),
-        )
-
-        @JvmStatic
-        fun validationErrorTestCases(): List<ValidationErrorTestCase> =
-            postValidationErrorCases() + putValidationErrorCases()
-
-        private fun postValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
-            ValidationErrorTestCase(
-                "Blank title",
-                "createTodo",
-                PathItem.HttpMethod.POST,
-                { "/api/todos" },
-                """{"title":"  "}""",
-            ),
-            ValidationErrorTestCase(
-                "Missing title",
-                "createTodo",
-                PathItem.HttpMethod.POST,
-                { "/api/todos" },
-                "{}",
-            ),
-            ValidationErrorTestCase(
-                "Invalid priority",
-                "createTodo",
-                PathItem.HttpMethod.POST,
-                { "/api/todos" },
-                """{"title":"Buy milk","priority":"URGENT"}""",
-            ),
-            ValidationErrorTestCase(
-                "Negative estimatedMinutes",
-                "createTodo",
-                PathItem.HttpMethod.POST,
-                { "/api/todos" },
-                """{"title":"Buy milk","estimatedMinutes":-1}""",
-            ),
-        )
-
-        private fun putValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
-            ValidationErrorTestCase(
-                "Blank title",
-                "updateTodo",
-                PathItem.HttpMethod.PUT,
-                { id -> "/api/todos/$id" },
-                """{"title":"  ","completed":true}""",
-                needsExistingTodo = true,
-            ),
-            ValidationErrorTestCase(
-                "Missing title",
-                "updateTodo",
-                PathItem.HttpMethod.PUT,
-                { id -> "/api/todos/$id" },
-                """{"completed":true}""",
-                needsExistingTodo = true,
-            ),
-            ValidationErrorTestCase(
-                "Missing completed",
-                "updateTodo",
-                PathItem.HttpMethod.PUT,
-                { id -> "/api/todos/$id" },
-                """{"title":"Milk bought"}""",
-                needsExistingTodo = true,
-            ),
-            ValidationErrorTestCase(
-                "Negative estimatedMinutes",
-                "updateTodo",
-                PathItem.HttpMethod.PUT,
-                { id -> "/api/todos/$id" },
-                """{"title":"Buy milk","completed":true,"estimatedMinutes":-1}""",
-                needsExistingTodo = true,
-            ),
-        )
-
-        @JvmStatic
-        fun notFoundTestCases(): List<NotFoundTestCase> = listOf(
-            NotFoundTestCase(
-                "Get missing todo",
-                "getTodo",
-                PathItem.HttpMethod.GET,
-            ),
-            NotFoundTestCase(
-                "Update missing todo",
-                "updateTodo",
-                PathItem.HttpMethod.PUT,
-                requestBody = """{"title":"Milk bought","completed":true}""",
-            ),
-            NotFoundTestCase(
-                "Delete missing todo",
-                "deleteTodo",
-                PathItem.HttpMethod.DELETE,
-            ),
-        )
-
-        val ACCEPTANCE_CRITERIA_MAP: Map<Pair<String, Int>, String> = mapOf(
-            ("listTodos" to HttpStatus.OK.value()) to
-                "listTodosReturnsEmptyListWhenNoTodosExist, listTodosReturnsStoredTodos",
-            ("createTodo" to HttpStatus.CREATED.value()) to
-                "createTodoReturnsCreatedTodo, createTodoWithMetadataReturnsCreatedTodo",
-            ("createTodo" to HttpStatus.BAD_REQUEST.value()) to
-                "validationErrorsReturnBadRequest",
-            ("createTodo" to HttpStatus.CONFLICT.value()) to
-                "createTodoReturnsConflictWhenIdempotencyKeyIsReusedForDifferentRequest",
-            ("getTodo" to HttpStatus.OK.value()) to
-                "getTodoReturnsMatchingTodo",
-            ("getTodo" to HttpStatus.NOT_FOUND.value()) to
-                "missingTodoReturnsNotFound",
-            ("updateTodo" to HttpStatus.OK.value()) to
-                "updateTodoChangesStoredTodo",
-            ("updateTodo" to HttpStatus.BAD_REQUEST.value()) to
-                "validationErrorsReturnBadRequest",
-            ("updateTodo" to HttpStatus.NOT_FOUND.value()) to
-                "missingTodoReturnsNotFound",
-            ("deleteTodo" to HttpStatus.NO_CONTENT.value()) to
-                "deleteTodoRemovesStoredTodo",
-            ("deleteTodo" to HttpStatus.NOT_FOUND.value()) to
-                "missingTodoReturnsNotFound",
         )
 
         @JvmStatic
