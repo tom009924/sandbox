@@ -16,6 +16,8 @@ import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.infrastructure.pubsub.PubSubProperties
@@ -70,6 +72,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
 
         val createdId = UUID.fromString(response.path("id"))
+        assertStoredTodo(createdId, Todo(title = "Buy milk", completed = false))
+
         assertPublishedEvent(TodoEventType.CREATED, createdId) {
             assertEquals("Buy milk", it.event.todo?.title)
             assertEquals(false, it.event.todo?.completed)
@@ -149,41 +153,60 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoWithMetadataReturnsCreatedTodo() {
-        validatedPostRequest()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                  "title":"  Buy milk  ",
-                  "description":"Buy before the weekend",
-                  "dueDate":"2025-04-18",
-                  "priority":"HIGH",
-                  "estimatedMinutes":30
-                }
-                """.trimIndent(),
-            )
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .body("description", equalTo("Buy before the weekend"))
-            .body("dueDate", equalTo("2025-04-18"))
-            .body("priority", equalTo("HIGH"))
-            .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
+        val createdId = UUID.fromString(
+            validatedPostRequest()
+                .contentType(ContentType.JSON)
+                .body(
+                    """
+                    {
+                      "title":"  Buy milk  ",
+                      "description":"Buy before the weekend",
+                      "dueDate":"2025-04-18",
+                      "priority":"HIGH",
+                      "estimatedMinutes":30
+                    }
+                    """.trimIndent(),
+                )
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("description", equalTo("Buy before the weekend"))
+                .body("dueDate", equalTo("2025-04-18"))
+                .body("priority", equalTo("HIGH"))
+                .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
+                .extract()
+                .path<String>("id"),
+        )
+
+        assertStoredTodo(
+            createdId,
+            Todo(
+                title = "Buy milk",
+                completed = false,
+                description = "Buy before the weekend",
+                dueDate = LocalDate.parse("2025-04-18"),
+                priority = TodoPriority.HIGH,
+                estimatedMinutes = ESTIMATED_MINUTES,
+            ),
+        )
     }
 
     @Test
     fun createAndUpdateTodoAcceptEstimatedMinutesMinimum() {
-        val todoId = validatedPostRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk","estimatedMinutes":0}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
-            .extract()
-            .path<String>("id")
+        val todoId = UUID.fromString(
+            validatedPostRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"Buy milk","estimatedMinutes":0}""")
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+                .extract()
+                .path<String>("id"),
+        )
+        assertEquals(MIN_ESTIMATED_MINUTES, todoRepository.findById(todoId)?.estimatedMinutes)
 
         validatedRequest()
             .contentType(ContentType.JSON)
@@ -193,21 +216,28 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+
+        val stored = requireNotNull(todoRepository.findById(todoId))
+        assertEquals(true, stored.completed)
+        assertEquals(MIN_ESTIMATED_MINUTES, stored.estimatedMinutes)
     }
 
     @ParameterizedTest(name = "Priority: {0}")
     @EnumSource(TodoPriority::class)
     fun createAndUpdateTodoAcceptEveryPriorityValue(priority: TodoPriority) {
-        val todoId = validatedPostRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
-            .`when`()
-            .post("/api/todos")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .body("priority", equalTo(priority.name))
-            .extract()
-            .path<String>("id")
+        val todoId = UUID.fromString(
+            validatedPostRequest()
+                .contentType(ContentType.JSON)
+                .body("""{"title":"Buy milk","priority":"${priority.name}"}""")
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("priority", equalTo(priority.name))
+                .extract()
+                .path<String>("id"),
+        )
+        assertEquals(priority, todoRepository.findById(todoId)?.priority)
 
         validatedRequest()
             .contentType(ContentType.JSON)
@@ -217,17 +247,23 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("priority", equalTo(priority.name))
+
+        val stored = requireNotNull(todoRepository.findById(todoId))
+        assertEquals(true, stored.completed)
+        assertEquals(priority, stored.priority)
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("com.example.todo.TodoApiTestCases#validationErrorTestCases")
     fun validationErrorsReturnBadRequest(tc: ValidationErrorTestCase) {
+        val initialCount = todoRepository.findAll().size
         val targetId = if (tc.needsExistingTodo) {
             val todo = todoRepository.save(Todo(title = "Buy milk"))
             requireNotNull(todo.id)
         } else {
             null
         }
+        val expectedCount = if (tc.needsExistingTodo) initialCount + 1 else initialCount
 
         val request = if (tc.method == PathItem.HttpMethod.POST) {
             validatedPostRequest(invalidRequest = true)
@@ -242,6 +278,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .request(tc.method.name, tc.pathProvider(targetId))
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        assertEquals(expectedCount, todoRepository.findAll().size, "Validation errors must not mutate database")
     }
 
     @Test
@@ -298,6 +336,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @ParameterizedTest(name = "{0}")
     @MethodSource("com.example.todo.TodoApiTestCases#notFoundTestCases")
     fun missingTodoReturnsNotFound(tc: NotFoundTestCase) {
+        val initialCount = todoRepository.findAll().size
         val request = validatedRequest()
         if (tc.requestBody != null) {
             request.contentType(ContentType.JSON).body(tc.requestBody)
@@ -308,6 +347,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .request(tc.method.name, "/api/todos/$MISSING_TODO_ID")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+
+        assertEquals(
+            initialCount,
+            todoRepository.findAll().size,
+            "Operations on missing todos must not mutate database",
+        )
     }
 
     @Test
@@ -327,20 +372,12 @@ class TodoApiIntegrationTest @Autowired constructor(
         val todo = todoRepository.save(Todo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)
 
+        val updatePayload = """{"title":"Milk bought","completed":true,"description":"Purchased",""" +
+            """"dueDate":"2025-04-19","priority":"LOW","estimatedMinutes":45}"""
+
         validatedRequest()
             .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                  "title":"Milk bought",
-                  "completed":true,
-                  "description":"Purchased",
-                  "dueDate":"2025-04-19",
-                  "priority":"LOW",
-                  "estimatedMinutes":45
-                }
-                """.trimIndent(),
-            )
+            .body(updatePayload)
             .`when`()
             .put("/api/todos/$todoId")
             .then()
@@ -351,6 +388,18 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo("2025-04-19"))
             .body("priority", equalTo("LOW"))
             .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
+
+        assertStoredTodo(
+            todoId,
+            Todo(
+                title = "Milk bought",
+                completed = true,
+                description = "Purchased",
+                dueDate = LocalDate.parse("2025-04-19"),
+                priority = TodoPriority.LOW,
+                estimatedMinutes = UPDATED_ESTIMATED_MINUTES,
+            ),
+        )
 
         assertPublishedEvent(TodoEventType.UPDATED, todoId) {
             assertEquals("Milk bought", it.event.todo?.title)
@@ -373,6 +422,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
 
+        assertStoredTodo(todoId, Todo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM))
+
         assertPublishedEvent(TodoEventType.UPDATED, todoId) {
             assertEquals("Milk bought", it.event.todo?.title)
             assertEquals(null, it.event.todo?.description)
@@ -391,11 +442,21 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.NO_CONTENT.value())
 
-        assert(todoRepository.findById(todoId) == null)
+        assertNull(todoRepository.findById(todoId), "Deleted todo must be removed from database")
 
         assertPublishedEvent(TodoEventType.DELETED, todoId) {
             assertEquals(null, it.event.todo)
         }
+    }
+
+    private fun assertStoredTodo(id: UUID, expected: Todo) {
+        val stored = requireNotNull(todoRepository.findById(id)) { "Todo $id must exist in database" }
+        assertEquals(expected.title, stored.title)
+        assertEquals(expected.completed, stored.completed)
+        assertEquals(expected.priority, stored.priority)
+        assertEquals(expected.description, stored.description)
+        assertEquals(expected.dueDate, stored.dueDate)
+        assertEquals(expected.estimatedMinutes, stored.estimatedMinutes)
     }
 
     private fun assertPublishedEvent(
