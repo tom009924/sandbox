@@ -2,7 +2,7 @@
   "name": "Kotlin Dev Container",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "."
   },
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -16,19 +16,21 @@
       "extensions": [
         "fwcd.kotlin",
         "vscjava.vscode-java-pack",
-        "vscjava.vscode-gradle"
+        "vscjava.vscode-gradle",
+        "Google.google-antigravity"
       ],
       "settings": {
+        "java.import.gradle.java.home": "/usr/lib/jvm/msopenjdk-current",
         "java.configuration.runtimes": [
           {
             "name": "JavaSE-21",
-            "path": "/usr/local/sdkman/candidates/java/current",
+            "path": "/usr/lib/jvm/msopenjdk-current",
             "default": true
           }
         ]
       }
     }
   },
-  "postCreateCommand": "cd ${containerWorkspaceFolder} && gradle wrapper --gradle-version 8.10.2 && ./gradlew --version",
+  "postCreateCommand": "./gradlew --version",
   "remoteUser": "vscode"
 }
