@@ -1,5 +1,8 @@
 package com.example.todo.application
 
+import com.example.todo.domain.event.TodoEvent
+import com.example.todo.domain.event.TodoEventType
+import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.model.IdempotencyRecord
@@ -11,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Duration
@@ -22,7 +26,13 @@ import java.util.UUID
 class TodoServiceTest {
     private val repository = InMemoryTodoRepository()
     private val idempotencyRepository = InMemoryIdempotencyRecordRepository()
-    private val service = TodoService(repository, idempotencyRepository)
+    private val eventPublisher = InMemoryTodoEventPublisher()
+    private val service = TodoService(repository, idempotencyRepository, eventPublisher)
+
+    @BeforeEach
+    fun setUp() {
+        eventPublisher.clear()
+    }
 
     @Test
     fun `create trims title and returns generated id`() {
@@ -107,11 +117,13 @@ class TodoServiceTest {
         val firstService = TodoService(
             repository,
             idempotencyRepository,
+            eventPublisher,
             Clock.fixed(IDEMPOTENCY_TIME, ZoneOffset.UTC),
         )
         val secondService = TodoService(
             repository,
             idempotencyRepository,
+            eventPublisher,
             Clock.fixed(IDEMPOTENCY_TIME.plus(Duration.ofHours(24)), ZoneOffset.UTC),
         )
         val command = TodoCommand(title = "Buy milk")
@@ -121,6 +133,60 @@ class TodoServiceTest {
 
         assertTrue(first.id != second.id)
         assertEquals(2, repository.findAll().size)
+    }
+
+    @Test
+    fun `create publishes CREATED event with todo payload`() {
+        val todo = service.create(TodoCommand(title = "Buy milk"))
+
+        assertEquals(1, eventPublisher.publishedEvents.size)
+        val event = eventPublisher.publishedEvents.first()
+        assertEquals(TodoEventType.CREATED, event.eventType)
+        assertEquals(todo.id, event.todoId)
+        assertEquals(todo, event.todo)
+    }
+
+    @Test
+    fun `update publishes UPDATED event with updated todo payload`() {
+        val created = service.create(TodoCommand(title = "Buy milk"))
+        eventPublisher.clear()
+
+        val updated = service.update(
+            requireNotNull(created.id),
+            TodoCommand(title = "Milk bought", completed = true),
+        )
+
+        assertEquals(1, eventPublisher.publishedEvents.size)
+        val event = eventPublisher.publishedEvents.first()
+        assertEquals(TodoEventType.UPDATED, event.eventType)
+        assertEquals(created.id, event.todoId)
+        assertEquals(updated, event.todo)
+    }
+
+    @Test
+    fun `delete publishes DELETED event with null payload`() {
+        val created = service.create(TodoCommand(title = "Buy milk"))
+        eventPublisher.clear()
+
+        service.delete(requireNotNull(created.id))
+
+        assertEquals(1, eventPublisher.publishedEvents.size)
+        val event = eventPublisher.publishedEvents.first()
+        assertEquals(TodoEventType.DELETED, event.eventType)
+        assertEquals(created.id, event.todoId)
+        assertEquals(null, event.todo)
+    }
+
+    @Test
+    fun `replayed idempotent create does not publish duplicate event`() {
+        val command = TodoCommand(title = "Buy milk")
+        service.createIdempotent("request-1", command)
+        assertEquals(1, eventPublisher.publishedEvents.size)
+
+        eventPublisher.clear()
+        service.createIdempotent("request-1", command)
+
+        assertEquals(0, eventPublisher.publishedEvents.size)
     }
 
     private class InMemoryTodoRepository : TodoRepository {
@@ -152,6 +218,18 @@ class TodoServiceTest {
 
         override fun deleteExpiredBefore(instant: Instant) {
             records.entries.removeIf { (_, record) -> record.expiresAt <= instant }
+        }
+    }
+
+    private class InMemoryTodoEventPublisher : TodoEventPublisher {
+        val publishedEvents = mutableListOf<TodoEvent>()
+
+        override fun publish(event: TodoEvent) {
+            publishedEvents.add(event)
+        }
+
+        fun clear() {
+            publishedEvents.clear()
         }
     }
 

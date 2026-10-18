@@ -21,6 +21,11 @@ jobs:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
         ports:
           - 9010:9010
+      pubsub-emulator:
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+        ports:
+          - 8085:8085
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,4 +42,5 @@ jobs:
       - name: Run checks
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
+          PUBSUB_EMULATOR_HOST: localhost:8085
         run: ./gradlew check --no-daemon

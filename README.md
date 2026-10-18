@@ -1,19 +1,21 @@
 # Kotlin Spring Boot CRUD API
 
-Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。ローカル開発とテストではCloud Spanner Emulatorを使用します。
+Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。ローカル開発とテストではCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを使用します。
 
 ## 起動
 
 Java 21が必要です。プロジェクトのルートで次を実行してください。
 
 ```bash
-docker compose up -d spanner-emulator
+docker compose up -d spanner-emulator pubsub-emulator
 export SPANNER_EMULATOR_HOST=localhost:9010
+export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew bootRun
 ```
 
 Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
+実Pub/Subに接続する場合は `PUBSUB_PROJECT_ID` や `PUBSUB_TOPIC_ID` を設定し、Google Cloud認証を構成してください。
 
 Dev ContainerにはGitHub CLI (`gh`) が含まれます。設定を反映するにはコンテナを再ビルドし、GitHub CLIを使う場合はコンテナ内で認証してください。
 Docker-in-DockerとDocker Compose v2も使えます。Dev Containerを再ビルドした後、`docker version` と `docker compose version` で確認してください。
@@ -85,11 +87,12 @@ MockMvcによるコントローラーテストを実行します。静的解析�
 
 Detektは自動修正可能なルールを実行時に自動修正します。
 
-MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` を設定してください。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
+MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストではAtlassian OpenAPI Request Validatorを使い、リクエストとレスポンスを `docs/openapi.yaml` と照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
 
 ```bash
-docker compose up -d spanner-emulator
+docker compose up -d spanner-emulator pubsub-emulator
 export SPANNER_EMULATOR_HOST=localhost:9010
+export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew integrationTest
 ```
 

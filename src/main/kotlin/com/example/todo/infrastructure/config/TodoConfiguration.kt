@@ -1,16 +1,32 @@
 package com.example.todo.infrastructure.config
 
 import com.example.todo.application.TodoService
+import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.infrastructure.pubsub.PubSubProperties
+import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(PubSubProperties::class)
 class TodoConfiguration {
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean(TodoEventPublisher::class)
+    fun todoEventPublisher(
+        pubSubProperties: PubSubProperties,
+        objectMapper: ObjectMapper,
+    ): TodoEventPublisher = PubSubTodoEventPublisher(pubSubProperties, objectMapper)
+
     @Bean
     fun todoService(
         todoRepository: TodoRepository,
         idempotencyRecordRepository: IdempotencyRecordRepository,
-    ) = TodoService(todoRepository, idempotencyRecordRepository)
+        todoEventPublisher: TodoEventPublisher,
+    ) = TodoService(todoRepository, idempotencyRecordRepository, todoEventPublisher)
 }
