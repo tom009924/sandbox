@@ -63,12 +63,11 @@ object TodoApiTestCases {
             statusCode = 201,
             summary = "Todo created",
             scenarios = listOf(
-                "Basic creation with defaults",
-                "Replay original response for same Idempotency-Key",
-                "Creation with full metadata (description, dueDate, priority, estimatedMinutes)",
-                "Boundary minimum estimatedMinutes (0)",
-                "All priority enum values (LOW, MEDIUM, HIGH)",
-                "Publish CREATED event to Pub/Sub with todo payload",
+                "Basic creation with defaults, asserting database record and Pub/Sub event values",
+                "Replay original response for same Idempotency-Key and suppress duplicate event",
+                "Creation with full metadata, asserting database record and Pub/Sub event values",
+                "Boundary minimum estimatedMinutes (0), asserting database record and Pub/Sub event values",
+                "All priority enum values (LOW, MEDIUM, HIGH), asserting database record and Pub/Sub event values",
             ),
         ),
         AcceptanceCriterion(
@@ -111,10 +110,9 @@ object TodoApiTestCases {
             statusCode = 200,
             summary = "Todo updated",
             scenarios = listOf(
-                "Update stored todo and clear optional fields",
-                "All priority enum values (LOW, MEDIUM, HIGH)",
-                "Boundary minimum estimatedMinutes (0)",
-                "Publish UPDATED event to Pub/Sub with updated todo payload",
+                "Update stored todo, clear optional fields, asserting database record and Pub/Sub event values",
+                "All priority enum values (LOW, MEDIUM, HIGH), asserting database record and Pub/Sub event values",
+                "Boundary minimum estimatedMinutes (0), asserting database record and Pub/Sub event values",
             ),
         ),
         AcceptanceCriterion(
@@ -141,8 +139,7 @@ object TodoApiTestCases {
             statusCode = 204,
             summary = "Todo deleted",
             scenarios = listOf(
-                "Delete stored todo and verify removal from database",
-                "Publish DELETED event to Pub/Sub with null todo payload",
+                "Delete stored todo, verify removal from database, and publish DELETED event",
             ),
         ),
         AcceptanceCriterion(

@@ -70,10 +70,16 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
 
         val createdId = UUID.fromString(response.path("id"))
-        assertPublishedEvent(TodoEventType.CREATED, createdId) {
-            assertEquals("Buy milk", it.event.todo?.title)
-            assertEquals(false, it.event.todo?.completed)
-        }
+        val expected = Todo(
+            title = "Buy milk",
+            completed = false,
+            description = null,
+            dueDate = null,
+            priority = TodoPriority.MEDIUM,
+            estimatedMinutes = null,
+        )
+        assertStoredTodo(createdId, expected)
+        assertPublishedEvent(TodoEventType.CREATED, createdId, expected)
     }
 
     @Test
@@ -91,15 +97,20 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
             .path<String>("id")
 
+        val todoId = UUID.fromString(originalId)
+        val initialExpected = Todo(title = "Buy milk", completed = false, priority = TodoPriority.MEDIUM)
+        assertStoredTodo(todoId, initialExpected)
+
         if (pubSubReceiver.isAvailable) {
             val initialEvents = pubSubReceiver.pullEvents(maxMessages = 1)
             assertEquals(1, initialEvents.size, "Expected 1 CREATED event for initial create")
+            assertEventTodo(initialExpected, initialEvents.first().event.todo)
             pubSubReceiver.drain()
         }
 
-        val todoId = UUID.fromString(originalId)
         val createdTodo = requireNotNull(todoRepository.findById(todoId))
-        todoRepository.save(createdTodo.copy(title = "Changed after creation"))
+        val modifiedTodo = createdTodo.copy(title = "Changed after creation")
+        todoRepository.save(modifiedTodo)
 
         validatedPostRequest(idempotencyKey = idempotencyKey)
             .contentType(ContentType.JSON)
@@ -112,6 +123,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("title", equalTo("Buy milk"))
 
         assertEquals(initialTodoCount + 1, todoRepository.findAll().size)
+        assertStoredTodo(todoId, modifiedTodo)
 
         if (pubSubReceiver.isAvailable) {
             val replayedEvents = pubSubReceiver.pullEvents(
@@ -149,7 +161,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun createTodoWithMetadataReturnsCreatedTodo() {
-        validatedPostRequest()
+        val response = validatedPostRequest()
             .contentType(ContentType.JSON)
             .body(
                 """
@@ -170,6 +182,19 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo("2025-04-18"))
             .body("priority", equalTo("HIGH"))
             .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
+            .extract()
+
+        val createdId = UUID.fromString(response.path("id"))
+        val expected = Todo(
+            title = "Buy milk",
+            completed = false,
+            description = "Buy before the weekend",
+            dueDate = LocalDate.parse("2025-04-18"),
+            priority = TodoPriority.HIGH,
+            estimatedMinutes = ESTIMATED_MINUTES,
+        )
+        assertStoredTodo(createdId, expected)
+        assertPublishedEvent(TodoEventType.CREATED, createdId, expected)
     }
 
     @Test
@@ -185,6 +210,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
             .path<String>("id")
 
+        val id = UUID.fromString(todoId)
+        val expectedCreate = Todo(title = "Buy milk", completed = false, estimatedMinutes = MIN_ESTIMATED_MINUTES)
+        assertStoredTodo(id, expectedCreate)
+        assertPublishedEvent(TodoEventType.CREATED, id, expectedCreate)
+        if (pubSubReceiver.isAvailable) {
+            pubSubReceiver.drain()
+        }
+
         validatedRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"Buy milk","completed":true,"estimatedMinutes":0}""")
@@ -193,6 +226,10 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+
+        val expectedUpdate = Todo(title = "Buy milk", completed = true, estimatedMinutes = MIN_ESTIMATED_MINUTES)
+        assertStoredTodo(id, expectedUpdate)
+        assertPublishedEvent(TodoEventType.UPDATED, id, expectedUpdate)
     }
 
     @ParameterizedTest(name = "Priority: {0}")
@@ -209,6 +246,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
             .path<String>("id")
 
+        val id = UUID.fromString(todoId)
+        val expectedCreate = Todo(title = "Buy milk", completed = false, priority = priority)
+        assertStoredTodo(id, expectedCreate)
+        assertPublishedEvent(TodoEventType.CREATED, id, expectedCreate)
+        if (pubSubReceiver.isAvailable) {
+            pubSubReceiver.drain()
+        }
+
         validatedRequest()
             .contentType(ContentType.JSON)
             .body("""{"title":"Milk bought","completed":true,"priority":"${priority.name}"}""")
@@ -217,6 +262,10 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("priority", equalTo(priority.name))
+
+        val expectedUpdate = Todo(title = "Milk bought", completed = true, priority = priority)
+        assertStoredTodo(id, expectedUpdate)
+        assertPublishedEvent(TodoEventType.UPDATED, id, expectedUpdate)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -228,6 +277,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         } else {
             null
         }
+        val expectedCount = if (tc.needsExistingTodo) 1 else 0
 
         val request = if (tc.method == PathItem.HttpMethod.POST) {
             validatedPostRequest(invalidRequest = true)
@@ -242,6 +292,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .request(tc.method.name, tc.pathProvider(targetId))
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        assertEquals(expectedCount, todoRepository.findAll().size)
     }
 
     @Test
@@ -308,6 +360,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .request(tc.method.name, "/api/todos/$MISSING_TODO_ID")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+
+        assertEquals(0, todoRepository.findAll().size)
     }
 
     @Test
@@ -352,11 +406,16 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("LOW"))
             .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
 
-        assertPublishedEvent(TodoEventType.UPDATED, todoId) {
-            assertEquals("Milk bought", it.event.todo?.title)
-            assertEquals(true, it.event.todo?.completed)
-            assertEquals(TodoPriority.LOW, it.event.todo?.priority)
-        }
+        val expectedFirst = Todo(
+            title = "Milk bought",
+            completed = true,
+            description = "Purchased",
+            dueDate = LocalDate.parse("2025-04-19"),
+            priority = TodoPriority.LOW,
+            estimatedMinutes = UPDATED_ESTIMATED_MINUTES,
+        )
+        assertStoredTodo(todoId, expectedFirst)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedFirst)
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -373,12 +432,10 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
 
-        assertPublishedEvent(TodoEventType.UPDATED, todoId) {
-            assertEquals("Milk bought", it.event.todo?.title)
-            assertEquals(null, it.event.todo?.description)
-        }
+        val expectedSecond = Todo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM)
+        assertStoredTodo(todoId, expectedSecond)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedSecond)
     }
-
 
     @Test
     fun deleteTodoRemovesStoredTodo() {
@@ -391,16 +448,39 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.NO_CONTENT.value())
 
-        assert(todoRepository.findById(todoId) == null)
+        assertEquals(null, todoRepository.findById(todoId))
 
         assertPublishedEvent(TodoEventType.DELETED, todoId) {
             assertEquals(null, it.event.todo)
         }
     }
 
+    private fun assertStoredTodo(id: UUID, expected: Todo) {
+        val stored = requireNotNull(todoRepository.findById(id)) {
+            "Expected todo with ID $id to exist in database, but was not found"
+        }
+        assertEquals(expected.title, stored.title)
+        assertEquals(expected.completed, stored.completed)
+        assertEquals(expected.description, stored.description)
+        assertEquals(expected.dueDate, stored.dueDate)
+        assertEquals(expected.priority, stored.priority)
+        assertEquals(expected.estimatedMinutes, stored.estimatedMinutes)
+    }
+
+    private fun assertEventTodo(expected: Todo, actual: Todo?) {
+        val todo = requireNotNull(actual) { "Expected todo event payload, but was null" }
+        assertEquals(expected.title, todo.title)
+        assertEquals(expected.completed, todo.completed)
+        assertEquals(expected.description, todo.description)
+        assertEquals(expected.dueDate, todo.dueDate)
+        assertEquals(expected.priority, todo.priority)
+        assertEquals(expected.estimatedMinutes, todo.estimatedMinutes)
+    }
+
     private fun assertPublishedEvent(
         expectedType: TodoEventType,
         expectedTodoId: UUID,
+        expectedTodo: Todo? = null,
         assertDetails: ((ReceivedTodoEvent) -> Unit)? = null,
     ) {
         if (!pubSubReceiver.isAvailable) return
@@ -411,6 +491,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertEquals(expectedTodoId.toString(), received.attributes["todoId"])
         assertEquals(expectedType, received.event.eventType)
         assertEquals(expectedTodoId, received.event.todoId)
+        if (expectedTodo != null) {
+            assertEventTodo(expectedTodo, received.event.todo)
+        }
         assertDetails?.invoke(received)
     }
 
