@@ -33,7 +33,13 @@ Use this skill to finish repository changes made in a dedicated feature worktree
 
    If the push fails, preserve the local commit and report the exact retry command. Do not use force-push to work around a rejection.
 7. Before opening a pull request, check whether one already exists for the branch. If it does, verify its URL and branch direction and do not create a duplicate.
-8. Create a pull request targeting the detected default branch. Use the repository's available authenticated GitHub CLI or approved GitHub integration. Provide a concise title and a body summarizing the change and listing the checks run. Do not claim checks passed unless they did. If pull-request creation is unavailable or authentication fails, preserve the pushed branch and worktree and provide the blocker and a retry command, such as:
+8. Create a pull request targeting the detected default branch. Use the repository's available authenticated GitHub CLI or approved GitHub integration. If `gh` is not yet logged in (`exit code 4`), sync it non-interactively from the Dev Container's Git credential helper (outside the sandbox so `/home/vscode/.vscode-server` is accessible, and with `GIT_TERMINAL_PROMPT=0` so it never blocks on stdin):
+
+   ```bash
+   printf "protocol=https\nhost=github.com\n\n" | git credential fill | sed -n 's/^password=//p' | gh auth login --with-token
+   ```
+
+   Provide a concise title and a body summarizing the change and listing the checks run. Do not claim checks passed unless they did. If pull-request creation is still unavailable or authentication fails, preserve the pushed branch and worktree and provide the blocker and a retry command, such as:
 
    ```bash
    gh pr create --base <default-branch> --head <branch-name> --title "<title>" --body "<summary and checks>"

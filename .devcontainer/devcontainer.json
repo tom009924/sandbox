@@ -31,6 +31,9 @@
       }
     }
   },
-  "postCreateCommand": "./gradlew --version",
+  "remoteEnv": {
+    "GIT_TERMINAL_PROMPT": "0"
+  },
+  "postCreateCommand": "./gradlew detekt compileTestKotlin compileIntegrationTestKotlin --no-daemon",
   "remoteUser": "vscode"
 }

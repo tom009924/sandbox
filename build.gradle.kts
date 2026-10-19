@@ -67,6 +67,8 @@ tasks.test {
 tasks.withType<Test>().configureEach {
     maxHeapSize = "256m"
     maxParallelForks = 1
+    environment("SPANNER_EMULATOR_HOST", System.getenv("SPANNER_EMULATOR_HOST") ?: "localhost:9010")
+    environment("PUBSUB_EMULATOR_HOST", System.getenv("PUBSUB_EMULATOR_HOST") ?: "localhost:8085")
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {
