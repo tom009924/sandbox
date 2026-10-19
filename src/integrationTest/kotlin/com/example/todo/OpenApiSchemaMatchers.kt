@@ -2,11 +2,26 @@ package com.example.todo
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
+import io.kotest.assertions.json.schema.JsonSchema
+import io.kotest.assertions.json.schema.JsonSchemaElement
+import io.kotest.assertions.json.schema.jsonSchema
+import io.kotest.assertions.json.schema.shouldMatchSchema
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
+import io.kotest.matchers.and
+import io.kotest.matchers.collections.beIn
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.doubles.beGreaterThanOrEqualTo as beDoubleGte
+import io.kotest.matchers.doubles.beLessThanOrEqualTo as beDoubleLte
+import io.kotest.matchers.longs.beGreaterThanOrEqualTo
+import io.kotest.matchers.longs.beLessThanOrEqualTo
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
+import io.kotest.matchers.string.contain
+import io.kotest.matchers.string.haveMaxLength
+import io.kotest.matchers.string.haveMinLength
 import io.restassured.filter.Filter
 import io.restassured.filter.FilterContext
 import io.restassured.response.Response
@@ -20,6 +35,11 @@ import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.parameters.Parameter
 import java.time.LocalDate
 import java.util.UUID
+
+fun Schema<*>.toKotestJsonSchema(openApi: OpenAPI): JsonSchema {
+    val converter = KotestOpenApiSchemaConverter(openApi.components?.schemas.orEmpty())
+    return jsonSchema { converter.toElement(this@toKotestJsonSchema) }
+}
 
 fun matchOpenApiSchema(
     schemaName: String,
@@ -35,26 +55,43 @@ fun matchOpenApiSchema(
     schema: Schema<*>,
     openApi: OpenAPI,
 ): Matcher<String> = Matcher { actualJson ->
-    val schemas = openApi.components?.schemas.orEmpty()
-    val errors = runCatching { schemaObjectMapper.readTree(actualJson) }
-        .fold(
-            onSuccess = { rootNode ->
-                if (rootNode == null || rootNode.isMissingNode) {
-                    listOf("$: JSON body is empty or missing")
-                } else {
-                    OpenApiSchemaValidator(schemas).validate(rootNode, schema, "$")
-                }
-            },
-            onFailure = { ex -> listOf("$: Invalid JSON (${ex.message})") },
-        )
+    val converter = KotestOpenApiSchemaConverter(openApi.components?.schemas.orEmpty())
+    val kotestSchema = jsonSchema { converter.toElement(schema) }
+    val parsedResult = runCatching {
+        val node = schemaObjectMapper.readTree(actualJson)
+        requireNotNull(node) { "JSON body is empty" }
+    }
 
-    MatcherResult(
-        passed = errors.isEmpty(),
-        failureMessageFn = {
-            "JSON did not match OpenAPI schema:\n" + errors.joinToString("\n") { " - $it" }
+    parsedResult.fold(
+        onSuccess = { rootNode ->
+            val nullViolations = converter.validateNullabilityAndRequired(rootNode, schema, "$")
+            if (nullViolations.isNotEmpty()) {
+                MatcherResult(
+                    passed = false,
+                    failureMessageFn = {
+                        "JSON did not match OpenAPI schema:\n" + nullViolations.joinToString("\n") { " - $it" }
+                    },
+                    negatedFailureMessageFn = { "Expected JSON not to match OpenAPI schema, but it matched." },
+                )
+            } else {
+                val strippedNode = converter.stripNullableNulls(rootNode, schema)
+                val strippedJson = schemaObjectMapper.writeValueAsString(strippedNode)
+                val schemaCheck = runCatching { strippedJson shouldMatchSchema kotestSchema }
+                MatcherResult(
+                    passed = schemaCheck.isSuccess,
+                    failureMessageFn = {
+                        schemaCheck.exceptionOrNull()?.message ?: "JSON did not match OpenAPI schema"
+                    },
+                    negatedFailureMessageFn = { "Expected JSON not to match OpenAPI schema, but it matched." },
+                )
+            }
         },
-        negatedFailureMessageFn = {
-            "Expected JSON not to match OpenAPI schema, but it matched."
+        onFailure = { ex ->
+            MatcherResult(
+                passed = false,
+                failureMessageFn = { "$: Invalid JSON (${ex.message})" },
+                negatedFailureMessageFn = { "Expected valid JSON not matching schema" },
+            )
         },
     )
 }
@@ -63,9 +100,6 @@ class OpenApiValidationFilter(
     private val openApi: OpenAPI,
     private val validateRequest: Boolean = true,
 ) : Filter {
-    private val schemas = openApi.components?.schemas.orEmpty()
-    private val validator = OpenApiSchemaValidator(schemas)
-
     override fun filter(
         requestSpec: FilterableRequestSpecification,
         responseSpec: FilterableResponseSpecification,
@@ -126,23 +160,20 @@ class OpenApiValidationFilter(
                 "path" -> pathValues[parameter.name]
                 else -> null
             }
-            if (value == null) {
-                if (parameter.required == true) {
+            val paramSchema = parameter.schema
+            when {
+                value == null && parameter.required == true ->
                     listOf("Missing required ${parameter.`in`} parameter '${parameter.name}'")
-                } else {
-                    emptyList()
+                value != null && paramSchema != null -> {
+                    val encoded = schemaObjectMapper.writeValueAsString(value)
+                    val result = matchOpenApiSchema(paramSchema, openApi).test(encoded)
+                    if (result.passed()) {
+                        emptyList()
+                    } else {
+                        listOf("${parameter.`in`}.${parameter.name}: ${result.failureMessage()}")
+                    }
                 }
-            } else {
-                val paramSchema = parameter.schema
-                if (paramSchema != null) {
-                    validator.validate(
-                        schemaObjectMapper.valueToTree(value),
-                        paramSchema,
-                        "${parameter.`in`}.${parameter.name}",
-                    )
-                } else {
-                    emptyList()
-                }
+                else -> emptyList()
             }
         }
     }
@@ -170,125 +201,140 @@ class OpenApiValidationFilter(
     }
 }
 
-private class OpenApiSchemaValidator(
+private class KotestOpenApiSchemaConverter(
     private val schemas: Map<String, Schema<*>>,
 ) {
-    fun validate(node: JsonNode, rawSchema: Schema<*>, path: String): List<String> {
+    fun toElement(rawSchema: Schema<*>): JsonSchemaElement {
         val schema = resolveSchema(rawSchema)
-        return if (node.isNull) {
-            if (schema.nullable == true) emptyList() else listOf("$path: null is not allowed")
-        } else {
-            validateNonNullNode(node, schema, path)
+        return when (schema.type) {
+            "object" -> toObjectElement(schema)
+            "array" -> JsonSchema.JsonArray(elementType = schema.items?.let(::toElement))
+            "string" -> JsonSchema.JsonString(matcher = buildStringMatcher(schema))
+            "integer" -> JsonSchema.JsonInteger(matcher = buildIntegerMatcher(schema))
+            "number" -> JsonSchema.JsonDecimal(matcher = buildNumberMatcher(schema))
+            "boolean" -> JsonSchema.JsonBoolean
+            else -> JsonSchema.JsonObject(
+                additionalProperties = true,
+                properties = emptyMap(),
+                requiredProperties = emptyList(),
+            )
         }
     }
 
-    private fun validateNonNullNode(node: JsonNode, schema: Schema<*>, path: String): List<String> =
-        when (schema.type) {
-            "object" -> validateObject(node, schema, path)
-            "array" -> validateArray(node, schema, path)
-            "string" -> validateString(node, schema, path)
-            "integer" -> validateInteger(node, schema, path)
-            "number" -> validateNumber(node, schema, path)
-            "boolean" -> if (node.isBoolean) emptyList() else listOf("$path: expected boolean, got ${node.nodeType}")
-            else -> emptyList()
+    private fun toObjectElement(schema: Schema<*>): JsonSchema.JsonObject {
+        val definedProps = schema.properties.orEmpty()
+        val convertedProps = definedProps.mapValues { (_, propSchema) -> toElement(propSchema) }
+        val nonNullableRequired = schema.required.orEmpty().filter { propName ->
+            val propSchema = definedProps[propName]?.let(::resolveSchema)
+            propSchema?.nullable != true
         }
-
-    private fun validateObject(node: JsonNode, schema: Schema<*>, path: String): List<String> {
-        if (!node.isObject) return listOf("$path: expected object, got ${node.nodeType}")
-        val errors = mutableListOf<String>()
-        val definedProperties = schema.properties.orEmpty()
-
-        schema.required.orEmpty().forEach { reqField ->
-            if (!node.has(reqField)) {
-                errors += "$path.$reqField: required property is missing"
-            }
-        }
-        if (schema.additionalProperties != true && definedProperties.isNotEmpty()) {
-            node.fieldNames().forEach { fieldName ->
-                if (fieldName !in definedProperties) {
-                    errors += "$path.$fieldName: property is not allowed by schema"
-                }
-            }
-        }
-        definedProperties.forEach { (propName, propSchema) ->
-            if (node.has(propName)) {
-                errors += validate(node.get(propName), propSchema, "$path.$propName")
-            }
-        }
-        return errors
+        val allowExtra = schema.additionalProperties == true || definedProps.isEmpty()
+        return JsonSchema.JsonObject(
+            additionalProperties = allowExtra,
+            properties = convertedProps,
+            requiredProperties = nonNullableRequired,
+        )
     }
 
-    private fun validateArray(node: JsonNode, schema: Schema<*>, path: String): List<String> =
-        if (!node.isArray) {
-            listOf("$path: expected array, got ${node.nodeType}")
-        } else {
-            val itemSchema = schema.items
-            if (itemSchema == null) {
-                emptyList()
-            } else {
-                node.flatMapIndexed { index, element ->
-                    validate(element, itemSchema, "$path[$index]")
-                }
-            }
-        }
-
-    private fun validateString(node: JsonNode, schema: Schema<*>, path: String): List<String> {
-        if (!node.isTextual) return listOf("$path: expected string, got ${node.nodeType}")
-        val text = node.asText()
-        val errors = mutableListOf<String>()
-
-        schema.minLength?.let { min ->
-            if (text.length < min) errors += "$path: length ${text.length} is less than minLength $min"
-        }
-        schema.maxLength?.let { max ->
-            if (text.length > max) errors += "$path: length ${text.length} is greater than maxLength $max"
-        }
-        schema.pattern?.let { pattern ->
-            if (!Regex(pattern).containsMatchIn(text)) {
-                errors += "$path: value '$text' does not match pattern '$pattern'"
-            }
-        }
+    private fun buildStringMatcher(schema: Schema<*>): Matcher<String> {
+        var matcher: Matcher<String> = Matcher { MatcherResult(true, { "" }, { "" }) }
+        schema.minLength?.let { matcher = matcher and haveMinLength(it) }
+        schema.maxLength?.let { matcher = matcher and haveMaxLength(it) }
+        schema.pattern?.let { matcher = matcher and contain(Regex(it)) }
         val allowedEnums = schema.enum.orEmpty().map { it.toString() }
-        if (allowedEnums.isNotEmpty() && text !in allowedEnums) {
-            errors += "$path: value '$text' is not in enum $allowedEnums"
+        if (allowedEnums.isNotEmpty()) {
+            matcher = matcher and beIn(allowedEnums)
         }
-        errors += validateStringFormat(text, schema.format, path)
-        return errors
+        schema.format?.let { matcher = matcher and formatMatcher(it) }
+        return matcher
     }
 
-    private fun validateStringFormat(text: String, format: String?, path: String): List<String> =
-        when (format) {
-            "uuid" -> runCatching { UUID.fromString(text) }
-                .fold(onSuccess = { emptyList() }, onFailure = { listOf("$path: invalid uuid '$text'") })
-            "date" -> runCatching { LocalDate.parse(text) }
-                .fold(onSuccess = { emptyList() }, onFailure = { listOf("$path: invalid date '$text'") })
+    private fun formatMatcher(format: String): Matcher<String> = Matcher { value ->
+        val valid = when (format) {
+            "uuid" -> runCatching { UUID.fromString(value) }.isSuccess
+            "date" -> runCatching { LocalDate.parse(value) }.isSuccess
+            else -> true
+        }
+        MatcherResult(
+            passed = valid,
+            failureMessageFn = { "Expected valid $format format, but was '$value'" },
+            negatedFailureMessageFn = { "Expected value not to match $format format" },
+        )
+    }
+
+    private fun buildIntegerMatcher(schema: Schema<*>): Matcher<Long> {
+        var matcher: Matcher<Long> = Matcher { MatcherResult(true, { "" }, { "" }) }
+        schema.minimum?.let { matcher = matcher and beGreaterThanOrEqualTo(it.toLong()) }
+        schema.maximum?.let { matcher = matcher and beLessThanOrEqualTo(it.toLong()) }
+        return matcher
+    }
+
+    private fun buildNumberMatcher(schema: Schema<*>): Matcher<Double> {
+        var matcher: Matcher<Double> = Matcher { MatcherResult(true, { "" }, { "" }) }
+        schema.minimum?.let { matcher = matcher and beDoubleGte(it.toDouble()) }
+        schema.maximum?.let { matcher = matcher and beDoubleLte(it.toDouble()) }
+        return matcher
+    }
+
+    fun validateNullabilityAndRequired(
+        node: JsonNode,
+        rawSchema: Schema<*>,
+        path: String,
+    ): List<String> {
+        val schema = resolveSchema(rawSchema)
+        return when {
+            node.isNull ->
+                if (schema.nullable == true) emptyList() else listOf("$path: null is not allowed")
+            node.isObject && schema.type == "object" -> {
+                val missingRequired = schema.required.orEmpty()
+                    .filter { !node.has(it) }
+                    .map { "$path.$it: required property is missing" }
+                val childErrors = schema.properties.orEmpty().flatMap { (propName, propSchema) ->
+                    val child = node.get(propName)
+                    if (child != null) {
+                        validateNullabilityAndRequired(child, propSchema, "$path.$propName")
+                    } else {
+                        emptyList()
+                    }
+                }
+                missingRequired + childErrors
+            }
+            node.isArray && schema.type == "array" -> {
+                val itemSchema = schema.items
+                if (itemSchema == null) {
+                    emptyList()
+                } else {
+                    node.flatMapIndexed { idx, item ->
+                        validateNullabilityAndRequired(item, itemSchema, "$path[$idx]")
+                    }
+                }
+            }
             else -> emptyList()
         }
+    }
 
-    private fun validateInteger(node: JsonNode, schema: Schema<*>, path: String): List<String> =
-        if (!node.isIntegralNumber) {
-            listOf("$path: expected integer, got ${node.nodeType}")
-        } else {
-            validateNumericBounds(node, schema, path)
+    fun stripNullableNulls(node: JsonNode, rawSchema: Schema<*>): JsonNode {
+        val schema = resolveSchema(rawSchema)
+        return when {
+            node is ObjectNode && schema.type == "object" -> stripObjectNulls(node, schema)
+            node is ArrayNode && schema.type == "array" && schema.items != null ->
+                schemaObjectMapper.createArrayNode().addAll(
+                    node.map { stripNullableNulls(it, schema.items) },
+                )
+            else -> node
         }
+    }
 
-    private fun validateNumber(node: JsonNode, schema: Schema<*>, path: String): List<String> =
-        if (!node.isNumber) {
-            listOf("$path: expected number, got ${node.nodeType}")
-        } else {
-            validateNumericBounds(node, schema, path)
-        }
-
-    private fun validateNumericBounds(node: JsonNode, schema: Schema<*>, path: String): List<String> {
-        val value = node.decimalValue()
-        val errors = mutableListOf<String>()
-        schema.minimum?.let { min ->
-            if (value < min) errors += "$path: $value is less than minimum $min"
-        }
-        schema.maximum?.let { max ->
-            if (value > max) errors += "$path: $value is greater than maximum $max"
-        }
-        return errors
+    private fun stripObjectNulls(node: ObjectNode, schema: Schema<*>): ObjectNode {
+        val props = schema.properties.orEmpty()
+        val copy = schemaObjectMapper.createObjectNode()
+        node.fields().asSequence()
+            .filterNot { (key, value) -> value.isNull && props[key]?.let(::resolveSchema)?.nullable == true }
+            .forEach { (key, value) ->
+                val propSchema = props[key]?.let(::resolveSchema)
+                copy.set<JsonNode>(key, if (propSchema != null) stripNullableNulls(value, propSchema) else value)
+            }
+        return copy
     }
 
     private tailrec fun resolveSchema(schema: Schema<*>): Schema<*> {
@@ -310,11 +356,13 @@ private fun matchesTemplatePath(actualPath: String, templatePath: String): Boole
 private fun extractPathParams(templatePath: String, actualPath: String): Map<String, String> {
     val templateSegments = templatePath.trim('/').split('/')
     val actualSegments = actualPath.trim('/').split('/')
-    if (templateSegments.size != actualSegments.size) return emptyMap()
-    return templateSegments.zip(actualSegments)
-        .filter { (tpl, _) -> tpl.startsWith("{") && tpl.endsWith("}") }
-        .associate { (tpl, act) -> tpl.removeSurrounding("{", "}") to act }
+    return if (templateSegments.size != actualSegments.size) {
+        emptyMap()
+    } else {
+        templateSegments.zip(actualSegments)
+            .filter { (tpl, _) -> tpl.startsWith("{") && tpl.endsWith("}") }
+            .associate { (tpl, act) -> tpl.removeSurrounding("{", "}") to act }
+    }
 }
 
 private val schemaObjectMapper = ObjectMapper()
-
