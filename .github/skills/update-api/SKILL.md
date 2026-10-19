@@ -14,24 +14,26 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 1. `docs/openapi.yaml` を開き、対象のエンドポイント（パス、HTTPメソッド、リクエストボディ、レスポンスコード、スキーマ）を定義・更新します。
 2. スキーマ（`components/schemas`）に必要なフィールド、型、バリデーション（`required` や `pattern` 等）を正確に記載します。
 
-### Step 2: 実装コードの更新
+### Step 2: 受入テストケース定義と実装前OAS突き合わせ (ATDD)
+1. **テーブル駆動テストケース (`TodoApiTestCases.kt`) の追加・更新**:
+   - `src/integrationTest/kotlin/com/example/todo/TodoApiTestCases.kt` に、追加・変更したオペレーションやレスポンス、バリデーション制約に対応する `TodoApiTestCase` を定義します。
+2. **実装前OAS整合性・網羅性チェックの実行**:
+   - 本体実装の前に（エミュレータやサーバー起動不要で）、テストテーブルと `docs/openapi.yaml` の網羅性・リクエストスキーマ整合性を静的に検証します:
+     ```bash
+     ./gradlew integrationTest -x test --tests com.example.todo.TodoApiTestTableOasTest
+     ```
+
+### Step 3: 実装コードとユニットテストの更新
 1. **DTO / Request / Response モデル**:
    - `src/main/kotlin/com/example/` 配下の該当モデルクラスを更新します。
    - Bean Validation アノテーション（`@field:NotBlank` など）が仕様と合致しているか確認します。
-2. **Controller**:
-   - リクエストマッピング、引数、ステータスコードを OpenAPI 仕様と一致させます。
-3. **Service / Repository**:
-   - 必要に応じてビジネスロジックやデータ永続化を実装します。
+2. **Controller / Service / Repository**:
+   - リクエストマッピング、引数、ステータスコード、ビジネスロジック、永続化を OpenAPI 仕様と一致させます。
+3. **ユニットテスト (`src/test/kotlin/`)**:
+   - コントローラーやサービス層のユニットテストを追加・更新します。
 
-### Step 3: テストコードの追加・更新
-1. **コントローラーテスト (MockMvc)**:
-   - `src/test/kotlin/` にユニットテストを追加し、正常系・異常系（400, 404など）を検証します。
-2. **結合テスト (REST Assured + OpenAPI Validator)**:
-   - `src/integrationTest/kotlin/` にテストケースを追加します。
-   - 統合テスト実行時に、Atlassian OpenAPI Request Validator がリクエスト・レスポンスを `docs/openapi.yaml` と自動照合します。
-
-### Step 4: 検証
+### Step 4: 全検証
 ```bash
 ./gradlew check
 ```
-すべてのテストと Detekt 静的解析がパスすることを確認します。
+すべてのテスト（実サーバーに対する統合テスト・OpenAPI双方向検証を含む）と Detekt 静的解析がパスすることを確認します。

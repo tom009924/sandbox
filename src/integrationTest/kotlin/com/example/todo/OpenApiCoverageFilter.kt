@@ -133,13 +133,22 @@ class OpenApiCoverageFilter(
         val actualPath = requestSpec.derivedPath
         val statusCode = response.statusCode
 
+        recordInteraction(method, actualPath, statusCode, requestBody)
+        return response
+    }
+
+    fun recordInteraction(
+        method: HttpMethod,
+        actualPath: String,
+        statusCode: Int,
+        requestBody: String?,
+    ) {
         recordResponse(method, actualPath, statusCode)
         if (requestBody != null) {
             val body = objectMapper.readTree(requestBody)
             recordViolatedConstraints(method, actualPath, statusCode, body)
             recordSatisfiedConstraints(method, actualPath, statusCode, body)
         }
-        return response
     }
 
     private fun recordResponse(method: HttpMethod, actualPath: String, statusCode: Int) {
@@ -211,9 +220,24 @@ class OpenApiCoverageFilter(
             is OpenApiConstraint.BelowMinimum -> false
         }
 
-    private companion object {
-        const val BAD_REQUEST_STATUS = 400
-        val SUCCESS_STATUS_RANGE = 200..299
-        val objectMapper = ObjectMapper()
+    companion object {
+        private const val BAD_REQUEST_STATUS = 400
+        private val SUCCESS_STATUS_RANGE = 200..299
+        private val objectMapper = ObjectMapper()
+
+        fun fromTestCases(
+            definition: OpenApiCoverageDefinition,
+            testCases: Iterable<TodoApiTestCase>,
+        ): OpenApiCoverageFilter =
+            OpenApiCoverageFilter(definition).apply {
+                testCases.forEach { tc ->
+                    recordInteraction(
+                        method = tc.method,
+                        actualPath = tc.samplePath(),
+                        statusCode = tc.expectedStatus,
+                        requestBody = tc.requestBody,
+                    )
+                }
+            }
     }
 }
