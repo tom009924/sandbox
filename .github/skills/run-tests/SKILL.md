@@ -44,7 +44,7 @@ export SPANNER_EMULATOR_HOST=localhost:9010
    - 自動修正されない命名規則や複雑度警告は、指摘された行を修正して再度 `./gradlew detekt` を実行してください。
 
 2. **統合テストで OpenAPI 検証エラーが発生した場合**:
-   - `com.atlassian.oai.validator` のエラーメッセージを確認してください。
+   - Kotest (`matchOpenApiSchema` / `OpenApiValidationFilter`) のスキーマ検証エラーメッセージを確認してください。
    - レスポンスのフィールド欠落、余分なフィールド、型不整合、ステータスコード不一致などが原因です。
    - 実装コードと `docs/openapi.yaml` のどちらが正解か確認し、両者を同期させてください。
 

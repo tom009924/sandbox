@@ -28,7 +28,7 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
    - `src/test/kotlin/` にユニットテストを追加し、正常系・異常系（400, 404など）を検証します。
 2. **結合テスト (REST Assured + OpenAPI Validator)**:
    - `src/integrationTest/kotlin/` にテストケースを追加します。
-   - 統合テスト実行時に、Atlassian OpenAPI Request Validator がリクエスト・レスポンスを `docs/openapi.yaml` と自動照合します。
+   - 統合テスト実行時に、`swagger-parser` と Kotest (`OpenApiValidationFilter`) がリクエスト・レスポンスを `docs/openapi.yaml` と自動照合します。
 
 ### Step 4: 検証
 ```bash
