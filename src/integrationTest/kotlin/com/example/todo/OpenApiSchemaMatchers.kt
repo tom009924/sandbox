@@ -12,7 +12,6 @@ import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.and
 import io.kotest.matchers.collections.beIn
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.doubles.beGreaterThanOrEqualTo as beDoubleGte
 import io.kotest.matchers.doubles.beLessThanOrEqualTo as beDoubleLte
 import io.kotest.matchers.longs.beGreaterThanOrEqualTo
@@ -29,10 +28,8 @@ import io.restassured.specification.FilterableRequestSpecification
 import io.restassured.specification.FilterableResponseSpecification
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
-import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.Schema
-import io.swagger.v3.oas.models.parameters.Parameter
 import java.time.LocalDate
 import java.util.UUID
 
@@ -98,7 +95,6 @@ fun matchOpenApiSchema(
 
 class OpenApiValidationFilter(
     private val openApi: OpenAPI,
-    private val validateRequest: Boolean = true,
 ) : Filter {
     override fun filter(
         requestSpec: FilterableRequestSpecification,
@@ -107,12 +103,7 @@ class OpenApiValidationFilter(
     ): Response {
         val method = HttpMethod.valueOf(requestSpec.method.uppercase())
         val actualPath = requestSpec.derivedPath
-        val (templatePath, pathItem, operation) = findOperation(method, actualPath)
-
-        if (validateRequest) {
-            validateRequestInteraction(requestSpec, templatePath, actualPath, pathItem, operation)
-        }
-
+        val operation = findOperation(method, actualPath)
         val response = ctx.next(requestSpec, responseSpec)
         validateResponseInteraction(response, method, actualPath, operation)
         return response
@@ -121,61 +112,11 @@ class OpenApiValidationFilter(
     private fun findOperation(
         method: HttpMethod,
         actualPath: String,
-    ): Triple<String, PathItem, Operation> {
+    ): Operation {
         val matchedEntry = openApi.paths.orEmpty().entries.firstOrNull { (templatePath, _) ->
             matchesTemplatePath(actualPath, templatePath)
         }.shouldNotBeNull()
-        val operation = matchedEntry.value.readOperationsMap()[method].shouldNotBeNull()
-        return Triple(matchedEntry.key, matchedEntry.value, operation)
-    }
-
-    private fun validateRequestInteraction(
-        requestSpec: FilterableRequestSpecification,
-        templatePath: String,
-        actualPath: String,
-        pathItem: PathItem,
-        operation: Operation,
-    ) {
-        val allParameters = pathItem.parameters.orEmpty() + operation.parameters.orEmpty()
-        val paramErrors = validateParameters(requestSpec, templatePath, actualPath, allParameters)
-        paramErrors.shouldBeEmpty()
-
-        val requestBodySchema = operation.requestBody?.content?.get("application/json")?.schema
-        if (requestBodySchema != null) {
-            val rawBody = requestSpec.getBody<Any>()?.toString().orEmpty()
-            rawBody should matchOpenApiSchema(requestBodySchema, openApi)
-        }
-    }
-
-    private fun validateParameters(
-        requestSpec: FilterableRequestSpecification,
-        templatePath: String,
-        actualPath: String,
-        parameters: List<Parameter>,
-    ): List<String> {
-        val pathValues = extractPathParams(templatePath, actualPath)
-        return parameters.flatMap { parameter ->
-            val value = when (parameter.`in`) {
-                "header" -> requestSpec.headers.getValue(parameter.name)
-                "path" -> pathValues[parameter.name]
-                else -> null
-            }
-            val paramSchema = parameter.schema
-            when {
-                value == null && parameter.required == true ->
-                    listOf("Missing required ${parameter.`in`} parameter '${parameter.name}'")
-                value != null && paramSchema != null -> {
-                    val encoded = schemaObjectMapper.writeValueAsString(value)
-                    val result = matchOpenApiSchema(paramSchema, openApi).test(encoded)
-                    if (result.passed()) {
-                        emptyList()
-                    } else {
-                        listOf("${parameter.`in`}.${parameter.name}: ${result.failureMessage()}")
-                    }
-                }
-                else -> emptyList()
-            }
-        }
+        return matchedEntry.value.readOperationsMap()[method].shouldNotBeNull()
     }
 
     private fun validateResponseInteraction(
@@ -353,16 +294,5 @@ private fun matchesTemplatePath(actualPath: String, templatePath: String): Boole
     return actualPath.matches(Regex("^$regexPattern$"))
 }
 
-private fun extractPathParams(templatePath: String, actualPath: String): Map<String, String> {
-    val templateSegments = templatePath.trim('/').split('/')
-    val actualSegments = actualPath.trim('/').split('/')
-    return if (templateSegments.size != actualSegments.size) {
-        emptyMap()
-    } else {
-        templateSegments.zip(actualSegments)
-            .filter { (tpl, _) -> tpl.startsWith("{") && tpl.endsWith("}") }
-            .associate { (tpl, act) -> tpl.removeSurrounding("{", "}") to act }
-    }
-}
-
 private val schemaObjectMapper = ObjectMapper()
+

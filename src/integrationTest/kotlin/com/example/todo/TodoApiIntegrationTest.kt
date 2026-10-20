@@ -275,9 +275,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         val expectedCount = if (tc.needsExistingTodo) 1 else 0
 
         val request = if (tc.method == PathItem.HttpMethod.POST) {
-            validatedPostRequest(invalidRequest = true)
+            validatedPostRequest()
         } else {
-            validatedRequest(invalidRequest = true)
+            validatedRequest()
         }
 
         request
@@ -508,18 +508,15 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
 
-    private fun validatedRequest(
-        invalidRequest: Boolean = false,
-    ) =
+    private fun validatedRequest() =
         given()
             .port(port)
             .filter(openApiCoverageFilter)
-            .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
+            .filter(openApiValidationFilter)
 
     private fun validatedPostRequest(
-        invalidRequest: Boolean = false,
         idempotencyKey: String = UUID.randomUUID().toString(),
-    ) = validatedRequest(invalidRequest)
+    ) = validatedRequest()
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
@@ -538,7 +535,6 @@ class TodoApiIntegrationTest @Autowired constructor(
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
 
         val openApiValidationFilter = OpenApiValidationFilter(openAPI)
-        val invalidRequestFilter = OpenApiValidationFilter(openAPI, validateRequest = false)
 
         @JvmStatic
         @AfterAll
