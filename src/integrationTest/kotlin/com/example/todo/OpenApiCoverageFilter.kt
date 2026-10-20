@@ -178,11 +178,6 @@ class OpenApiCoverageFilter(
             it.property.method == method && matchesPath(actualPath, it.property.path)
         }
 
-    private fun matchesPath(actualPath: String, templatePath: String): Boolean {
-        val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
-        return actualPath.matches(Regex("^$regexPattern$"))
-    }
-
     private fun OpenApiConstraint.isViolatedBy(body: JsonNode): Boolean =
         when (this) {
             is OpenApiConstraint.Required ->
@@ -216,4 +211,9 @@ class OpenApiCoverageFilter(
         val SUCCESS_STATUS_RANGE = 200..299
         val objectMapper = ObjectMapper()
     }
+}
+
+internal fun matchesPath(actualPath: String, templatePath: String): Boolean {
+    val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
+    return actualPath.matches(Regex("^$regexPattern$"))
 }

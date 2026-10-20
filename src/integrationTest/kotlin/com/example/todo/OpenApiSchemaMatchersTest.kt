@@ -1,7 +1,5 @@
 package com.example.todo
 
-import io.kotest.assertions.json.schema.shouldMatchSchema
-import io.kotest.assertions.json.schema.shouldNotMatchSchema
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldNot
 import io.swagger.v3.parser.OpenAPIV3Parser
@@ -66,12 +64,10 @@ class OpenApiSchemaMatchersTest {
     }
 
     @Test
-    fun createTodoRequestSchemaValidatesWithKotestShouldMatchSchema() {
-        val createSchema = requireNotNull(openApi.components.schemas["CreateTodoRequest"])
-            .toKotestJsonSchema(openApi)
-
-        """{"title":"Buy milk","priority":"MEDIUM","estimatedMinutes":0}""" shouldMatchSchema createSchema
-        """{"title":"   "}""" shouldNotMatchSchema createSchema
-        """{"title":"Buy milk","estimatedMinutes":-1}""" shouldNotMatchSchema createSchema
+    fun createTodoRequestSchemaValidatesConstraints() {
+        """{"title":"Buy milk","priority":"MEDIUM","estimatedMinutes":0}""" should
+            matchOpenApiSchema("CreateTodoRequest", openApi)
+        """{"title":"   "}""" shouldNot matchOpenApiSchema("CreateTodoRequest", openApi)
+        """{"title":"Buy milk","estimatedMinutes":-1}""" shouldNot matchOpenApiSchema("CreateTodoRequest", openApi)
     }
 }
