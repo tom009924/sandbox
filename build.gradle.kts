@@ -5,6 +5,7 @@ plugins {
     id("org.springframework.boot") version "3.4.5"
     id("io.spring.dependency-management") version "1.1.6"
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
+    id("com.autonomousapps.dependency-analysis") version "1.33.0"
 }
 
 group = "com.example"
@@ -45,19 +46,39 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("com.google.cloud:google-cloud-spanner-hibernate-dialect:3.9.1")
+    runtimeOnly("com.google.cloud:google-cloud-spanner-hibernate-dialect:3.9.1")
     runtimeOnly("com.google.cloud:google-cloud-spanner-jdbc:2.29.1")
     implementation("com.google.cloud:google-cloud-pubsub:1.137.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin")
+    runtimeOnly("org.jetbrains.kotlin:kotlin-reflect")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     add(integrationTestSourceSet.implementationConfigurationName, "io.rest-assured:rest-assured:5.5.7")
     add(
         integrationTestSourceSet.implementationConfigurationName,
         "com.atlassian.oai:openapi-request-validator-restassured:3.0.0",
     )
+}
+
+dependencyAnalysis {
+    issues {
+        all {
+            onAny {
+                severity("fail")
+            }
+            onUsedTransitiveDependencies {
+                severity("ignore")
+            }
+            onIncorrectConfiguration {
+                exclude(
+                    "org.jetbrains.kotlin:kotlin-stdlib",
+                    "io.rest-assured:rest-assured",
+                )
+            }
+        }
+    }
 }
 
 tasks.test {
@@ -82,6 +103,7 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 
 tasks.check {
+    dependsOn("buildHealth")
     dependsOn(integrationTest)
 }
 

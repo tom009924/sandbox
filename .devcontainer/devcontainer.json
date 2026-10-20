@@ -34,6 +34,6 @@
   "remoteEnv": {
     "GIT_TERMINAL_PROMPT": "0"
   },
-  "postCreateCommand": "./gradlew detekt compileTestKotlin compileIntegrationTestKotlin --no-daemon",
+  "postCreateCommand": "./gradlew detekt buildHealth --no-daemon",
   "remoteUser": "vscode"
 }
