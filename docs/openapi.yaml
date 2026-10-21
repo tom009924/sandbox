@@ -3,6 +3,9 @@ info:
   title: Todo API
   version: 1.0.0
   description: REST API for managing todos.
+  contact:
+    name: Todo API Team
+    email: support@example.com
 servers:
   - url: http://localhost:8080
     description: Local development server
@@ -15,6 +18,7 @@ paths:
       tags:
         - Todos
       summary: List todos
+      description: Retrieve a list of all todos.
       operationId: listTodos
       responses:
         '200':
@@ -29,6 +33,7 @@ paths:
       tags:
         - Todos
       summary: Create a todo
+      description: Create a new todo item with idempotency support.
       operationId: createTodo
       parameters:
         - name: Idempotency-Key
@@ -93,6 +98,7 @@ paths:
       tags:
         - Todos
       summary: Get a todo
+      description: Retrieve a single todo by its ID.
       operationId: getTodo
       responses:
         '200':
@@ -114,6 +120,7 @@ paths:
       tags:
         - Todos
       summary: Update a todo
+      description: Update an existing todo by its ID.
       operationId: updateTodo
       requestBody:
         required: true
@@ -157,6 +164,7 @@ paths:
       tags:
         - Todos
       summary: Delete a todo
+      description: Delete an existing todo by its ID.
       operationId: deleteTodo
       responses:
         '204':

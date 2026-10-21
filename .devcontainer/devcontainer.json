@@ -9,7 +9,8 @@
     "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "moby": true,
       "dockerDashComposeVersion": "v2"
-    }
+    },
+    "ghcr.io/devcontainers/features/node:1": {}
   },
   "customizations": {
     "vscode": {
@@ -17,7 +18,8 @@
         "fwcd.kotlin",
         "vscjava.vscode-java-pack",
         "vscjava.vscode-gradle",
-        "Google.google-antigravity"
+        "Google.google-antigravity",
+        "stoplight.spectral"
       ],
       "settings": {
         "java.import.gradle.java.home": "/usr/lib/jvm/msopenjdk-current",
@@ -34,6 +36,6 @@
   "remoteEnv": {
     "GIT_TERMINAL_PROMPT": "0"
   },
-  "postCreateCommand": "./gradlew detekt buildHealth --no-daemon",
+  "postCreateCommand": "./gradlew detekt buildHealth lintOpenApi --no-daemon",
   "remoteUser": "vscode"
 }

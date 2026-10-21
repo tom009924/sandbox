@@ -1,0 +1,49 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Enforce error on missing operationId
+  operation-operationId: error
+
+  # Operation ID naming convention: camelCase
+  operation-operationId-camel-case:
+    description: Operation IDs must be camelCase.
+    message: "operationId '{{value}}' must be camelCase."
+    severity: error
+    given: $.paths.*[get,post,put,delete,patch].operationId
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  # Path naming convention: kebab-case
+  paths-kebab-case:
+    description: API path segments must be kebab-case (e.g. /api/todo-items/{id}).
+    message: "Path segment in '{{property}}' must be kebab-case."
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(\\/([a-z0-9]+(-[a-z0-9]+)*|{[a-zA-Z0-9_-]+}))+$"
+
+  # Schema properties naming convention: camelCase
+  properties-camel-case:
+    description: Schema property names must be camelCase.
+    message: "Property '{{property}}' must be camelCase."
+    severity: error
+    given: "$..properties.*~"
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  # Path parameter naming convention: camelCase
+  path-params-camel-case:
+    description: Path parameter names must be camelCase.
+    message: "Path parameter '{{value}}' must be camelCase."
+    severity: error
+    given: $.paths..parameters[?(@.in == 'path')].name
+    then:
+      function: casing
+      functionOptions:
+        type: camel

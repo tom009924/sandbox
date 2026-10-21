@@ -86,6 +86,11 @@ MockMvcによるコントローラーテストを実行します。静的解析�
 ```
 
 Detektは自動修正可能なルールを実行時に自動修正します。
+OpenAPI仕様書（`docs/openapi.yaml`）の静的解析（Stoplight Spectralによる命名規則や必須メタデータの検証）は次で実行できます。
+
+```bash
+./gradlew lintOpenApi
+```
 
 MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/openapi.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
 

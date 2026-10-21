@@ -7,6 +7,12 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
     id("com.autonomousapps.dependency-analysis") version "1.33.0"
     id("org.openapi.generator") version "7.10.0"
+    id("com.github.node-gradle.node") version "7.1.0"
+}
+
+node {
+    version.set("20.18.0")
+    download.set(true)
 }
 
 group = "com.example"
@@ -104,6 +110,23 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 tasks.check {
     dependsOn("buildHealth")
     dependsOn(integrationTest)
+    dependsOn(tasks.named("openApiValidate"))
+    dependsOn("lintOpenApi")
+}
+
+openApiValidate {
+    inputSpec.set("$projectDir/docs/openapi.yaml")
+}
+
+val lintOpenApi = tasks.register<com.github.gradle.node.npm.task.NpmTask>("lintOpenApi") {
+    description = "Lints OpenAPI specifications using Stoplight Spectral."
+    group = "verification"
+    dependsOn(tasks.named("npmInstall"))
+    args.set(listOf("run", "lint:openapi"))
+    inputs.file("docs/openapi.yaml")
+    inputs.file(".spectral.yaml")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
 }
 
 tasks.bootJar {

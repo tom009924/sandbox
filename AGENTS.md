@@ -7,7 +7,7 @@
 
 - **Java/Kotlin**: Java 21, Kotlin 1.9, Spring Boot 3.3
 - **スタイル/検証**: `./gradlew detekt`（Detekt 静的解析をパスすること）
-- **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期すること
+- **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期し、`./gradlew lintOpenApi` (Spectral) をパスすること
 - **全検証**: コミット前に必ず `./gradlew check` を実行すること
 
 ## 利用可能なスキル (Workflows & Runbooks)
