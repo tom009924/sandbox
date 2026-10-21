@@ -3,14 +3,11 @@ package com.example.todo
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.TodoRepository
-import com.atlassian.oai.validator.OpenApiInteractionValidator
-import com.atlassian.oai.validator.restassured.OpenApiValidationFilter
-import com.atlassian.oai.validator.whitelist.ValidationErrorsWhitelist
-import com.atlassian.oai.validator.whitelist.rule.WhitelistRules
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.parser.OpenAPIV3Parser
+import io.swagger.v3.parser.core.models.ParseOptions
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
@@ -31,7 +28,6 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
-import java.nio.file.Paths
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
@@ -280,9 +276,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         val expectedCount = if (tc.needsExistingTodo) 1 else 0
 
         val request = if (tc.method == PathItem.HttpMethod.POST) {
-            validatedPostRequest(invalidRequest = true)
+            validatedPostRequest()
         } else {
-            validatedRequest(invalidRequest = true)
+            validatedRequest()
         }
 
         request
@@ -513,18 +509,15 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
 
-    private fun validatedRequest(
-        invalidRequest: Boolean = false,
-    ) =
+    private fun validatedRequest() =
         given()
             .port(port)
             .filter(openApiCoverageFilter)
-            .filter(if (invalidRequest) invalidRequestFilter else openApiValidationFilter)
+            .filter(openApiValidationFilter)
 
     private fun validatedPostRequest(
-        invalidRequest: Boolean = false,
         idempotencyKey: String = UUID.randomUUID().toString(),
-    ) = validatedRequest(invalidRequest)
+    ) = validatedRequest()
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
@@ -534,41 +527,24 @@ class TodoApiIntegrationTest @Autowired constructor(
         const val MIN_ESTIMATED_MINUTES = 0
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
-        val openApiSpecUrl = Paths.get(OPEN_API_SPEC_PATH).toAbsolutePath().toUri().toString()
 
-        val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
+        val openAPI = requireNotNull(
+            OpenAPIV3Parser().read(
+                OPEN_API_SPEC_PATH,
+                null,
+                ParseOptions().apply {
+                    isResolve = true
+                    isResolveFully = true
+                },
+            ),
+        ) {
             "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
         }
 
         val coverageDefinition = OpenApiCoverageDefinition.from(openAPI)
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
 
-        val openApiValidationFilter = OpenApiValidationFilter(
-            OpenApiInteractionValidator.createFor(openApiSpecUrl).build(),
-        )
-        val invalidRequestFilter = OpenApiValidationFilter(
-            OpenApiInteractionValidator.createFor(openApiSpecUrl)
-                .withWhitelist(
-                    ValidationErrorsWhitelist.create().withRule(
-                        "Allow invalid title pattern and missing required fields for validation error requests",
-                        WhitelistRules.allOf(
-                            WhitelistRules.isRequest(),
-                            WhitelistRules.anyOf(
-                                WhitelistRules.methodIs(PathItem.HttpMethod.POST),
-                                WhitelistRules.methodIs(PathItem.HttpMethod.PUT),
-                            ),
-                            WhitelistRules.pathContainsSubstring("/api/todos"),
-                            WhitelistRules.anyOf(
-                                WhitelistRules.messageHasKey("validation.request.body.schema.pattern"),
-                                WhitelistRules.messageHasKey("validation.request.body.schema.required"),
-                                WhitelistRules.messageHasKey("validation.request.body.schema.enum"),
-                                WhitelistRules.messageHasKey("validation.request.body.schema.minimum"),
-                            ),
-                        ),
-                    ),
-                )
-                .build(),
-        )
+        val openApiValidationFilter = OpenApiValidationFilter(openAPI)
 
         @JvmStatic
         @AfterAll

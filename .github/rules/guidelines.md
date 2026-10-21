@@ -7,7 +7,7 @@
 - **フレームワーク**: Spring Boot 3.3 (Web, Data JPA, Validation)
 - **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析**: Detekt 1.23
-- **テスト**: JUnit 5, MockMvc, REST Assured, Atlassian OpenAPI Request Validator
+- **テスト**: JUnit 5, MockMvc, REST Assured, Kotest, swagger-parser
 - **API仕様**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml))
 
 ## 2. コーディングルール

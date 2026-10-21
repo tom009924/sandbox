@@ -69,9 +69,8 @@ data class OpenApiCoverageDefinition(
                     .map { statusCode -> OpenApiResponse(operationId, method, path, statusCode) }
             }.toSet()
             val constraints = operations.flatMap { (path, method, operation) ->
-                val schemaReference =
-                    operation.requestBody?.content?.get("application/json")?.schema?.`$ref`
-                val schema = schemas[schemaReference?.substringAfterLast("/")]
+                val requestSchema = operation.requestBody?.content?.get("application/json")?.schema
+                val schema = requestSchema?.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: requestSchema
                 schema?.toConstraints(method, path, schemas).orEmpty()
             }.toSet()
             return OpenApiCoverageDefinition(responses, constraints)
@@ -104,8 +103,8 @@ private fun Schema<*>.toConstraints(
 private fun Schema<*>.enumValues(schemas: Map<String, Schema<*>>): Set<String> {
     val directValues = enum.orEmpty().map { it.toString() }
     val referencedValues = allOf.orEmpty().flatMap { component ->
-        val schemaName = component.`$ref`?.substringAfterLast("/")
-        schemas[schemaName]?.enum.orEmpty().map { it.toString() }
+        val schema = component.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: component
+        schema.enum.orEmpty().map { it.toString() }
     }
     return (directValues + referencedValues).toSet()
 }
@@ -178,11 +177,6 @@ class OpenApiCoverageFilter(
             it.property.method == method && matchesPath(actualPath, it.property.path)
         }
 
-    private fun matchesPath(actualPath: String, templatePath: String): Boolean {
-        val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
-        return actualPath.matches(Regex("^$regexPattern$"))
-    }
-
     private fun OpenApiConstraint.isViolatedBy(body: JsonNode): Boolean =
         when (this) {
             is OpenApiConstraint.Required ->
@@ -216,4 +210,9 @@ class OpenApiCoverageFilter(
         val SUCCESS_STATUS_RANGE = 200..299
         val objectMapper = ObjectMapper()
     }
+}
+
+internal fun matchesPath(actualPath: String, templatePath: String): Boolean {
+    val regexPattern = templatePath.replace(Regex("""\{[^/]+}"""), "[^/]+")
+    return actualPath.matches(Regex("^$regexPattern$"))
 }
