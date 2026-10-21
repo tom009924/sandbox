@@ -14,6 +14,7 @@ import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.Schema
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 class OpenApiValidationFilter(private val openApi: OpenAPI) : Filter {
@@ -46,37 +47,43 @@ fun validateOpenApiSchema(json: String, schema: Schema<*>, path: String = "$"): 
     validateSchema(objectMapper.readTree(json), schema, path)
 
 fun validateSchema(node: JsonNode, schema: Schema<*>, path: String = "$"): List<String> =
-    if (node.isNull) {
-        if (schema.nullable == true) emptyList() else listOf("$path: null is not allowed")
-    } else {
-        when (schema.type) {
-            "object" -> validateObject(node, schema, path)
-            "array" -> if (!node.isArray) {
-                listOf("$path: expected array")
-            } else {
-                node.flatMapIndexed { i, item -> validateSchema(item, schema.items, "$path[$i]") }
-            }
-            "string" -> validateString(node, schema, path)
-            "integer" -> if (!node.isIntegralNumber) {
-                listOf("$path: expected integer")
-            } else if (schema.minimum != null && node.decimalValue() < schema.minimum) {
-                listOf("$path: below minimum ${schema.minimum}")
-            } else {
-                emptyList()
-            }
-            "boolean" -> if (node.isBoolean) emptyList() else listOf("$path: expected boolean")
-            else -> emptyList()
+    when {
+        node.isNull -> if (schema.nullable == true) emptyList() else listOf("$path: null is not allowed")
+        !schema.allOf.isNullOrEmpty() -> schema.allOf.flatMap { validateSchema(node, it, path) }
+        else -> validateByType(node, schema, path)
+    }
+
+private fun validateByType(node: JsonNode, schema: Schema<*>, path: String): List<String> =
+    when (val type = schema.type) {
+        "object" -> validateObject(node, schema, path)
+        "array" -> validateArray(node, schema, path)
+        "string" -> validateString(node, schema, path)
+        "integer" -> validateNumber(node, schema, path, integerOnly = true)
+        "number" -> validateNumber(node, schema, path, integerOnly = false)
+        "boolean" -> validateBoolean(node, path)
+        null -> if (schema.properties != null) {
+            validateObject(node, schema, path)
+        } else {
+            listOf("$path: schema type is undefined")
         }
+        else -> listOf("$path: unsupported schema type '$type'")
+    }
+
+private fun validateBoolean(node: JsonNode, path: String): List<String> =
+    if (node.isBoolean) {
+        emptyList()
+    } else {
+        listOf("$path: expected boolean, got ${node.nodeTypeName}")
     }
 
 private fun validateObject(node: JsonNode, schema: Schema<*>, path: String): List<String> =
     if (!node.isObject) {
-        listOf("$path: expected object")
+        listOf("$path: expected object, got ${node.nodeTypeName}")
     } else {
         val props = schema.properties.orEmpty()
         val missing = schema.required.orEmpty().filter { !node.has(it) }.map { "$path.$it: required" }
         val extra = if (schema.additionalProperties != true && props.isNotEmpty()) {
-            node.fieldNames().asSequence().filter { it !in props }.map { "$path.$it: unexpected" }.toList()
+            node.fieldNames().asSequence().filter { it !in props }.map { "$path.$it: unexpected property" }.toList()
         } else {
             emptyList()
         }
@@ -86,19 +93,50 @@ private fun validateObject(node: JsonNode, schema: Schema<*>, path: String): Lis
         missing + extra + children
     }
 
+private fun validateArray(node: JsonNode, schema: Schema<*>, path: String): List<String> =
+    if (!node.isArray) {
+        listOf("$path: expected array, got ${node.nodeTypeName}")
+    } else {
+        val itemsSchema = schema.items
+        if (itemsSchema == null) {
+            listOf("$path: array schema missing items definition")
+        } else {
+            node.flatMapIndexed { i, item -> validateSchema(item, itemsSchema, "$path[$i]") }
+        }
+    }
+
 private fun validateString(node: JsonNode, schema: Schema<*>, path: String): List<String> =
     if (!node.isTextual) {
-        listOf("$path: expected string")
+        listOf("$path: expected string, got ${node.nodeTypeName}")
     } else {
         val text = node.asText()
         val enums = schema.enum.orEmpty().map { it.toString() }
         buildList {
             schema.pattern?.let { if (!Regex(it).containsMatchIn(text)) add("$path: pattern '$it' mismatch") }
             if (enums.isNotEmpty() && text !in enums) add("$path: '$text' not in $enums")
-            if (schema.format == "uuid" && runCatching { UUID.fromString(text) }.isFailure) add("$path: invalid uuid")
-            if (schema.format == "date" && runCatching { LocalDate.parse(text) }.isFailure) add("$path: invalid date")
+            when (schema.format) {
+                "uuid" -> runCatching { UUID.fromString(text) }.onFailure { add("$path: invalid uuid") }
+                "date" -> runCatching { LocalDate.parse(text) }.onFailure { add("$path: invalid date") }
+                "date-time" -> runCatching { OffsetDateTime.parse(text) }.onFailure { add("$path: invalid date-time") }
+            }
         }
     }
+
+private fun validateNumber(node: JsonNode, schema: Schema<*>, path: String, integerOnly: Boolean): List<String> =
+    if (integerOnly && !node.isIntegralNumber) {
+        listOf("$path: expected integer, got ${node.nodeTypeName}")
+    } else if (!integerOnly && !node.isNumber) {
+        listOf("$path: expected number, got ${node.nodeTypeName}")
+    } else {
+        val value = node.decimalValue()
+        buildList {
+            schema.minimum?.let { min -> if (value < min) add("$path: below minimum $min") }
+            schema.maximum?.let { max -> if (value > max) add("$path: above maximum $max") }
+        }
+    }
+
+private val JsonNode.nodeTypeName: String
+    get() = nodeType.name.lowercase()
 
 private val objectMapper = ObjectMapper()
 

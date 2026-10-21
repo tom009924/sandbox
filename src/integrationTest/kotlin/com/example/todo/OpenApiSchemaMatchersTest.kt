@@ -1,5 +1,7 @@
 package com.example.todo
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -91,5 +93,44 @@ class OpenApiSchemaMatchersTest {
                 openApi,
             ).isNotEmpty(),
         )
+        assertTrue(
+            validateOpenApiSchema(
+                """{"title":"Buy milk","priority":"INVALID_PRIORITY"}""",
+                "CreateTodoRequest",
+                openApi,
+            ).isNotEmpty(),
+        )
+    }
+
+    @Test
+    fun undefinedOrUnsupportedTypeReturnsErrors() {
+        val node = ObjectMapper().readTree("""{"foo":"bar"}""")
+        val undefinedSchema = Schema<Any>()
+        val undefinedErrors = validateSchema(node, undefinedSchema)
+        assertEquals(listOf("$: schema type is undefined"), undefinedErrors)
+
+        val unsupportedSchema = Schema<Any>().apply { type = "unknown_type" }
+        val unsupportedErrors = validateSchema(node, unsupportedSchema)
+        assertEquals(listOf("$: unsupported schema type 'unknown_type'"), unsupportedErrors)
+    }
+
+    @Test
+    fun arrayWithoutItemsOrTypeMismatchReturnsErrors() {
+        val arrayNode = ObjectMapper().readTree("""[1, 2, 3]""")
+        val arraySchemaWithoutItems = Schema<Any>().apply { type = "array" }
+        val missingItemsErrors = validateSchema(arrayNode, arraySchemaWithoutItems)
+        assertEquals(listOf("$: array schema missing items definition"), missingItemsErrors)
+
+        val stringSchema = Schema<Any>().apply { type = "string" }
+        val mismatchErrors = validateSchema(arrayNode, stringSchema)
+        assertEquals(listOf("$: expected string, got array"), mismatchErrors)
+    }
+
+    @Test
+    fun integerSchemaRejectsNonIntegralNumbers() {
+        val floatNode = ObjectMapper().readTree("3.14")
+        val intSchema = Schema<Any>().apply { type = "integer" }
+        val errors = validateSchema(floatNode, intSchema)
+        assertEquals(listOf("$: expected integer, got number"), errors)
     }
 }
