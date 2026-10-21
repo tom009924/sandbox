@@ -7,12 +7,6 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
     id("com.autonomousapps.dependency-analysis") version "1.33.0"
     id("org.openapi.generator") version "7.10.0"
-    id("com.github.node-gradle.node") version "7.1.0"
-}
-
-node {
-    version.set("20.18.0")
-    download.set(true)
 }
 
 group = "com.example"
@@ -118,11 +112,24 @@ openApiValidate {
     inputSpec.set("$projectDir/docs/openapi.yaml")
 }
 
-val lintOpenApi = tasks.register<com.github.gradle.node.npm.task.NpmTask>("lintOpenApi") {
+val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+val npmExecutable = if (isWindows) "npm.cmd" else "npm"
+
+val npmInstall = tasks.register<Exec>("npmInstall") {
+    description = "Installs Node dependencies using npm ci."
+    group = "build setup"
+    commandLine(npmExecutable, "ci")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
+    outputs.dir("node_modules")
+    onlyIf { !file("node_modules").exists() }
+}
+
+val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     description = "Lints OpenAPI specifications using Stoplight Spectral."
     group = "verification"
-    dependsOn(tasks.named("npmInstall"))
-    args.set(listOf("run", "lint:openapi"))
+    dependsOn(npmInstall)
+    commandLine(npmExecutable, "run", "lint:openapi")
     inputs.file("docs/openapi.yaml")
     inputs.file(".spectral.yaml")
     inputs.file("package.json")
