@@ -1,16 +1,20 @@
 plugins {
-    kotlin("jvm") version "1.9.23"
-    kotlin("plugin.spring") version "1.9.23"
-    kotlin("plugin.jpa") version "1.9.23"
-    id("org.springframework.boot") version "3.4.5"
-    id("io.spring.dependency-management") version "1.1.6"
-    id("io.gitlab.arturbosch.detekt") version "1.23.6"
-    id("com.autonomousapps.dependency-analysis") version "1.33.0"
-    id("org.openapi.generator") version "7.10.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.kotlin.jpa)
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.dependency.analysis)
+    alias(libs.plugins.openapi.generator)
 }
 
 group = "com.example"
 version = "1.0.0"
+
+dependencyLocking {
+    lockAllConfigurations()
+}
 
 detekt {
     autoCorrect = true
@@ -44,21 +48,21 @@ configurations[integrationTestSourceSet.runtimeOnlyConfigurationName]
     .extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("com.fasterxml.jackson.core:jackson-annotations")
-    runtimeOnly("com.google.cloud:google-cloud-spanner-hibernate-dialect:3.9.1")
-    runtimeOnly("com.google.cloud:google-cloud-spanner-jdbc:2.29.1")
-    implementation("com.google.cloud:google-cloud-pubsub:1.137.1")
-    runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin")
-    runtimeOnly("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.jackson.annotations)
+    runtimeOnly(libs.spanner.hibernate.dialect)
+    runtimeOnly(libs.spanner.jdbc)
+    implementation(libs.google.cloud.pubsub)
+    runtimeOnly(libs.jackson.module.kotlin)
+    runtimeOnly(libs.kotlin.reflect)
 
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
-    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    add(integrationTestSourceSet.implementationConfigurationName, "io.rest-assured:rest-assured:5.5.7")
-    add(integrationTestSourceSet.implementationConfigurationName, "io.swagger.parser.v3:swagger-parser-v3:2.1.22")
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.archunit.junit5)
+    testImplementation(libs.jackson.module.kotlin)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
 }
 
 dependencyAnalysis {
