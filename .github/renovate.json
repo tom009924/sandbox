@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "labels": ["dependencies"],
+  "semanticCommitType": "build",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": "Group Spring Boot dependencies",
+      "matchPackagePrefixes": [
+        "org.springframework.boot",
+        "io.spring.dependency-management"
+      ],
+      "groupName": "Spring Boot"
+    },
+    {
+      "description": "Group Kotlin dependencies and plugins",
+      "matchPackagePrefixes": [
+        "org.jetbrains.kotlin"
+      ],
+      "groupName": "Kotlin"
+    },
+    {
+      "description": "Group Google Cloud Spanner dependencies",
+      "matchPackagePrefixes": [
+        "com.google.cloud:google-cloud-spanner-"
+      ],
+      "groupName": "Google Cloud Spanner"
+    },
+    {
+      "description": "Group Jackson dependencies",
+      "matchPackagePrefixes": [
+        "com.fasterxml.jackson"
+      ],
+      "groupName": "Jackson"
+    },
+    {
+      "description": "Use ci(actions) semantic commit for GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci",
+      "semanticCommitScope": "actions"
+    }
+  ]
+}
