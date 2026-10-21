@@ -10,31 +10,32 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 ## 主な実行コマンド
 
 ### 1. 全検証の実行（推奨）
-静的解析 (Detekt) → ユニットテスト → 統合テスト (OpenAPI 検証含む) を一括で実行します。
-```bash
-docker compose up -d spanner-emulator
-export SPANNER_EMULATOR_HOST=localhost:9010
-./gradlew check
-```
+最初にエミュレータ（Spanner / Pub/Sub）をバックグラウンド起動し、続いて静的解析 (Detekt) → ユニットテスト → 統合テスト (OpenAPI 検証含む) を一括実行します。
+※ `build.gradle.kts` で `SPANNER_EMULATOR_HOST=localhost:9010` と `PUBSUB_EMULATOR_HOST=localhost:8085` がデフォルト設定されているため、個別の `export` は不要です。
+
+1. エミュレータの起動:
+   ```bash
+   docker compose up -d
+   ```
+2. 全検証の実行（依存関係キャッシュ済みなら `--offline` で高速実行可能）:
+   ```bash
+   ./gradlew --offline check
+   ```
 
 ### 2. 個別タスクの実行
 
-- **ユニットテストのみ (MockMvc)**:
+- **静的コード解析のみ (Detekt・エミュレータ不要・サンドボックス内で実行可能)**:
   ```bash
-  docker compose up -d spanner-emulator
-  export SPANNER_EMULATOR_HOST=localhost:9010
-  ./gradlew test
-  ```
-- **静的コード解析のみ (Detekt)**:
-  ```bash
-  ./gradlew detekt
+  ./gradlew --offline detekt
   ```
   ※ 自動修正可能なスタイル違反は自動で修正されます。
+- **ユニットテストのみ (MockMvc)**:
+  ```bash
+  ./gradlew --offline test
+  ```
 - **結合テストのみ (REST Assured + OpenAPI Validator)**:
   ```bash
-  docker compose up -d spanner-emulator
-  export SPANNER_EMULATOR_HOST=localhost:9010
-  ./gradlew integrationTest
+  ./gradlew --offline integrationTest
   ```
 
 ## エラー発生時のトラブルシューティング
