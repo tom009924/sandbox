@@ -42,7 +42,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 255
-            pattern: '\S'
+            pattern: '.*\S.*'
       requestBody:
         required: true
         content:
@@ -220,7 +220,7 @@ components:
       properties:
         title:
           type: string
-          pattern: '\S'
+          pattern: '.*\S.*'
           description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
           example: Buy milk
         description:
@@ -249,7 +249,7 @@ components:
       properties:
         title:
           type: string
-          pattern: '\S'
+          pattern: '.*\S.*'
           description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
           example: Buy milk
         completed:

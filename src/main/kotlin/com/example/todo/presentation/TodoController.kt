@@ -1,116 +1,67 @@
 package com.example.todo.presentation
 
-import com.example.todo.application.TodoService
 import com.example.todo.application.TodoCommand
+import com.example.todo.application.TodoService
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
-import jakarta.validation.Valid
-import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotNull
-import jakarta.validation.constraints.Size
+import com.example.todo.presentation.api.TodosApi
+import com.example.todo.presentation.model.CreateTodoRequest
+import com.example.todo.presentation.model.UpdateTodoRequest
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.validation.annotation.Validated
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.time.LocalDate
 import java.util.UUID
-
-data class CreateTodoRequest(
-    @field:NotBlank
-    val title: String,
-    val description: String? = null,
-    val dueDate: LocalDate? = null,
-    val priority: TodoPriority = TodoPriority.MEDIUM,
-    @field:Min(0)
-    val estimatedMinutes: Int? = null,
-)
-
-data class UpdateTodoRequest(
-    @field:NotBlank
-    val title: String,
-    @field:NotNull
-    val completed: Boolean?,
-    val description: String? = null,
-    val dueDate: LocalDate? = null,
-    val priority: TodoPriority = TodoPriority.MEDIUM,
-    @field:Min(0)
-    val estimatedMinutes: Int? = null,
-)
-
-data class TodoResponse(
-    val id: UUID,
-    val title: String,
-    val completed: Boolean,
-    val description: String?,
-    val dueDate: LocalDate?,
-    val priority: TodoPriority,
-    val estimatedMinutes: Int?,
-)
+import com.example.todo.presentation.model.Todo as TodoResponse
+import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
 @RestController
-@Validated
-@RequestMapping("/api/todos")
-class TodoController(private val todoService: TodoService) {
-    @GetMapping
-    fun list(): List<TodoResponse> =
-        todoService.list().map { it.toResponse() }
+class TodoController(private val todoService: TodoService) : TodosApi {
+    override fun listTodos(): ResponseEntity<List<TodoResponse>> =
+        ResponseEntity.ok(todoService.list().map { it.toResponse() })
 
-    @GetMapping("/{id}")
-    fun get(@PathVariable id: UUID): TodoResponse =
-        todoService.get(id).toResponse()
+    override fun getTodo(id: UUID): ResponseEntity<TodoResponse> =
+        ResponseEntity.ok(todoService.get(id).toResponse())
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    fun create(
-        @RequestHeader("Idempotency-Key")
-        @NotBlank
-        @Size(max = IDEMPOTENCY_KEY_MAX_LENGTH)
+    override fun createTodo(
         idempotencyKey: String,
-        @Valid @RequestBody request: CreateTodoRequest,
-    ): TodoResponse =
-        todoService.createIdempotent(
+        createTodoRequest: CreateTodoRequest,
+    ): ResponseEntity<TodoResponse> {
+        val created = todoService.createIdempotent(
             idempotencyKey,
             TodoCommand(
-                title = request.title,
-                description = request.description,
-                dueDate = request.dueDate,
-                priority = request.priority,
-                estimatedMinutes = request.estimatedMinutes,
+                title = createTodoRequest.title,
+                description = createTodoRequest.description,
+                dueDate = createTodoRequest.dueDate,
+                priority = createTodoRequest.priority.toDomain(),
+                estimatedMinutes = createTodoRequest.estimatedMinutes,
             ),
-        ).toResponse()
+        )
+        return ResponseEntity.status(HttpStatus.CREATED).body(created.toResponse())
+    }
 
-    @PutMapping("/{id}")
-    fun update(
-        @PathVariable id: UUID,
-        @Valid @RequestBody request: UpdateTodoRequest,
-    ): TodoResponse =
-        todoService.update(
+    override fun updateTodo(
+        id: UUID,
+        updateTodoRequest: UpdateTodoRequest,
+    ): ResponseEntity<TodoResponse> {
+        val updated = todoService.update(
             id,
             TodoCommand(
-                title = request.title,
-                completed = requireNotNull(request.completed),
-                description = request.description,
-                dueDate = request.dueDate,
-                priority = request.priority,
-                estimatedMinutes = request.estimatedMinutes,
+                title = updateTodoRequest.title,
+                completed = updateTodoRequest.completed,
+                description = updateTodoRequest.description,
+                dueDate = updateTodoRequest.dueDate,
+                priority = updateTodoRequest.priority.toDomain(),
+                estimatedMinutes = updateTodoRequest.estimatedMinutes,
             ),
-        ).toResponse()
+        )
+        return ResponseEntity.ok(updated.toResponse())
+    }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun delete(@PathVariable id: UUID) {
+    override fun deleteTodo(id: UUID): ResponseEntity<Unit> {
         todoService.delete(id)
+        return ResponseEntity.noContent().build()
     }
 
     private fun Todo.toResponse() = TodoResponse(
@@ -119,11 +70,10 @@ class TodoController(private val todoService: TodoService) {
         completed = completed,
         description = description,
         dueDate = dueDate,
-        priority = priority,
+        priority = ApiTodoPriority.valueOf(priority.name),
         estimatedMinutes = estimatedMinutes,
     )
 
-    private companion object {
-        const val IDEMPOTENCY_KEY_MAX_LENGTH = 255
-    }
+    private fun ApiTodoPriority?.toDomain(): TodoPriority =
+        this?.let { TodoPriority.valueOf(it.name) } ?: TodoPriority.MEDIUM
 }

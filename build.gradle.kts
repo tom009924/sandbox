@@ -6,6 +6,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.6"
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
     id("com.autonomousapps.dependency-analysis") version "1.33.0"
+    id("org.openapi.generator") version "7.10.0"
 }
 
 group = "com.example"
@@ -46,6 +47,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
     runtimeOnly("com.google.cloud:google-cloud-spanner-hibernate-dialect:3.9.1")
     runtimeOnly("com.google.cloud:google-cloud-spanner-jdbc:2.29.1")
     implementation("com.google.cloud:google-cloud-pubsub:1.137.1")
@@ -56,10 +58,7 @@ dependencies {
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
     testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     add(integrationTestSourceSet.implementationConfigurationName, "io.rest-assured:rest-assured:5.5.7")
-    add(
-        integrationTestSourceSet.implementationConfigurationName,
-        "com.atlassian.oai:openapi-request-validator-restassured:3.0.0",
-    )
+    add(integrationTestSourceSet.implementationConfigurationName, "io.swagger.parser.v3:swagger-parser-v3:2.1.22")
 }
 
 dependencyAnalysis {
@@ -109,4 +108,42 @@ tasks.check {
 
 tasks.bootJar {
     archiveFileName.set("app.jar")
+}
+
+openApiGenerate {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("$projectDir/docs/openapi.yaml")
+    outputDir.set(layout.buildDirectory.dir("generated/openapi").map { it.asFile.absolutePath })
+    apiPackage.set("com.example.todo.presentation.api")
+    modelPackage.set("com.example.todo.presentation.model")
+    generateApiTests.set(false)
+    generateModelTests.set(false)
+    generateApiDocumentation.set(false)
+    generateModelDocumentation.set(false)
+    configOptions.set(
+        mapOf(
+            "interfaceOnly" to "true",
+            "skipDefaultInterface" to "true",
+            "exceptionHandler" to "false",
+            "useSpringBoot3" to "true",
+            "useTags" to "true",
+            "documentationProvider" to "none",
+            "annotationLibrary" to "none",
+            "useBeanValidation" to "true",
+            "serializationLibrary" to "jackson",
+            "enumPropertyNaming" to "UPPERCASE",
+        ),
+    )
+}
+
+sourceSets.main {
+    kotlin.srcDir(tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") })
+}
+
+tasks.compileKotlin {
+    dependsOn(tasks.openApiGenerate)
+}
+
+tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
+    dependsOn(tasks.openApiGenerate)
 }
