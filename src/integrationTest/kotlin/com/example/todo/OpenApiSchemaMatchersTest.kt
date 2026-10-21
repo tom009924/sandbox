@@ -1,12 +1,22 @@
 package com.example.todo
 
-import io.kotest.matchers.should
-import io.kotest.matchers.shouldNot
 import io.swagger.v3.parser.OpenAPIV3Parser
+import io.swagger.v3.parser.core.models.ParseOptions
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class OpenApiSchemaMatchersTest {
-    private val openApi = requireNotNull(OpenAPIV3Parser().read("docs/openapi.yaml"))
+    private val openApi = requireNotNull(
+        OpenAPIV3Parser().read(
+            "docs/openapi.yaml",
+            null,
+            ParseOptions().apply {
+                isResolve = true
+                isResolveFully = true
+            },
+        ),
+    )
 
     @Test
     fun validTodoJsonMatchesTodoSchema() {
@@ -22,7 +32,7 @@ class OpenApiSchemaMatchersTest {
             }
         """.trimIndent()
 
-        validJson should matchOpenApiSchema("Todo", openApi)
+        assertEquals(emptyList<String>(), validateOpenApiSchema(validJson, "Todo", openApi))
     }
 
     @Test
@@ -33,7 +43,7 @@ class OpenApiSchemaMatchersTest {
               "title": "Buy milk"
             }
         """.trimIndent()
-        missingRequiredField shouldNot matchOpenApiSchema("Todo", openApi)
+        assertTrue(validateOpenApiSchema(missingRequiredField, "Todo", openApi).isNotEmpty())
 
         val invalidUuidAndPriority = """
             {
@@ -46,7 +56,7 @@ class OpenApiSchemaMatchersTest {
               "estimatedMinutes": 10
             }
         """.trimIndent()
-        invalidUuidAndPriority shouldNot matchOpenApiSchema("Todo", openApi)
+        assertTrue(validateOpenApiSchema(invalidUuidAndPriority, "Todo", openApi).isNotEmpty())
 
         val unknownAdditionalProperty = """
             {
@@ -60,14 +70,26 @@ class OpenApiSchemaMatchersTest {
               "extraField": "unexpected"
             }
         """.trimIndent()
-        unknownAdditionalProperty shouldNot matchOpenApiSchema("Todo", openApi)
+        assertTrue(validateOpenApiSchema(unknownAdditionalProperty, "Todo", openApi).isNotEmpty())
     }
 
     @Test
     fun createTodoRequestSchemaValidatesConstraints() {
-        """{"title":"Buy milk","priority":"MEDIUM","estimatedMinutes":0}""" should
-            matchOpenApiSchema("CreateTodoRequest", openApi)
-        """{"title":"   "}""" shouldNot matchOpenApiSchema("CreateTodoRequest", openApi)
-        """{"title":"Buy milk","estimatedMinutes":-1}""" shouldNot matchOpenApiSchema("CreateTodoRequest", openApi)
+        assertEquals(
+            emptyList<String>(),
+            validateOpenApiSchema(
+                """{"title":"Buy milk","priority":"MEDIUM","estimatedMinutes":0}""",
+                "CreateTodoRequest",
+                openApi,
+            ),
+        )
+        assertTrue(validateOpenApiSchema("""{"title":"   "}""", "CreateTodoRequest", openApi).isNotEmpty())
+        assertTrue(
+            validateOpenApiSchema(
+                """{"title":"Buy milk","estimatedMinutes":-1}""",
+                "CreateTodoRequest",
+                openApi,
+            ).isNotEmpty(),
+        )
     }
 }

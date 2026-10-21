@@ -69,9 +69,8 @@ data class OpenApiCoverageDefinition(
                     .map { statusCode -> OpenApiResponse(operationId, method, path, statusCode) }
             }.toSet()
             val constraints = operations.flatMap { (path, method, operation) ->
-                val schemaReference =
-                    operation.requestBody?.content?.get("application/json")?.schema?.`$ref`
-                val schema = schemas[schemaReference?.substringAfterLast("/")]
+                val requestSchema = operation.requestBody?.content?.get("application/json")?.schema
+                val schema = requestSchema?.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: requestSchema
                 schema?.toConstraints(method, path, schemas).orEmpty()
             }.toSet()
             return OpenApiCoverageDefinition(responses, constraints)
@@ -104,8 +103,8 @@ private fun Schema<*>.toConstraints(
 private fun Schema<*>.enumValues(schemas: Map<String, Schema<*>>): Set<String> {
     val directValues = enum.orEmpty().map { it.toString() }
     val referencedValues = allOf.orEmpty().flatMap { component ->
-        val schemaName = component.`$ref`?.substringAfterLast("/")
-        schemas[schemaName]?.enum.orEmpty().map { it.toString() }
+        val schema = component.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: component
+        schema.enum.orEmpty().map { it.toString() }
     }
     return (directValues + referencedValues).toSet()
 }

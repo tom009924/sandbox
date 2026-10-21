@@ -7,6 +7,7 @@ import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.parser.OpenAPIV3Parser
+import io.swagger.v3.parser.core.models.ParseOptions
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
@@ -527,7 +528,16 @@ class TodoApiIntegrationTest @Autowired constructor(
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
 
-        val openAPI = requireNotNull(OpenAPIV3Parser().read(OPEN_API_SPEC_PATH)) {
+        val openAPI = requireNotNull(
+            OpenAPIV3Parser().read(
+                OPEN_API_SPEC_PATH,
+                null,
+                ParseOptions().apply {
+                    isResolve = true
+                    isResolveFully = true
+                },
+            ),
+        ) {
             "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
         }
 

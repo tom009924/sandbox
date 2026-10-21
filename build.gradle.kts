@@ -55,7 +55,6 @@ dependencies {
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
     add(integrationTestSourceSet.implementationConfigurationName, "io.rest-assured:rest-assured:5.5.7")
     add(integrationTestSourceSet.implementationConfigurationName, "io.swagger.parser.v3:swagger-parser:2.1.22")
-    add(integrationTestSourceSet.implementationConfigurationName, "io.kotest:kotest-assertions-core:5.9.1")
 }
 
 tasks.test {
