@@ -5,6 +5,7 @@ springDependencyManagement = "1.1.6"
 detekt = "1.23.6"
 dependencyAnalysis = "1.33.0"
 openapiGenerator = "7.10.0"
+jacoco = "0.8.12"
 
 spannerHibernateDialect = "3.9.1"
 spannerJdbc = "2.29.1"
