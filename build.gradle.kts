@@ -159,8 +159,54 @@ val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("ja
     )
     violationRules {
         rule {
+            element = "BUNDLE"
             limit {
-                minimum = "0.80".toBigDecimal()
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.85".toBigDecimal()
+            }
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.90".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+        rule {
+            element = "PACKAGE"
+            includes = listOf("com/example/todo/domain*")
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+        }
+        rule {
+            element = "PACKAGE"
+            includes = listOf("com/example/todo/application*")
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.85".toBigDecimal()
             }
         }
     }
