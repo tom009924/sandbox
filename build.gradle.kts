@@ -230,7 +230,12 @@ openApiValidate {
 }
 
 val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-val npmExecutable = if (isWindows) "npm.cmd" else "npm"
+val nvmNpmPath = "/usr/local/share/nvm/current/bin/npm"
+val npmExecutable = when {
+    isWindows -> "npm.cmd"
+    file(nvmNpmPath).exists() && !System.getenv("PATH").orEmpty().contains("/usr/local/share/nvm/current/bin") -> nvmNpmPath
+    else -> "npm"
+}
 
 val npmInstall = tasks.register<Exec>("npmInstall") {
     description = "Installs Node dependencies using npm ci."
