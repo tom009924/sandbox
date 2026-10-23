@@ -1,0 +1,43 @@
+[versions]
+kotlin = "1.9.23"
+springBoot = "3.4.5"
+springDependencyManagement = "1.1.6"
+detekt = "1.23.6"
+dependencyAnalysis = "1.33.0"
+openapiGenerator = "7.10.0"
+
+spannerHibernateDialect = "3.9.1"
+spannerJdbc = "2.29.1"
+googleCloudPubsub = "1.137.1"
+archunit = "1.3.0"
+swaggerParser = "2.1.22"
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+
+spanner-hibernate-dialect = { module = "com.google.cloud:google-cloud-spanner-hibernate-dialect", version.ref = "spannerHibernateDialect" }
+spanner-jdbc = { module = "com.google.cloud:google-cloud-spanner-jdbc", version.ref = "spannerJdbc" }
+google-cloud-pubsub = { module = "com.google.cloud:google-cloud-pubsub", version.ref = "googleCloudPubsub" }
+
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+rest-assured = { module = "io.rest-assured:rest-assured" }
+swagger-parser = { module = "io.swagger.parser.v3:swagger-parser-v3", version.ref = "swaggerParser" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+dependency-analysis = { id = "com.autonomousapps.dependency-analysis", version.ref = "dependencyAnalysis" }
+openapi-generator = { id = "org.openapi.generator", version.ref = "openapiGenerator" }
+
