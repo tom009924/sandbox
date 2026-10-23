@@ -7,10 +7,15 @@ plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.dependency.analysis)
     alias(libs.plugins.openapi.generator)
+    jacoco
 }
 
 group = "com.example"
 version = "1.0.0"
+
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
 
 dependencyLocking {
     lockAllConfigurations()
@@ -105,11 +110,69 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     useJUnitPlatform()
 }
 
+val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.test, integrationTest)
+    executionData.setFrom(
+        fileTree(layout.buildDirectory.dir("jacoco")) {
+            include("*.exec")
+        },
+    )
+    classDirectories.setFrom(
+        files(
+            classDirectories.files.map {
+                fileTree(it) {
+                    exclude(
+                        "**/presentation/api/**",
+                        "**/presentation/model/**",
+                        "**/TodoApplicationKt.class",
+                    )
+                }
+            },
+        ),
+    )
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(jacocoTestReport)
+    executionData.setFrom(
+        fileTree(layout.buildDirectory.dir("jacoco")) {
+            include("*.exec")
+        },
+    )
+    classDirectories.setFrom(
+        files(
+            classDirectories.files.map {
+                fileTree(it) {
+                    exclude(
+                        "**/presentation/api/**",
+                        "**/presentation/model/**",
+                        "**/TodoApplicationKt.class",
+                    )
+                }
+            },
+        ),
+    )
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+
 tasks.check {
     dependsOn("buildHealth")
     dependsOn(integrationTest)
     dependsOn(tasks.named("openApiValidate"))
     dependsOn("lintOpenApi")
+    dependsOn(jacocoTestReport)
+    dependsOn(jacocoTestCoverageVerification)
 }
 
 openApiValidate {
