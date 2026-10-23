@@ -104,6 +104,36 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 tasks.check {
     dependsOn("buildHealth")
     dependsOn(integrationTest)
+    dependsOn(tasks.named("openApiValidate"))
+    dependsOn("lintOpenApi")
+}
+
+openApiValidate {
+    inputSpec.set("$projectDir/docs/openapi.yaml")
+}
+
+val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+val npmExecutable = if (isWindows) "npm.cmd" else "npm"
+
+val npmInstall = tasks.register<Exec>("npmInstall") {
+    description = "Installs Node dependencies using npm ci."
+    group = "build setup"
+    commandLine(npmExecutable, "ci")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
+    outputs.dir("node_modules")
+    onlyIf { !file("node_modules").exists() }
+}
+
+val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
+    description = "Lints OpenAPI specifications using Stoplight Spectral."
+    group = "verification"
+    dependsOn(npmInstall)
+    commandLine(npmExecutable, "run", "lint:openapi")
+    inputs.file("docs/openapi.yaml")
+    inputs.file(".spectral.yaml")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
 }
 
 tasks.bootJar {

@@ -8,14 +8,15 @@
 - **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析**: Detekt 1.23
 - **テスト**: JUnit 5, MockMvc, REST Assured, Kotest, swagger-parser
-- **API仕様**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml))
+- **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), Stoplight Spectral 6.16, OpenAPI Generator Validate
 
 ## 2. コーディングルール
 1. **コードスタイル & 静的解析**:
    - Detekt のルールに準拠すること。
    - `./gradlew detekt` で静的解析を実施し、指摘事項を解消すること（自動修正可能ルールは自動修正されます）。
-2. **OpenAPI仕様ファースト / 同期**:
+2. **OpenAPI仕様ファースト / 同期 & 品質検証**:
    - APIのエンドポイント、リクエスト/レスポンス形式、バリデーションルールを変更・追加する場合は、必ず [`docs/openapi.yaml`](docs/openapi.yaml) も同時に更新すること。
+   - `./gradlew lintOpenApi` で Spectral による仕様の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
    - 統合テスト（`integrationTest`）で OpenAPI 仕様との整合性が自動検証されます。
 3. **エラーハンドリング**:
    - 不正なリクエストは `400 Bad Request`、リソース不在時は `404 Not Found` を返すこと。
@@ -25,7 +26,7 @@
 ```bash
 ./gradlew check
 ```
-※ `check` タスクにより Detekt、ユニットテスト、結合テストが順に実行されます。
+※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis）、OpenAPIリンティング（Spectral / openApiValidate）、ユニットテスト、結合テストが一括実行されます。
 
 ## 4. スキル・手順書（Runbook）の参照
 特定のタスクを実施する際は、[.github/skills/](.github/skills/) 配下の各手順書（`SKILL.md`）を参照してください:

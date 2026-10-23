@@ -29,6 +29,11 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ./gradlew --offline detekt
   ```
   ※ 自動修正可能なスタイル違反は自動で修正されます。
+- **OpenAPI 仕様の静的解析のみ (Spectral・エミュレータ不要)**:
+  ```bash
+  ./gradlew lintOpenApi
+  ```
+  ※ OpenAPI 仕様の構文、命名規則（kebab-case/camelCase）、必須メタデータなどを検証します。
 - **ユニットテストのみ (MockMvc)**:
   ```bash
   ./gradlew --offline test
