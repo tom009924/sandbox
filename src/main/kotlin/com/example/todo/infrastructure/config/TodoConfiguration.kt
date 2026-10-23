@@ -1,9 +1,13 @@
 package com.example.todo.infrastructure.config
 
+import com.example.todo.application.AuthService
+import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.UserRepository
+import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -29,4 +33,11 @@ class TodoConfiguration {
         idempotencyRecordRepository: IdempotencyRecordRepository,
         todoEventPublisher: TodoEventPublisher,
     ) = TodoService(todoRepository, idempotencyRecordRepository, todoEventPublisher)
+
+    @Bean
+    fun authService(
+        userRepository: UserRepository,
+        passwordEncoder: PasswordEncoder,
+        tokenIssuer: TokenIssuer,
+    ) = AuthService(userRepository, passwordEncoder, tokenIssuer)
 }

@@ -50,12 +50,72 @@ object TodoApiTestCases {
      */
     val acceptanceCriteria: List<AcceptanceCriterion> = listOf(
         AcceptanceCriterion(
+            operationId = "registerUser",
+            statusCode = 201,
+            summary = "User registered successfully",
+            scenarios = listOf(
+                "Register new user with valid username and password",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "registerUser",
+            statusCode = 400,
+            summary = "Invalid registration request",
+            scenarios = listOf(
+                "Blank username",
+                "Blank password",
+                "Missing username",
+                "Missing password",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "registerUser",
+            statusCode = 409,
+            summary = "Username already exists",
+            scenarios = listOf(
+                "Conflict when username is already registered",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "loginUser",
+            statusCode = 200,
+            summary = "Authentication successful",
+            scenarios = listOf(
+                "Authenticate with valid username and password and receive Bearer JWT",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "loginUser",
+            statusCode = 400,
+            summary = "Invalid login request",
+            scenarios = listOf(
+                "Missing username",
+                "Missing password",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "loginUser",
+            statusCode = 401,
+            summary = "Invalid credentials",
+            scenarios = listOf(
+                "Rejection when password or username does not match",
+            ),
+        ),
+        AcceptanceCriterion(
             operationId = "listTodos",
             statusCode = 200,
             summary = "Todo list",
             scenarios = listOf(
                 "Empty list when no todos exist",
                 "Stored todos when records exist",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "listTodos",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
             ),
         ),
         AcceptanceCriterion(
@@ -83,6 +143,14 @@ object TodoApiTestCases {
         ),
         AcceptanceCriterion(
             operationId = "createTodo",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodo",
             statusCode = 409,
             summary = "Idempotency-Key conflict",
             scenarios = listOf(
@@ -95,6 +163,14 @@ object TodoApiTestCases {
             summary = "Todo found",
             scenarios = listOf(
                 "Retrieve matching existing todo with metadata",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getTodo",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
             ),
         ),
         AcceptanceCriterion(
@@ -128,6 +204,14 @@ object TodoApiTestCases {
         ),
         AcceptanceCriterion(
             operationId = "updateTodo",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateTodo",
             statusCode = 404,
             summary = "Todo not found",
             scenarios = listOf(
@@ -140,6 +224,14 @@ object TodoApiTestCases {
             summary = "Todo deleted",
             scenarios = listOf(
                 "Delete stored todo, verify removal from database, and publish DELETED event",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodo",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
             ),
         ),
         AcceptanceCriterion(
@@ -157,7 +249,52 @@ object TodoApiTestCases {
 
     @JvmStatic
     fun validationErrorTestCases(): List<ValidationErrorTestCase> =
-        postValidationErrorCases() + putValidationErrorCases()
+        postValidationErrorCases() + putValidationErrorCases() + authValidationErrorCases()
+
+    private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
+        ValidationErrorTestCase(
+            operationId = "registerUser",
+            description = "Blank username",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/register" },
+            requestBody = """{"username":"   ","password":"password123"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "registerUser",
+            description = "Blank password",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/register" },
+            requestBody = """{"username":"testuser","password":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "registerUser",
+            description = "Missing username",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/register" },
+            requestBody = """{"password":"password123"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "registerUser",
+            description = "Missing password",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/register" },
+            requestBody = """{"username":"testuser"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "loginUser",
+            description = "Missing username",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/login" },
+            requestBody = """{"password":"password123"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "loginUser",
+            description = "Missing password",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/auth/login" },
+            requestBody = """{"username":"testuser"}""",
+        ),
+    )
 
     private fun postValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
         ValidationErrorTestCase(

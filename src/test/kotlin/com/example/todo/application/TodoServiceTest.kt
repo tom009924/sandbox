@@ -28,6 +28,8 @@ class TodoServiceTest {
     private val idempotencyRepository = InMemoryIdempotencyRecordRepository()
     private val eventPublisher = InMemoryTodoEventPublisher()
     private val service = TodoService(repository, idempotencyRepository, eventPublisher)
+    private val userId: UUID = UUID.randomUUID()
+    private val otherUserId: UUID = UUID.randomUUID()
 
     @BeforeEach
     fun setUp() {
@@ -38,6 +40,7 @@ class TodoServiceTest {
     fun `create trims title and returns generated id`() {
         val dueDate = LocalDate.parse("2025-04-18")
         val todo = service.create(
+            userId,
             TodoCommand(
                 title = "  Buy milk  ",
                 description = "Buy before the weekend",
@@ -53,18 +56,21 @@ class TodoServiceTest {
         assertEquals(dueDate, todo.dueDate)
         assertEquals(TodoPriority.HIGH, todo.priority)
         assertEquals(30, todo.estimatedMinutes)
+        assertEquals(userId, todo.userId)
         assertTrue(todo.id != null)
     }
 
     @Test
     fun `update changes title and completed state`() {
         val created = service.create(
+            userId,
             TodoCommand(title = "Buy milk", dueDate = LocalDate.parse("2025-04-18")),
         )
         val dueDate = LocalDate.parse("2025-04-19")
 
         val updated = service.update(
             requireNotNull(created.id),
+            userId,
             TodoCommand(
                 title = "  Milk bought  ",
                 completed = true,
@@ -87,16 +93,48 @@ class TodoServiceTest {
     @Test
     fun `missing todo raises domain exception`() {
         assertThrows(TodoNotFoundException::class.java) {
-            service.get(UUID.randomUUID())
+            service.get(UUID.randomUUID(), userId)
         }
+    }
+
+    @Test
+    fun `cannot access or modify another users todo`() {
+        val created = service.create(userId, TodoCommand(title = "Private todo"))
+        val todoId = requireNotNull(created.id)
+
+        assertThrows(TodoNotFoundException::class.java) {
+            service.get(todoId, otherUserId)
+        }
+
+        assertThrows(TodoNotFoundException::class.java) {
+            service.update(todoId, otherUserId, TodoCommand(title = "Hacked"))
+        }
+
+        assertThrows(TodoNotFoundException::class.java) {
+            service.delete(todoId, otherUserId)
+        }
+    }
+
+    @Test
+    fun `list only returns todos belonging to user`() {
+        service.create(userId, TodoCommand(title = "User 1 todo"))
+        service.create(otherUserId, TodoCommand(title = "User 2 todo"))
+
+        val userTodos = service.list(userId)
+        assertEquals(1, userTodos.size)
+        assertEquals("User 1 todo", userTodos.first().title)
+
+        val otherUserTodos = service.list(otherUserId)
+        assertEquals(1, otherUserTodos.size)
+        assertEquals("User 2 todo", otherUserTodos.first().title)
     }
 
     @Test
     fun `repeated idempotent create returns the original todo`() {
         val command = TodoCommand(title = "Buy milk")
 
-        val created = service.createIdempotent("request-1", command)
-        val replayed = service.createIdempotent("request-1", command)
+        val created = service.createIdempotent(userId, "request-1", command)
+        val replayed = service.createIdempotent(userId, "request-1", command)
 
         assertEquals(created, replayed)
         assertEquals(1, repository.findAll().size)
@@ -104,10 +142,10 @@ class TodoServiceTest {
 
     @Test
     fun `reusing idempotency key for a different request raises conflict`() {
-        service.createIdempotent("request-1", TodoCommand(title = "Buy milk"))
+        service.createIdempotent(userId, "request-1", TodoCommand(title = "Buy milk"))
 
         assertThrows(IdempotencyConflictException::class.java) {
-            service.createIdempotent("request-1", TodoCommand(title = "Buy bread"))
+            service.createIdempotent(userId, "request-1", TodoCommand(title = "Buy bread"))
         }
         assertEquals(1, repository.findAll().size)
     }
@@ -128,8 +166,8 @@ class TodoServiceTest {
         )
         val command = TodoCommand(title = "Buy milk")
 
-        val first = firstService.createIdempotent("request-1", command)
-        val second = secondService.createIdempotent("request-1", command)
+        val first = firstService.createIdempotent(userId, "request-1", command)
+        val second = secondService.createIdempotent(userId, "request-1", command)
 
         assertTrue(first.id != second.id)
         assertEquals(2, repository.findAll().size)
@@ -137,7 +175,7 @@ class TodoServiceTest {
 
     @Test
     fun `create publishes CREATED event with todo payload`() {
-        val todo = service.create(TodoCommand(title = "Buy milk"))
+        val todo = service.create(userId, TodoCommand(title = "Buy milk"))
 
         assertEquals(1, eventPublisher.publishedEvents.size)
         val event = eventPublisher.publishedEvents.first()
@@ -148,11 +186,12 @@ class TodoServiceTest {
 
     @Test
     fun `update publishes UPDATED event with updated todo payload`() {
-        val created = service.create(TodoCommand(title = "Buy milk"))
+        val created = service.create(userId, TodoCommand(title = "Buy milk"))
         eventPublisher.clear()
 
         val updated = service.update(
             requireNotNull(created.id),
+            userId,
             TodoCommand(title = "Milk bought", completed = true),
         )
 
@@ -165,10 +204,10 @@ class TodoServiceTest {
 
     @Test
     fun `delete publishes DELETED event with null payload`() {
-        val created = service.create(TodoCommand(title = "Buy milk"))
+        val created = service.create(userId, TodoCommand(title = "Buy milk"))
         eventPublisher.clear()
 
-        service.delete(requireNotNull(created.id))
+        service.delete(requireNotNull(created.id), userId)
 
         assertEquals(1, eventPublisher.publishedEvents.size)
         val event = eventPublisher.publishedEvents.first()
@@ -180,11 +219,11 @@ class TodoServiceTest {
     @Test
     fun `replayed idempotent create does not publish duplicate event`() {
         val command = TodoCommand(title = "Buy milk")
-        service.createIdempotent("request-1", command)
+        service.createIdempotent(userId, "request-1", command)
         assertEquals(1, eventPublisher.publishedEvents.size)
 
         eventPublisher.clear()
-        service.createIdempotent("request-1", command)
+        service.createIdempotent(userId, "request-1", command)
 
         assertEquals(0, eventPublisher.publishedEvents.size)
     }
@@ -194,7 +233,13 @@ class TodoServiceTest {
 
         override fun findAll(): List<Todo> = todos.values.toList()
 
+        override fun findAllByUserId(userId: UUID): List<Todo> =
+            todos.values.filter { it.userId == userId }
+
         override fun findById(id: UUID): Todo? = todos[id]
+
+        override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
+            todos[id]?.takeIf { it.userId == userId }
 
         override fun save(todo: Todo): Todo {
             val saved = todo.copy(id = todo.id ?: UUID.randomUUID())

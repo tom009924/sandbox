@@ -21,6 +21,9 @@ class TodoJpaEntity(
     var id: UUID? = null,
 
     @Column(nullable = false)
+    var userId: UUID,
+
+    @Column(nullable = false)
     var title: String,
 
     @Column(nullable = false)

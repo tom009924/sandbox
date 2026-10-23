@@ -12,8 +12,14 @@ class TodoRepositoryAdapter(
     override fun findAll(): List<Todo> =
         springDataTodoRepository.findAll().map { it.toDomain() }
 
+    override fun findAllByUserId(userId: UUID): List<Todo> =
+        springDataTodoRepository.findAllByUserId(userId).map { it.toDomain() }
+
     override fun findById(id: UUID): Todo? =
         springDataTodoRepository.findById(id).orElse(null)?.toDomain()
+
+    override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
+        springDataTodoRepository.findByIdAndUserId(id, userId)?.toDomain()
 
     override fun save(todo: Todo): Todo =
         springDataTodoRepository.save(todo.toEntity()).toDomain()
@@ -24,6 +30,7 @@ class TodoRepositoryAdapter(
 
     private fun TodoJpaEntity.toDomain() = Todo(
         id = id,
+        userId = userId,
         title = title,
         completed = completed,
         description = description,
@@ -34,6 +41,7 @@ class TodoRepositoryAdapter(
 
     private fun Todo.toEntity() = TodoJpaEntity(
         id = id,
+        userId = userId,
         title = title,
         completed = completed,
         description = description,

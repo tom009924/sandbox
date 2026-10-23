@@ -1,7 +1,9 @@
 package com.example.todo.presentation
 
 import com.example.todo.domain.exception.IdempotencyConflictException
+import com.example.todo.domain.exception.InvalidCredentialsException
 import com.example.todo.domain.exception.TodoNotFoundException
+import com.example.todo.domain.exception.UserAlreadyExistsException
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -23,5 +25,15 @@ class TodoExceptionHandler {
     @ExceptionHandler(IdempotencyConflictException::class)
     fun handleIdempotencyConflict(exception: IdempotencyConflictException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
+    @ExceptionHandler(UserAlreadyExistsException::class)
+    fun handleUserAlreadyExists(exception: UserAlreadyExistsException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
+    @ExceptionHandler(InvalidCredentialsException::class)
+    fun handleInvalidCredentials(exception: InvalidCredentialsException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(mapOf("message" to requireNotNull(exception.message)))
 }
