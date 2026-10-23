@@ -43,7 +43,8 @@ class JwtTokenProviderTest {
 
     @Test
     fun `validate returns null for token signed with different secret`() {
-        val otherKey = Keys.hmacShaKeyFor("different-secret-key-must-be-at-least-256-bits-long-for-testing".toByteArray(StandardCharsets.UTF_8))
+        val differentSecret = "different-secret-key-must-be-at-least-256-bits-long-for-testing"
+        val otherKey = Keys.hmacShaKeyFor(differentSecret.toByteArray(StandardCharsets.UTF_8))
         val otherToken = Jwts.builder()
             .subject(UUID.randomUUID().toString())
             .claim("username", "bob")
