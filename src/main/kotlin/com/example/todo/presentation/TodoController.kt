@@ -2,6 +2,7 @@ package com.example.todo.presentation
 
 import com.example.todo.application.TodoCommand
 import com.example.todo.application.TodoService
+import com.example.todo.application.UserContext
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.presentation.api.TodosApi
@@ -16,19 +17,28 @@ import com.example.todo.presentation.model.Todo as TodoResponse
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
 @RestController
-class TodoController(private val todoService: TodoService) : TodosApi {
-    override fun listTodos(): ResponseEntity<List<TodoResponse>> =
-        ResponseEntity.ok(todoService.list().map { it.toResponse() })
+class TodoController(
+    private val todoService: TodoService,
+    private val userContext: UserContext,
+) : TodosApi {
+    override fun listTodos(): ResponseEntity<List<TodoResponse>> {
+        val userId = userContext.currentUserId()
+        return ResponseEntity.ok(todoService.list(userId).map { it.toResponse() })
+    }
 
-    override fun getTodo(id: UUID): ResponseEntity<TodoResponse> =
-        ResponseEntity.ok(todoService.get(id).toResponse())
+    override fun getTodo(id: UUID): ResponseEntity<TodoResponse> {
+        val userId = userContext.currentUserId()
+        return ResponseEntity.ok(todoService.get(id, userId).toResponse())
+    }
 
     @Transactional
     override fun createTodo(
         idempotencyKey: String,
         createTodoRequest: CreateTodoRequest,
     ): ResponseEntity<TodoResponse> {
+        val userId = userContext.currentUserId()
         val created = todoService.createIdempotent(
+            userId,
             idempotencyKey,
             TodoCommand(
                 title = createTodoRequest.title,
@@ -45,8 +55,10 @@ class TodoController(private val todoService: TodoService) : TodosApi {
         id: UUID,
         updateTodoRequest: UpdateTodoRequest,
     ): ResponseEntity<TodoResponse> {
+        val userId = userContext.currentUserId()
         val updated = todoService.update(
             id,
+            userId,
             TodoCommand(
                 title = updateTodoRequest.title,
                 completed = updateTodoRequest.completed,
@@ -60,12 +72,14 @@ class TodoController(private val todoService: TodoService) : TodosApi {
     }
 
     override fun deleteTodo(id: UUID): ResponseEntity<Unit> {
-        todoService.delete(id)
+        val userId = userContext.currentUserId()
+        todoService.delete(id, userId)
         return ResponseEntity.noContent().build()
     }
 
     private fun Todo.toResponse() = TodoResponse(
         id = requireNotNull(id),
+        userId = userId,
         title = title,
         completed = completed,
         description = description,

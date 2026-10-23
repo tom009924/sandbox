@@ -27,14 +27,38 @@ gh auth status
 
 GradleのビルドキャッシュとKotlinのインクリメンタルコンパイルを有効にし、メモリ使用量を抑えるためGradleの並列ワーカー数を1に制限しています。
 
-APIのベースURLは `http://localhost:8080/api/todos` です。
+APIのベースURLは `http://localhost:8080/api` です。
 OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
 
 ## API
 
+### 認証 API
+
 | Method | Path | 説明 |
 | --- | --- | --- |
-| `GET` | `/api/todos` | Todo一覧 |
+| `POST` | `/api/auth/register` | ユーザー新規登録 |
+| `POST` | `/api/auth/login` | ログイン（JWTアクセストークン取得） |
+
+登録・ログインリクエスト:
+
+```json
+{"username":"alice","password":"password123"}
+```
+
+ログイン成功時レスポンス:
+
+```json
+{"token":"<JWT_TOKEN>","tokenType":"Bearer","expiresIn":86400}
+```
+
+### Todo API (要認証)
+
+Todo APIのエンドポイント（`/api/todos`）の呼び出しにはJWT認証が必要です。HTTPリクエストヘッダーに `Authorization: Bearer <token>` を付与してください。
+Todoデータはユーザー単位でスコープ分離されており、ログイン中のユーザーが所有するTodoのみ参照・作成・更新・削除が可能です。未認証リクエストには `401 Unauthorized` を返します。
+
+| Method | Path | 説明 |
+| --- | --- | --- |
+| `GET` | `/api/todos` | ログインユーザーのTodo一覧 |
 | `GET` | `/api/todos/{id}` | Todo取得 |
 | `POST` | `/api/todos` | Todo作成 |
 | `PUT` | `/api/todos/{id}` | Todo更新 |

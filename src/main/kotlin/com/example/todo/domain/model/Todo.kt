@@ -5,6 +5,7 @@ import java.util.UUID
 
 data class Todo(
     val id: UUID? = null,
+    val userId: UUID,
     val title: String,
     val completed: Boolean = false,
     val description: String? = null,

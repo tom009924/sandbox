@@ -33,13 +33,14 @@ class TodoService(
     private val todoEventPublisher: TodoEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
 ) {
-    fun list(): List<Todo> = todoRepository.findAll()
+    fun list(userId: UUID): List<Todo> = todoRepository.findAllByUserId(userId)
 
-    fun get(id: UUID): Todo = findTodo(id)
+    fun get(id: UUID, userId: UUID): Todo = findTodo(id, userId)
 
-    fun create(command: TodoCommand): Todo {
+    fun create(userId: UUID, command: TodoCommand): Todo {
         val saved = todoRepository.save(
             Todo(
+                userId = userId,
                 title = command.title.trim(),
                 description = command.description,
                 dueDate = command.dueDate,
@@ -58,7 +59,7 @@ class TodoService(
         return saved
     }
 
-    fun createIdempotent(key: String, command: TodoCommand): Todo {
+    fun createIdempotent(userId: UUID, key: String, command: TodoCommand): Todo {
         val now = clock.instant()
         idempotencyRecordRepository.deleteExpiredBefore(now)
         val fingerprint = command.fingerprint()
@@ -70,7 +71,7 @@ class TodoService(
             return existing.response
         }
 
-        val todo = create(command)
+        val todo = create(userId, command)
         idempotencyRecordRepository.save(
             IdempotencyRecord(
                 key = key,
@@ -82,8 +83,8 @@ class TodoService(
         return todo
     }
 
-    fun update(id: UUID, command: TodoCommand): Todo {
-        val todo = findTodo(id)
+    fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
+        val todo = findTodo(id, userId)
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
@@ -98,15 +99,15 @@ class TodoService(
             TodoEvent(
                 eventType = TodoEventType.UPDATED,
                 timestamp = clock.instant(),
-                todoId = id,
+                todoId = requireNotNull(updated.id),
                 todo = updated,
             ),
         )
         return updated
     }
 
-    fun delete(id: UUID) {
-        val todo = findTodo(id)
+    fun delete(id: UUID, userId: UUID) {
+        val todo = findTodo(id, userId)
         todoRepository.delete(todo)
         todoEventPublisher.publish(
             TodoEvent(
@@ -118,8 +119,8 @@ class TodoService(
         )
     }
 
-    private fun findTodo(id: UUID): Todo =
-        todoRepository.findById(id) ?: throw TodoNotFoundException(id)
+    private fun findTodo(id: UUID, userId: UUID): Todo =
+        todoRepository.findByIdAndUserId(id, userId) ?: throw TodoNotFoundException(id)
 
     private fun TodoCommand.fingerprint(): String {
         val fields = listOf(

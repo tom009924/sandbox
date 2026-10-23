@@ -9,16 +9,104 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local development server
+security:
+  - bearerAuth: []
 tags:
   - name: Todos
     description: Todo management
+  - name: Auth
+    description: User authentication and registration
 paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Register a new user account with unique credentials.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username is already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in user
+      description: Authenticate user credentials and return a Bearer JWT access token.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/todos:
     get:
       tags:
         - Todos
       summary: List todos
-      description: Retrieve a list of all todos.
+      description: Retrieve a list of all todos for the authenticated user.
       operationId: listTodos
       responses:
         '200':
@@ -29,11 +117,20 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Todo'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Todos
       summary: Create a todo
-      description: Create a new todo item with idempotency support.
+      description: Create a new todo item with an idempotency key.
       operationId: createTodo
       parameters:
         - name: Idempotency-Key
@@ -76,6 +173,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Idempotency-Key was already used with a different request
           content:
@@ -107,6 +213,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Todo'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo not found
           content:
@@ -151,6 +266,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo not found
           content:
@@ -169,6 +293,15 @@ paths:
       responses:
         '204':
           description: Todo deleted
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo not found
           content:
@@ -179,11 +312,87 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token obtained from /api/auth/login
   schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          pattern: '.*\S.*'
+          minLength: 3
+          maxLength: 50
+          description: Unique username for the account.
+          example: alice
+        password:
+          type: string
+          pattern: '.*\S.*'
+          minLength: 6
+          maxLength: 100
+          description: Password for the account.
+          example: password123
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Username of the registered account.
+          example: alice
+        password:
+          type: string
+          description: Password of the account.
+          example: password123
+    AuthTokenResponse:
+      type: object
+      required:
+        - token
+        - tokenType
+        - expiresIn
+      properties:
+        token:
+          type: string
+          description: Signed JWT access token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+        tokenType:
+          type: string
+          description: Token type prefix for Authorization header.
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token expiration period in seconds.
+          example: 86400
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        username:
+          type: string
+          description: Registered username.
+          example: alice
     Todo:
       type: object
       required:
         - id
+        - userId
         - title
         - completed
         - description
@@ -192,6 +401,10 @@ components:
         - estimatedMinutes
       properties:
         id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000

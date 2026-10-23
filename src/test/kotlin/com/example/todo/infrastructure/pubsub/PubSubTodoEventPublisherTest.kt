@@ -25,8 +25,10 @@ class PubSubTodoEventPublisherTest {
         val eventId = UUID.randomUUID()
         val todoId = UUID.randomUUID()
         val timestamp = Instant.parse("2025-04-18T12:00:00Z")
+        val userId = UUID.randomUUID()
         val todo = Todo(
             id = todoId,
+            userId = userId,
             title = "Buy milk",
             completed = false,
             description = "Get fresh milk",
@@ -85,7 +87,7 @@ class PubSubTodoEventPublisherTest {
                 eventType = TodoEventType.CREATED,
                 timestamp = Instant.now(),
                 todoId = UUID.randomUUID(),
-                todo = Todo(title = "Test"),
+                todo = Todo(userId = UUID.randomUUID(), title = "Test"),
             ),
         )
         publisher.close()

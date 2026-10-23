@@ -1,8 +1,15 @@
 package com.example.todo
 
+import com.example.todo.domain.event.TodoEventType
+import com.example.todo.domain.model.AuthenticatedUser
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
+import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.UserRepository
+import com.example.todo.infrastructure.pubsub.PubSubProperties
+import com.example.todo.infrastructure.security.JwtTokenProvider
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import io.swagger.v3.oas.models.PathItem
@@ -14,9 +21,6 @@ import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import com.example.todo.domain.event.TodoEventType
-import com.example.todo.infrastructure.pubsub.PubSubProperties
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -36,17 +40,211 @@ import java.util.UUID
 @Suppress("TooManyFunctions")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
+    private val userRepository: UserRepository,
     private val pubSubReceiver: PubSubTestReceiver,
+    private val jwtTokenProvider: JwtTokenProvider,
 ) {
     @LocalServerPort
     private var port: Int = 0
 
+    private lateinit var defaultUserId: UUID
+    private lateinit var defaultToken: String
+
     @BeforeEach
     fun cleanDatabase() {
         todoRepository.findAll().forEach(todoRepository::delete)
+        userRepository.deleteAll()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
+        val user = userRepository.save(User(username = "default_user", passwordHash = "hash"))
+        defaultUserId = requireNotNull(user.id)
+        defaultToken = jwtTokenProvider.generateToken(AuthenticatedUser(defaultUserId, user.username))
+    }
+
+    @Suppress("LongParameterList")
+    private fun testTodo(
+        id: UUID? = null,
+        userId: UUID = defaultUserId,
+        title: String,
+        completed: Boolean = false,
+        description: String? = null,
+        dueDate: LocalDate? = null,
+        priority: TodoPriority = TodoPriority.MEDIUM,
+        estimatedMinutes: Int? = null,
+    ) = Todo(
+        id = id,
+        userId = userId,
+        title = title,
+        completed = completed,
+        description = description,
+        dueDate = dueDate,
+        priority = priority,
+        estimatedMinutes = estimatedMinutes,
+    )
+
+    @Test
+    fun registerUserReturnsCreatedUser() {
+        val response = validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"newuser","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/register")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .body("username", equalTo("newuser"))
+            .extract()
+
+        val userId = UUID.fromString(response.path("id"))
+        val stored = userRepository.findById(userId)
+        assertTrue(stored != null)
+    }
+
+    @Test
+    fun registerUserDuplicateUsernameReturnsConflict() {
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"dupuser","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/register")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"dupuser","password":"password456"}""")
+            .`when`()
+            .post("/api/auth/register")
+            .then()
+            .statusCode(HttpStatus.CONFLICT.value())
+    }
+
+    @Test
+    fun loginUserReturnsAuthTokenForValidCredentials() {
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"loginuser","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/register")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"loginuser","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/login")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("tokenType", equalTo("Bearer"))
+            .body("expiresIn", equalTo(DEFAULT_TOKEN_EXPIRES_IN))
+    }
+
+    @Test
+    fun loginUserInvalidCredentialsReturnsUnauthorized() {
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"wronguser","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/login")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
+
+    @Test
+    fun unauthenticatedRequestsReturnUnauthorized() {
+        val missingId = UUID.randomUUID()
+        validatedRequest(token = null)
+            .`when`()
+            .get("/api/todos")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedPostRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Buy milk"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .`when`()
+            .get("/api/todos/$missingId")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Milk bought","completed":true}""")
+            .`when`()
+            .put("/api/todos/$missingId")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .`when`()
+            .delete("/api/todos/$missingId")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
+
+    @Test
+    fun userCannotAccessAnotherUsersTodo() {
+        val createResponse = validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"User A secret"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .extract()
+        val todoId = UUID.fromString(createResponse.path<String>("id"))
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"userb","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/register")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        val loginResponse = validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":"userb","password":"password123"}""")
+            .`when`()
+            .post("/api/auth/login")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .extract()
+        val userBToken = loginResponse.path<String>("token")
+
+        validatedRequest(token = userBToken)
+            .`when`()
+            .get("/api/todos")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("find { it.id == '$todoId' }", equalTo(null))
+
+        validatedRequest(token = userBToken)
+            .`when`()
+            .get("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
+
+        validatedRequest(token = userBToken)
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Hacked","completed":true}""")
+            .`when`()
+            .put("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
+
+        validatedRequest(token = userBToken)
+            .`when`()
+            .delete("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
     }
 
     @Test
@@ -66,7 +264,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
 
         val createdId = UUID.fromString(response.path("id"))
-        val expected = Todo(
+        val expected = testTodo(
             title = "Buy milk",
             completed = false,
             description = null,
@@ -94,7 +292,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .path<String>("id")
 
         val todoId = UUID.fromString(originalId)
-        val initialExpected = Todo(title = "Buy milk", completed = false, priority = TodoPriority.MEDIUM)
+        val initialExpected = testTodo(title = "Buy milk", completed = false, priority = TodoPriority.MEDIUM)
         assertStoredTodo(todoId, initialExpected)
 
         if (pubSubReceiver.isAvailable) {
@@ -181,7 +379,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .extract()
 
         val createdId = UUID.fromString(response.path("id"))
-        val expected = Todo(
+        val expected = testTodo(
             title = "Buy milk",
             completed = false,
             description = "Buy before the weekend",
@@ -207,7 +405,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .path<String>("id")
 
         val id = UUID.fromString(todoId)
-        val expectedCreate = Todo(title = "Buy milk", completed = false, estimatedMinutes = MIN_ESTIMATED_MINUTES)
+        val expectedCreate = testTodo(title = "Buy milk", completed = false, estimatedMinutes = MIN_ESTIMATED_MINUTES)
         assertStoredTodo(id, expectedCreate)
         assertPublishedEvent(TodoEventType.CREATED, id, expectedCreate)
         if (pubSubReceiver.isAvailable) {
@@ -223,7 +421,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
 
-        val expectedUpdate = Todo(title = "Buy milk", completed = true, estimatedMinutes = MIN_ESTIMATED_MINUTES)
+        val expectedUpdate = testTodo(title = "Buy milk", completed = true, estimatedMinutes = MIN_ESTIMATED_MINUTES)
         assertStoredTodo(id, expectedUpdate)
         assertPublishedEvent(TodoEventType.UPDATED, id, expectedUpdate)
     }
@@ -243,7 +441,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .path<String>("id")
 
         val id = UUID.fromString(todoId)
-        val expectedCreate = Todo(title = "Buy milk", completed = false, priority = priority)
+        val expectedCreate = testTodo(title = "Buy milk", completed = false, priority = priority)
         assertStoredTodo(id, expectedCreate)
         assertPublishedEvent(TodoEventType.CREATED, id, expectedCreate)
         if (pubSubReceiver.isAvailable) {
@@ -259,7 +457,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("priority", equalTo(priority.name))
 
-        val expectedUpdate = Todo(title = "Milk bought", completed = true, priority = priority)
+        val expectedUpdate = testTodo(title = "Milk bought", completed = true, priority = priority)
         assertStoredTodo(id, expectedUpdate)
         assertPublishedEvent(TodoEventType.UPDATED, id, expectedUpdate)
     }
@@ -268,17 +466,17 @@ class TodoApiIntegrationTest @Autowired constructor(
     @MethodSource("com.example.todo.TodoApiTestCases#validationErrorTestCases")
     fun validationErrorsReturnBadRequest(tc: ValidationErrorTestCase) {
         val targetId = if (tc.needsExistingTodo) {
-            val todo = todoRepository.save(Todo(title = "Buy milk"))
+            val todo = todoRepository.save(testTodo(title = "Buy milk"))
             requireNotNull(todo.id)
         } else {
             null
         }
         val expectedCount = if (tc.needsExistingTodo) 1 else 0
 
-        val request = if (tc.method == PathItem.HttpMethod.POST) {
-            validatedPostRequest()
-        } else {
-            validatedRequest()
+        val request = when {
+            tc.operationId == "createTodo" -> validatedPostRequest()
+            tc.operationId in listOf("registerUser", "loginUser") -> validatedRequest(token = null)
+            else -> validatedRequest()
         }
 
         request
@@ -299,12 +497,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .get("/api/todos")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("\$", hasSize<Any>(0))
+            .body("$", hasSize<Any>(0))
     }
 
     @Test
     fun listTodosReturnsStoredTodos() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todo = todoRepository.save(testTodo(title = "Buy milk"))
 
         validatedRequest()
             .`when`()
@@ -318,7 +516,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     fun getTodoReturnsMatchingTodo() {
         val dueDate = LocalDate.parse("2025-04-18")
         val todo = todoRepository.save(
-            Todo(
+            testTodo(
                 title = "Buy milk",
                 completed = true,
                 description = "Buy before the weekend",
@@ -361,10 +559,8 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun verifyAllOasOperationsHaveAcceptanceCriteriaInTests() {
-        val oasExpectedResponses = coverageDefinition.operationResponses
-        val testDefinedOperations = TodoApiTestCases.acceptanceCriteriaMap.keys
-        val missing = oasExpectedResponses - testDefinedOperations
+    fun verifyOpenApiSpecAlignment() {
+        val missing = coverageDefinition.operationResponses - TodoApiTestCases.acceptanceCriteriaMap.keys
         assertTrue(
             missing.isEmpty(),
             "The following OAS operation responses do not have corresponding acceptance criteria in tests: " +
@@ -374,7 +570,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun updateTodoChangesStoredTodo() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todo = todoRepository.save(testTodo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -402,7 +598,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("LOW"))
             .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
 
-        val expectedFirst = Todo(
+        val expectedFirst = testTodo(
             title = "Milk bought",
             completed = true,
             description = "Purchased",
@@ -428,14 +624,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
 
-        val expectedSecond = Todo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM)
+        val expectedSecond = testTodo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM)
         assertStoredTodo(todoId, expectedSecond)
         assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedSecond)
     }
 
     @Test
     fun deleteTodoRemovesStoredTodo() {
-        val todo = todoRepository.save(Todo(title = "Buy milk"))
+        val todo = todoRepository.save(testTodo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -455,6 +651,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         val stored = requireNotNull(todoRepository.findById(id)) {
             "Expected todo with ID $id to exist in database, but was not found"
         }
+        assertEquals(expected.userId, stored.userId)
         assertEquals(expected.title, stored.title)
         assertEquals(expected.completed, stored.completed)
         assertEquals(expected.description, stored.description)
@@ -465,6 +662,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     private fun assertEventTodo(expected: Todo, actual: Todo?) {
         val todo = requireNotNull(actual) { "Expected todo event payload, but was null" }
+        assertEquals(expected.userId, todo.userId)
         assertEquals(expected.title, todo.title)
         assertEquals(expected.completed, todo.completed)
         assertEquals(expected.description, todo.description)
@@ -508,19 +706,21 @@ class TodoApiIntegrationTest @Autowired constructor(
             )
     }
 
-
-    private fun validatedRequest() =
+    private fun validatedRequest(token: String? = defaultToken) =
         given()
             .port(port)
+            .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
             .filter(openApiCoverageFilter)
             .filter(openApiValidationFilter)
 
     private fun validatedPostRequest(
         idempotencyKey: String = UUID.randomUUID().toString(),
-    ) = validatedRequest()
+        token: String? = defaultToken,
+    ) = validatedRequest(token)
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
+        const val DEFAULT_TOKEN_EXPIRES_IN = 86400
         const val SHORT_WAIT_TIMEOUT_MS = 500L
         const val ESTIMATED_MINUTES = 30
         const val UPDATED_ESTIMATED_MINUTES = 45
