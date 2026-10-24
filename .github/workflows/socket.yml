@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Socket Basics
         if: env.SOCKET_SECURITY_API_KEY != ''
-        uses: SocketDev/socket-basics@v3.4.0
+        uses: SocketDev/socket-basics@v3.4.1
         env:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
