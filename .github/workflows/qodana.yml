@@ -4,8 +4,28 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "docs/openapi.yaml"
+      - "docs/overlays/**"
+      - "package.json"
+      - "qodana.yaml"
+      - ".github/workflows/qodana.yml"
   push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "docs/openapi.yaml"
+      - "docs/overlays/**"
+      - "package.json"
+      - "qodana.yaml"
+      - ".github/workflows/qodana.yml"
 
 permissions:
   contents: read
@@ -18,11 +38,14 @@ jobs:
   qodana:
     name: Qodana Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
       pull-requests: write
       checks: write
-      security-events: write
+
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx2g"
 
     steps:
       - name: Check out repository
@@ -49,20 +72,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate OpenAPI code
-        run: ./gradlew compileKotlin --no-daemon
+        run: ./gradlew openApiGenerate --no-daemon
 
       - name: Run Qodana Scan
         uses: JetBrains/qodana-action@v2026.2
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
+          args: |
+            --linter qodana-jvm-community
+            --within-docker false
+            --property indexer.follows.symlinks=false
           pr-mode: ${{ github.event_name == 'pull_request' }}
           use-annotations: true
           upload-result: true
-
-      - name: Upload SARIF report to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        continue-on-error: true
-        with:
-          sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
