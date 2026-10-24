@@ -229,13 +229,11 @@ openApiValidate {
     inputSpec.set("$projectDir/docs/openapi.yaml")
 }
 
-val isWindows = System.getProperty("os.name").lowercase().contains("windows")
 val nvmBinDir = "/usr/local/share/nvm/current/bin"
-val nvmNpmPath = "$nvmBinDir/npm"
-val npmExecutable = when {
-    isWindows -> "npm.cmd"
-    file(nvmNpmPath).exists() && !System.getenv("PATH").orEmpty().contains(nvmBinDir) -> nvmNpmPath
-    else -> "npm"
+val npmExecutable = if (file("$nvmBinDir/npm").exists() && !System.getenv("PATH").orEmpty().contains(nvmBinDir)) {
+    "$nvmBinDir/npm"
+} else {
+    "npm"
 }
 
 fun Exec.setupNodeEnvironment() {
