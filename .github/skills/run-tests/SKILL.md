@@ -47,6 +47,11 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ./gradlew buildHealth
   ```
   ※ 宣言されているが使用されていない依存関係（Unused dependencies）がないかを検証します。
+- **JetBrains Qodana によるコード品質検証 (CI / Docker)**:
+  ```bash
+  docker run --rm -v "$(pwd):/data/project" jetbrains/qodana-jvm-community:latest
+  ```
+  ※ GitHub Actions（`.github/workflows/qodana.yml`）で自動実行されます。ローカルで検証する場合は Docker を使用して実行できます。
 
 ## エラー発生時のトラブルシューティング
 
