@@ -14,19 +14,25 @@
 1. **コードスタイル & 静的解析**:
    - Detekt のルールに準拠すること。
    - `./gradlew detekt` で静的解析を実施し、指摘事項を解消すること（自動修正可能ルールは自動修正されます）。
+   - テストコードにおいても関数の長さ（`LongMethod`: 60行以内）、引数の数（`LongParameterList`: 6個以内）、マジックナンバーの排除（定数化）、メソッドの return 数（`ReturnCount`: 2以下）を意識した実装を行うこと。
 2. **OpenAPI仕様ファースト / 同期 & 品質検証**:
    - APIのエンドポイント、リクエスト/レスポンス形式、バリデーションルールを変更・追加する場合は、必ず [`docs/openapi.yaml`](docs/openapi.yaml) も同時に更新すること。
    - `./gradlew lintOpenApi` で Spectral による仕様の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
-   - 統合テスト（`integrationTest`）で OpenAPI 仕様との整合性が自動検証されます。
-3. **エラーハンドリング**:
-   - 不正なリクエストは `400 Bad Request`、リソース不在時は `404 Not Found` を返すこと。
+   - 統合テスト（`integrationTest`）で OpenAPI 仕様との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
+3. **依存関係の管理とロック**:
+   - Gradle Version Catalog (`gradle/libs.versions.toml`) および依存関係ロック（`dependencyLocking { lockAllConfigurations() }`）を採用しています。
+   - 依存関係を追加または削除した際は、必ず `./gradlew dependencies --write-locks` を実行して `gradle.lockfile` を同期すること。
+   - Dependency Analysis プラグインが有効化されているため、コードから直接使われていない依存関係（Unused dependencies）は宣言しないこと。
+4. **エラーハンドリング**:
+   - 不正なリクエストは `400 Bad Request`、未認証アクセスは `401 Unauthorized`、重複時は `409 Conflict`、リソース不在時は `404 Not Found` を返すこと。
 
 ## 3. テストと検証
 変更完了後は必ず次のコマンドで全検証を実行し、エラーがないことを確認すること:
 ```bash
 ./gradlew check
 ```
-※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis）、OpenAPIリンティング（Spectral / openApiValidate）、ユニットテスト、結合テストが一括実行されます。
+※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis: `buildHealth`）、OpenAPIリンティング（Spectral: `lintOpenApi` / `openApiValidate`）、ユニットテスト、結合テストが一括実行されます。
+※ エミュレータ接続を伴うテスト実行時は、ポート 9010 (Spanner) および 8085 (Pub/Sub) へのソケット接続が必要です。
 
 ## 4. スキル・手順書（Runbook）の参照
 特定のタスクを実施する際は、[.github/skills/](.github/skills/) 配下の各手順書（`SKILL.md`）を参照してください:
