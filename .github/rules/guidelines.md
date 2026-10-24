@@ -8,7 +8,7 @@
 - **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析**: Detekt 1.23
 - **テスト**: JUnit 5, MockMvc, REST Assured, Kotest, swagger-parser
-- **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), Stoplight Spectral 6.16, OpenAPI Generator Validate
+- **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), OpenAPI Arazzo 1.0.1 ([docs/workflows/todo-workflows.arazzo.yaml](docs/workflows/todo-workflows.arazzo.yaml)), Stoplight Spectral 6.16, Redocly CLI, OpenAPI Generator Validate
 
 ## 2. コーディングルール
 1. **コードスタイル & 静的解析**:
@@ -20,7 +20,8 @@
    - 内部専用・管理者向けエンドポイント（Admin API等）は OpenAPI Overlay 仕様（[`docs/overlays/admin.yaml`](docs/overlays/admin.yaml)）で拡張・合成し、内部完全版仕様（`docs/dist/openapi.admin.yaml`）を生成します。
    - 日本語版仕様（`docs/dist/openapi.ja.yaml`）は [`docs/overlays/ja.yaml`](docs/overlays/ja.yaml) により自動生成されます。
    - `./gradlew lintOpenApi` または `./gradlew bundleOpenApi` を実行することで各仕様書が自動生成・Spectral検証されます。
-   - `./gradlew lintOpenApi` で Spectral による全仕様（ベース・管理者向け・日英仕様）の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
+   - API の呼び出し順序や一連のユースケース（ユーザー登録、ログイン、Todo作成・更新、管理者監査など）は Arazzo ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](docs/workflows/todo-workflows.arazzo.yaml)）に定義し、`npm run lint:arazzo` または `./gradlew lintOpenApi` で検証します。
+   - `./gradlew lintOpenApi` で Spectral による全仕様（ベース・管理者向け・日英仕様）および Redocly による Arazzo ワークフローの静的検証をパスすること。
    - 統合テスト（`integrationTest`）で OpenAPI 仕様（内部完全版）との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
 3. **依存関係の管理とロック**:
    - Gradle Version Catalog (`gradle/libs.versions.toml`) および依存関係ロック（`dependencyLocking { lockAllConfigurations() }`）を採用しています。

@@ -1,0 +1,196 @@
+arazzo: 1.0.1
+info:
+  title: Todo API Workflows
+  version: 1.0.0
+  description: End-to-end user workflows and operational journeys for the Todo API.
+sourceDescriptions:
+  - name: publicApi
+    type: openapi
+    url: ../openapi.yaml
+  - name: adminApi
+    type: openapi
+    url: ../dist/openapi.admin.yaml
+
+workflows:
+  - workflowId: user-todo-lifecycle
+    summary: User registration, login, and Todo management lifecycle
+    description: >
+      Demonstrates registering a new user, authenticating with JWT, inspecting default settings,
+      updating settings, creating an idempotent todo, fetching, updating, listing, and deleting it.
+    inputs:
+      type: object
+      properties:
+        username:
+          type: string
+          default: arazzo-user
+        password:
+          type: string
+          default: Password123!
+    steps:
+      - stepId: registerUser
+        description: Register a new end-user account
+        operationId: $sourceDescriptions.publicApi.registerUser
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$inputs.username}"
+            password: "{$inputs.password}"
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          userId: $response.body#/id
+          userName: $response.body#/username
+
+      - stepId: loginUser
+        description: Authenticate user credentials and acquire JWT token
+        operationId: $sourceDescriptions.publicApi.loginUser
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$steps.registerUser.outputs.userName}"
+            password: "{$inputs.password}"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          jwtToken: $response.body#/token
+
+      - stepId: getUserSettings
+        description: Fetch initial default user settings
+        operationId: $sourceDescriptions.publicApi.getUserSettings
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+        successCriteria:
+          - condition: $statusCode == 200
+          - condition: $response.body#/defaultPriority == 'MEDIUM'
+
+      - stepId: updateUserSettings
+        description: Customize user settings for default priority and duration
+        operationId: $sourceDescriptions.publicApi.updateUserSettings
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+        requestBody:
+          contentType: application/json
+          payload:
+            defaultPriority: HIGH
+            defaultEstimatedMinutes: 45
+            maxActiveTodos: 5
+        successCriteria:
+          - condition: $statusCode == 200
+          - condition: $response.body#/defaultPriority == 'HIGH'
+          - condition: $response.body#/defaultEstimatedMinutes == 45
+          - condition: $response.body#/maxActiveTodos == 5
+
+      - stepId: createTodo
+        description: Create a new Todo item with an idempotency key
+        operationId: $sourceDescriptions.publicApi.createTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: Idempotency-Key
+            in: header
+            value: arazzo-flow-key-001
+        requestBody:
+          contentType: application/json
+          payload:
+            title: Verify Arazzo Workflow
+            description: Execute end-to-end API scenario using Arazzo specification
+            estimatedMinutes: 25
+            priority: HIGH
+        successCriteria:
+          - condition: $statusCode == 201
+          - condition: $response.body#/completed == false
+          - condition: $response.body#/priority == 'HIGH'
+        outputs:
+          createdTodoId: $response.body#/id
+
+      - stepId: getTodo
+        description: Fetch the created Todo item by ID
+        operationId: $sourceDescriptions.publicApi.getTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        successCriteria:
+          - condition: $statusCode == 200
+          - condition: $response.body#/title == 'Verify Arazzo Workflow'
+
+      - stepId: updateTodo
+        description: Mark the Todo item as completed
+        operationId: $sourceDescriptions.publicApi.updateTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            title: Verify Arazzo Workflow
+            completed: true
+            priority: HIGH
+        successCriteria:
+          - condition: $statusCode == 200
+          - condition: $response.body#/completed == true
+
+      - stepId: listTodos
+        description: List all Todos for the authenticated user
+        operationId: $sourceDescriptions.publicApi.listTodos
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: deleteTodo
+        description: Delete the completed Todo item
+        operationId: $sourceDescriptions.publicApi.deleteTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        successCriteria:
+          - condition: $statusCode == 204
+
+  - workflowId: admin-audit-lifecycle
+    summary: Administrator system audit
+    description: Inspect system statistics and registered users using administrator API key.
+    inputs:
+      type: object
+      properties:
+        adminApiKey:
+          type: string
+          default: admin-secret-key
+    steps:
+      - stepId: getAdminStats
+        description: Fetch system-wide usage statistics
+        operationId: $sourceDescriptions.adminApi.getAdminStats
+        parameters:
+          - name: X-Admin-Key
+            in: header
+            value: "{$inputs.adminApiKey}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: getAdminUsers
+        description: Fetch registered users directory
+        operationId: $sourceDescriptions.adminApi.getAdminUsers
+        parameters:
+          - name: X-Admin-Key
+            in: header
+            value: "{$inputs.adminApiKey}"
+        successCriteria:
+          - condition: $statusCode == 200
