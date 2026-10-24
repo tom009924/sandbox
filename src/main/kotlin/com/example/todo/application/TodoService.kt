@@ -3,13 +3,16 @@ package com.example.todo.application
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.event.TodoEventPublisher
+import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
+import com.example.todo.domain.model.UserSettings
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.UserSettingsRepository
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -23,7 +26,7 @@ data class TodoCommand(
     val completed: Boolean = false,
     val description: String? = null,
     val dueDate: LocalDate? = null,
-    val priority: TodoPriority = TodoPriority.MEDIUM,
+    val priority: TodoPriority? = null,
     val estimatedMinutes: Int? = null,
 )
 
@@ -32,20 +35,34 @@ class TodoService(
     private val idempotencyRecordRepository: IdempotencyRecordRepository,
     private val todoEventPublisher: TodoEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
+    private val userSettingsRepository: UserSettingsRepository? = null,
 ) {
     fun list(userId: UUID): List<Todo> = todoRepository.findAllByUserId(userId)
 
     fun get(id: UUID, userId: UUID): Todo = findTodo(id, userId)
 
     fun create(userId: UUID, command: TodoCommand): Todo {
+        val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
+        if (!command.completed) {
+            val maxActive = settings.maxActiveTodos
+            if (maxActive != null) {
+                val activeCount = todoRepository.countByUserIdAndCompletedFalse(userId)
+                if (activeCount >= maxActive) {
+                    throw ActiveTodosLimitExceededException(maxActive)
+                }
+            }
+        }
+        val effectivePriority = command.priority ?: settings.defaultPriority
+        val effectiveEstimatedMinutes = command.estimatedMinutes ?: settings.defaultEstimatedMinutes
         val saved = todoRepository.save(
             Todo(
                 userId = userId,
                 title = command.title.trim(),
+                completed = command.completed,
                 description = command.description,
                 dueDate = command.dueDate,
-                priority = command.priority,
-                estimatedMinutes = command.estimatedMinutes,
+                priority = effectivePriority,
+                estimatedMinutes = effectiveEstimatedMinutes,
             ),
         )
         todoEventPublisher.publish(
@@ -85,13 +102,23 @@ class TodoService(
 
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id, userId)
+        if (!command.completed && todo.completed) {
+            val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
+            val maxActive = settings.maxActiveTodos
+            if (maxActive != null) {
+                val activeCount = todoRepository.countByUserIdAndCompletedFalse(userId)
+                if (activeCount >= maxActive) {
+                    throw ActiveTodosLimitExceededException(maxActive)
+                }
+            }
+        }
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
                 completed = command.completed,
                 description = command.description,
                 dueDate = command.dueDate,
-                priority = command.priority,
+                priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes,
             ),
         )
@@ -128,7 +155,7 @@ class TodoService(
             completed.toString(),
             description,
             dueDate?.toString(),
-            priority.name,
+            priority?.name,
             estimatedMinutes?.toString(),
         )
         val digest = MessageDigest.getInstance("SHA-256")

@@ -10,6 +10,8 @@ actions:
     update: TODOタスクの管理
   - target: $.tags[?(@.name=='Auth')].description
     update: ユーザー認証および登録
+  - target: $.tags[?(@.name=='Settings')].description
+    update: ユーザー設定および環境設定
 
   # /api/auth/register
   - target: $.paths['/api/auth/register'].post.summary
@@ -98,6 +100,27 @@ actions:
   - target: $.paths['/api/todos/{id}'].delete.responses['404'].description
     update: 指定されたTODOタスクが見つかりません
 
+  # /api/user/settings
+  - target: $.paths['/api/user/settings'].get.summary
+    update: ユーザー設定取得
+  - target: $.paths['/api/user/settings'].get.description
+    update: 認証済みユーザーの設定を取得します。設定が未保存の場合はデフォルト設定を返します。
+  - target: $.paths['/api/user/settings'].get.responses['200'].description
+    update: ユーザー設定取得成功
+  - target: $.paths['/api/user/settings'].get.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+
+  - target: $.paths['/api/user/settings'].put.summary
+    update: ユーザー設定更新
+  - target: $.paths['/api/user/settings'].put.description
+    update: 認証済みユーザーの設定を更新します。
+  - target: $.paths['/api/user/settings'].put.responses['200'].description
+    update: ユーザー設定更新成功
+  - target: $.paths['/api/user/settings'].put.responses['400'].description
+    update: 不正なリクエストボディ
+  - target: $.paths['/api/user/settings'].put.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+
   # Components
   - target: $.components.securitySchemes.bearerAuth.description
     update: /api/auth/login より取得したJWT Bearerトークン
@@ -123,4 +146,14 @@ actions:
     update: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
   - target: $.components.schemas.UpdateTodoRequest.properties.title.description
     update: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
+  - target: $.components.schemas.UserSettingsResponse.properties.userId.description
+    update: ユーザーの一意識別子 (UUID)
+  - target: $.components.schemas.UserSettingsResponse.properties.defaultEstimatedMinutes.description
+    update: TODO作成時に未指定の場合に適用されるデフォルト所要時間（分）
+  - target: $.components.schemas.UserSettingsResponse.properties.maxActiveTodos.description
+    update: 同時に保持できる未完了TODOタスクの最大件数
+  - target: $.components.schemas.UpdateUserSettingsRequest.properties.defaultEstimatedMinutes.description
+    update: TODO作成時に未指定の場合に適用されるデフォルト所要時間（分）
+  - target: $.components.schemas.UpdateUserSettingsRequest.properties.maxActiveTodos.description
+    update: 同時に保持できる未完了TODOタスクの最大件数
 

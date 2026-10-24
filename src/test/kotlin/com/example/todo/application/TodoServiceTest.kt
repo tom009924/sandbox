@@ -3,13 +3,16 @@ package com.example.todo.application
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.event.TodoEventPublisher
+import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
+import com.example.todo.domain.model.UserSettings
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -27,7 +30,13 @@ class TodoServiceTest {
     private val repository = InMemoryTodoRepository()
     private val idempotencyRepository = InMemoryIdempotencyRecordRepository()
     private val eventPublisher = InMemoryTodoEventPublisher()
-    private val service = TodoService(repository, idempotencyRepository, eventPublisher)
+    private val userSettingsRepository = InMemoryUserSettingsRepository()
+    private val service = TodoService(
+        todoRepository = repository,
+        idempotencyRecordRepository = idempotencyRepository,
+        todoEventPublisher = eventPublisher,
+        userSettingsRepository = userSettingsRepository,
+    )
     private val userId: UUID = UUID.randomUUID()
     private val otherUserId: UUID = UUID.randomUUID()
 
@@ -241,6 +250,9 @@ class TodoServiceTest {
         override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
             todos[id]?.takeIf { it.userId == userId }
 
+        override fun countByUserIdAndCompletedFalse(userId: UUID): Long =
+            todos.values.count { it.userId == userId && !it.completed }.toLong()
+
         override fun save(todo: Todo): Todo {
             val saved = todo.copy(id = todo.id ?: UUID.randomUUID())
             todos[requireNotNull(saved.id)] = saved
@@ -263,6 +275,67 @@ class TodoServiceTest {
 
         override fun deleteExpiredBefore(instant: Instant) {
             records.entries.removeIf { (_, record) -> record.expiresAt <= instant }
+        }
+    }
+
+    @Test
+    fun `create applies user settings defaults when priority and estimatedMinutes are omitted`() {
+        userSettingsRepository.save(
+            UserSettings(
+                userId = userId,
+                defaultPriority = TodoPriority.HIGH,
+                defaultEstimatedMinutes = 45,
+            ),
+        )
+        val todo = service.create(userId, TodoCommand(title = "Default task"))
+        assertEquals(TodoPriority.HIGH, todo.priority)
+        assertEquals(45, todo.estimatedMinutes)
+    }
+
+    @Test
+    fun `create rejects when active todos limit is reached`() {
+        userSettingsRepository.save(
+            UserSettings(
+                userId = userId,
+                maxActiveTodos = 2,
+            ),
+        )
+        service.create(userId, TodoCommand(title = "Task 1"))
+        service.create(userId, TodoCommand(title = "Task 2"))
+
+        assertThrows(ActiveTodosLimitExceededException::class.java) {
+            service.create(userId, TodoCommand(title = "Task 3"))
+        }
+    }
+
+    @Test
+    fun `update reactivating completed todo rejects when active limit is reached`() {
+        userSettingsRepository.save(
+            UserSettings(
+                userId = userId,
+                maxActiveTodos = 1,
+            ),
+        )
+        service.create(userId, TodoCommand(title = "Task 1"))
+        val todo2 = service.create(userId, TodoCommand(title = "Task 2", completed = true))
+
+        assertThrows(ActiveTodosLimitExceededException::class.java) {
+            service.update(
+                requireNotNull(todo2.id),
+                userId,
+                TodoCommand(title = "Task 2", completed = false),
+            )
+        }
+    }
+
+    private class InMemoryUserSettingsRepository : UserSettingsRepository {
+        private val storage = mutableMapOf<UUID, UserSettings>()
+
+        override fun findByUserId(userId: UUID): UserSettings? = storage[userId]
+
+        override fun save(userSettings: UserSettings): UserSettings {
+            storage[userSettings.userId] = userSettings
+            return userSettings
         }
     }
 

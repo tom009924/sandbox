@@ -242,6 +242,51 @@ object TodoApiTestCases {
                 "Delete missing todo returns 404",
             ),
         ),
+        AcceptanceCriterion(
+            operationId = "getUserSettings",
+            statusCode = 200,
+            summary = "User settings retrieved",
+            scenarios = listOf(
+                "Retrieve settings for authenticated user, returning defaults when unconfigured",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getUserSettings",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateUserSettings",
+            statusCode = 200,
+            summary = "User settings updated",
+            scenarios = listOf(
+                "Update settings for authenticated user",
+                "All priority enum values (LOW, MEDIUM, HIGH)",
+                "Boundary minimum defaultEstimatedMinutes (0)",
+                "Boundary minimum maxActiveTodos (1)",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateUserSettings",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf(
+                "Missing defaultPriority",
+                "Negative defaultEstimatedMinutes",
+                "Zero maxActiveTodos",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateUserSettings",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
     )
 
     val acceptanceCriteriaMap: Map<Pair<String, Int>, List<String>>
@@ -359,6 +404,27 @@ object TodoApiTestCases {
             pathProvider = { id -> "/api/todos/$id" },
             requestBody = """{"title":"Buy milk","completed":true,"estimatedMinutes":-1}""",
             needsExistingTodo = true,
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateUserSettings",
+            description = "Missing defaultPriority",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/user/settings" },
+            requestBody = """{"defaultEstimatedMinutes":30}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateUserSettings",
+            description = "Negative defaultEstimatedMinutes",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/user/settings" },
+            requestBody = """{"defaultPriority":"HIGH","defaultEstimatedMinutes":-1}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateUserSettings",
+            description = "Zero maxActiveTodos",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/user/settings" },
+            requestBody = """{"defaultPriority":"HIGH","maxActiveTodos":0}""",
         ),
     )
 
