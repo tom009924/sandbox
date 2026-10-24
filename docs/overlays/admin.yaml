@@ -55,6 +55,42 @@ actions:
                 application/problem+json:
                   schema:
                     $ref: '#/components/schemas/ErrorResponse'
+      /api/admin/users:
+        get:
+          tags:
+            - Admin
+          summary: List registered users
+          description: Retrieve all registered users. Requires X-Admin-Key header.
+          operationId: getAdminUsers
+          security:
+            - adminApiKey: []
+          responses:
+            '200':
+              description: Registered users retrieved successfully
+              content:
+                application/json:
+                  schema:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUserResponse'
+            '401':
+              description: Missing or invalid X-Admin-Key header
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+            '403':
+              description: Access denied. Invalid X-Admin-Key.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
 
   # Add Admin schemas
   - target: $.components.schemas
@@ -91,3 +127,18 @@ actions:
             minimum: 0
             description: Total active todos count.
             example: 25
+      AdminUserResponse:
+        type: object
+        required:
+          - id
+          - username
+        properties:
+          id:
+            type: string
+            format: uuid
+            description: Unique user identifier.
+            example: 550e8400-e29b-41d4-a716-446655440000
+          username:
+            type: string
+            description: Registered username.
+            example: alice

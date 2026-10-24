@@ -1,14 +1,17 @@
 package com.example.todo.presentation
 
 import com.example.todo.application.AdminStatsService
+import com.example.todo.application.AdminUserService
 import com.example.todo.presentation.api.AdminApi
 import com.example.todo.presentation.model.AdminStatsResponse
+import com.example.todo.presentation.model.AdminUserResponse
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class AdminStatsController(
+class AdminController(
     private val adminStatsService: AdminStatsService,
+    private val adminUserService: AdminUserService,
 ) : AdminApi {
     override fun getAdminStats(): ResponseEntity<AdminStatsResponse> {
         val stats = adminStatsService.getStats()
@@ -20,6 +23,16 @@ class AdminStatsController(
                 activeTodos = stats.activeTodos,
             ),
         )
+    }
+
+    override fun getAdminUsers(): ResponseEntity<List<AdminUserResponse>> {
+        val users = adminUserService.getUsers().map { user ->
+            AdminUserResponse(
+                id = requireNotNull(user.id) { "User ID must not be null" },
+                username = user.username,
+            )
+        }
+        return ResponseEntity.ok(users)
     }
 }
 
