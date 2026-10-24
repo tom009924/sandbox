@@ -224,7 +224,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         validatedRequest(token = null)
             .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true,"defaultPriority":"HIGH"}""")
+            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""")
             .`when`()
             .put("/api/admin/settings")
             .then()
@@ -831,7 +831,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         validatedRequest(token = defaultToken)
             .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true,"defaultPriority":"HIGH"}""")
+            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""")
             .`when`()
             .put("/api/admin/settings")
             .then()
@@ -847,60 +847,32 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("maxAllowedActiveTodos", equalTo(DEFAULT_MAX_ALLOWED_ACTIVE_TODOS))
             .body("allowUserRegistration", equalTo(true))
-            .body("defaultPriority", equalTo("MEDIUM"))
-            .body("defaultEstimatedMinutes", equalTo(ESTIMATED_MINUTES))
-    }
-
-    @ParameterizedTest
-    @EnumSource(TodoPriority::class)
-    fun updateAdminSettingsAcceptsEveryPriorityValue(priority: TodoPriority) {
-        validatedRequest(token = adminToken)
-            .contentType(ContentType.JSON)
-            .body(
-                """{"maxAllowedActiveTodos":100,"allowUserRegistration":true,""" +
-                    """"defaultPriority":"${priority.name}","defaultEstimatedMinutes":30}""",
-            )
-            .`when`()
-            .put("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("defaultPriority", equalTo(priority.name))
     }
 
     @Test
     fun updateAdminSettingsAcceptsBoundaryValues() {
         validatedRequest(token = adminToken)
             .contentType(ContentType.JSON)
-            .body(
-                """{"maxAllowedActiveTodos":1,"allowUserRegistration":false,""" +
-                    """"defaultPriority":"LOW","defaultEstimatedMinutes":0}""",
-            )
+            .body("""{"maxAllowedActiveTodos":1,"allowUserRegistration":false}""")
             .`when`()
             .put("/api/admin/settings")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("maxAllowedActiveTodos", equalTo(1))
             .body("allowUserRegistration", equalTo(false))
-            .body("defaultPriority", equalTo("LOW"))
-            .body("defaultEstimatedMinutes", equalTo(0))
     }
 
     @Test
     fun updateAndGetAdminSettings() {
         validatedRequest(token = adminToken)
             .contentType(ContentType.JSON)
-            .body(
-                """{"maxAllowedActiveTodos":50,"allowUserRegistration":false,""" +
-                    """"defaultPriority":"HIGH","defaultEstimatedMinutes":45}""",
-            )
+            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":false}""")
             .`when`()
             .put("/api/admin/settings")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
             .body("allowUserRegistration", equalTo(false))
-            .body("defaultPriority", equalTo("HIGH"))
-            .body("defaultEstimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
 
         validatedRequest(token = adminToken)
             .`when`()
@@ -909,8 +881,6 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
             .body("allowUserRegistration", equalTo(false))
-            .body("defaultPriority", equalTo("HIGH"))
-            .body("defaultEstimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
     }
 
     @Test

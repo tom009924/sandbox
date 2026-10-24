@@ -28,8 +28,6 @@ class AdminSettingsRepositoryAdapter(
         AdminSettings(
             maxAllowedActiveTodos = maxAllowedActiveTodos,
             allowUserRegistration = allowUserRegistration,
-            defaultPriority = defaultPriority,
-            defaultEstimatedMinutes = defaultEstimatedMinutes,
         )
 
     private fun AdminSettings.toEntity(): AdminSettingsJpaEntity =
@@ -37,8 +35,6 @@ class AdminSettingsRepositoryAdapter(
             id = AdminSettingsJpaEntity.GLOBAL_ID,
             maxAllowedActiveTodos = maxAllowedActiveTodos,
             allowUserRegistration = allowUserRegistration,
-            defaultPriority = defaultPriority,
-            defaultEstimatedMinutes = defaultEstimatedMinutes,
         )
 }
 

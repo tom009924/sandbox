@@ -1,7 +1,6 @@
 package com.example.todo.application
 
 import com.example.todo.domain.model.AdminSettings
-import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.AdminSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -17,8 +16,6 @@ class AdminSettingsServiceTest {
         val settings = service.getSettings()
         assertEquals(AdminSettings.DEFAULT_MAX_ALLOWED_ACTIVE_TODOS, settings.maxAllowedActiveTodos)
         assertTrue(settings.allowUserRegistration)
-        assertEquals(TodoPriority.MEDIUM, settings.defaultPriority)
-        assertEquals(AdminSettings.DEFAULT_ESTIMATED_MINUTES, settings.defaultEstimatedMinutes)
     }
 
     @Test
@@ -26,15 +23,11 @@ class AdminSettingsServiceTest {
         val command = AdminSettingsCommand(
             maxAllowedActiveTodos = 50,
             allowUserRegistration = false,
-            defaultPriority = TodoPriority.HIGH,
-            defaultEstimatedMinutes = 60,
         )
         val updated = service.updateSettings(command)
 
         assertEquals(50, updated.maxAllowedActiveTodos)
         assertFalse(updated.allowUserRegistration)
-        assertEquals(TodoPriority.HIGH, updated.defaultPriority)
-        assertEquals(60, updated.defaultEstimatedMinutes)
 
         val retrieved = service.getSettings()
         assertEquals(updated, retrieved)

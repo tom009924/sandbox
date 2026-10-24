@@ -423,8 +423,6 @@ paths:
             example:
               maxAllowedActiveTodos: 50
               allowUserRegistration: true
-              defaultPriority: MEDIUM
-              defaultEstimatedMinutes: 30
       responses:
         '200':
           description: System settings updated successfully
@@ -710,7 +708,6 @@ components:
       required:
         - maxAllowedActiveTodos
         - allowUserRegistration
-        - defaultPriority
       properties:
         maxAllowedActiveTodos:
           type: integer
@@ -722,21 +719,11 @@ components:
           type: boolean
           description: Whether new user registrations are permitted.
           example: true
-        defaultPriority:
-          $ref: '#/components/schemas/TodoPriority'
-        defaultEstimatedMinutes:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 0
-          description: System default estimated duration in minutes.
-          example: 30
     UpdateAdminSettingsRequest:
       type: object
       required:
         - maxAllowedActiveTodos
         - allowUserRegistration
-        - defaultPriority
       properties:
         maxAllowedActiveTodos:
           type: integer
@@ -748,12 +735,3 @@ components:
           type: boolean
           description: Whether new user registrations are permitted.
           example: true
-        defaultPriority:
-          $ref: '#/components/schemas/TodoPriority'
-        defaultEstimatedMinutes:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 0
-          description: System default estimated duration in minutes.
-          example: 30

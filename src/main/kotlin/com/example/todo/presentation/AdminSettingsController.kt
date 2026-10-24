@@ -8,8 +8,6 @@ import com.example.todo.presentation.model.AdminSettingsResponse
 import com.example.todo.presentation.model.UpdateAdminSettingsRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
-import com.example.todo.domain.model.TodoPriority as DomainTodoPriority
-import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
 @RestController
 class AdminSettingsController(
@@ -27,8 +25,6 @@ class AdminSettingsController(
         val command = AdminSettingsCommand(
             maxAllowedActiveTodos = updateAdminSettingsRequest.maxAllowedActiveTodos,
             allowUserRegistration = updateAdminSettingsRequest.allowUserRegistration,
-            defaultPriority = DomainTodoPriority.valueOf(updateAdminSettingsRequest.defaultPriority.name),
-            defaultEstimatedMinutes = updateAdminSettingsRequest.defaultEstimatedMinutes,
         )
         val updated = adminSettingsService.updateSettings(command)
         return ResponseEntity.ok(updated.toResponse())
@@ -37,8 +33,6 @@ class AdminSettingsController(
     private fun AdminSettings.toResponse() = AdminSettingsResponse(
         maxAllowedActiveTodos = maxAllowedActiveTodos,
         allowUserRegistration = allowUserRegistration,
-        defaultPriority = ApiTodoPriority.valueOf(defaultPriority.name),
-        defaultEstimatedMinutes = defaultEstimatedMinutes,
     )
 }
 

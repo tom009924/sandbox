@@ -49,7 +49,7 @@ class AdminSettingsControllerTest @Autowired constructor(
         mockMvc.perform(
             put("/api/admin/settings")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true,"defaultPriority":"HIGH"}"""),
+                .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}"""),
         ).andExpect(status().isUnauthorized)
     }
 
@@ -67,7 +67,7 @@ class AdminSettingsControllerTest @Autowired constructor(
             put("/api/admin/settings")
                 .header("Authorization", "Bearer $userToken")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true,"defaultPriority":"HIGH"}"""),
+                .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}"""),
         ).andExpect(status().isForbidden)
     }
 
@@ -80,8 +80,6 @@ class AdminSettingsControllerTest @Autowired constructor(
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.maxAllowedActiveTodos").value(EXPECTED_DEFAULT_MAX_TODOS))
             .andExpect(jsonPath("$.allowUserRegistration").value(true))
-            .andExpect(jsonPath("$.defaultPriority").value("MEDIUM"))
-            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(EXPECTED_DEFAULT_MINUTES))
     }
 
     @Test
@@ -90,16 +88,11 @@ class AdminSettingsControllerTest @Autowired constructor(
             put("/api/admin/settings")
                 .header("Authorization", "Bearer $adminToken")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """{"maxAllowedActiveTodos":50,"allowUserRegistration":false,""" +
-                        """"defaultPriority":"HIGH","defaultEstimatedMinutes":45}""",
-                ),
+                .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":false}"""),
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.maxAllowedActiveTodos").value(UPDATED_MAX_TODOS))
             .andExpect(jsonPath("$.allowUserRegistration").value(false))
-            .andExpect(jsonPath("$.defaultPriority").value("HIGH"))
-            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(UPDATED_MINUTES))
 
         mockMvc.perform(
             get("/api/admin/settings")
@@ -108,8 +101,6 @@ class AdminSettingsControllerTest @Autowired constructor(
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.maxAllowedActiveTodos").value(UPDATED_MAX_TODOS))
             .andExpect(jsonPath("$.allowUserRegistration").value(false))
-            .andExpect(jsonPath("$.defaultPriority").value("HIGH"))
-            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(UPDATED_MINUTES))
     }
 
     @Test
@@ -118,15 +109,13 @@ class AdminSettingsControllerTest @Autowired constructor(
             put("/api/admin/settings")
                 .header("Authorization", "Bearer $adminToken")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"maxAllowedActiveTodos":0,"allowUserRegistration":true,"defaultPriority":"INVALID"}"""),
+                .content("""{"maxAllowedActiveTodos":0,"allowUserRegistration":true}"""),
         ).andExpect(status().isBadRequest)
     }
 
     private companion object {
         const val EXPECTED_DEFAULT_MAX_TODOS = 100
-        const val EXPECTED_DEFAULT_MINUTES = 30
         const val UPDATED_MAX_TODOS = 50
-        const val UPDATED_MINUTES = 45
     }
 }
 
