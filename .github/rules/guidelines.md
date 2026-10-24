@@ -15,9 +15,10 @@
    - Detekt のルールに準拠すること。
    - `./gradlew detekt` で静的解析を実施し、指摘事項を解消すること（自動修正可能ルールは自動修正されます）。
    - テストコードにおいても関数の長さ（`LongMethod`: 60行以内）、引数の数（`LongParameterList`: 6個以内）、マジックナンバーの排除（定数化）、メソッドの return 数（`ReturnCount`: 2以下）を意識した実装を行うこと。
-2. **OpenAPI仕様ファースト / 同期 & 品質検証**:
-   - APIのエンドポイント、リクエスト/レスポンス形式、バリデーションルールを変更・追加する場合は、必ず [`docs/openapi.yaml`](docs/openapi.yaml) も同時に更新すること。
-   - `./gradlew lintOpenApi` で Spectral による仕様の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
+2. **OpenAPI仕様ファースト / 日英運用 & 品質検証**:
+   - APIのエンドポイント、リクエスト/レスポンス形式、バリデーションルールを変更・追加する場合は、必ず [`docs/openapi.yaml`](docs/openapi.yaml)（正本・英語）も同時に更新すること。
+   - 日英運用には OpenAPI Overlay 仕様（[`docs/overlays/ja.yaml`](docs/overlays/ja.yaml)）を採用しており、`./gradlew lintOpenApi` または `./gradlew bundleOpenApiJa` を実行することで日本語版仕様（`docs/dist/openapi.ja.yaml`）が自動生成・検証されます。
+   - `./gradlew lintOpenApi` で Spectral による日英両仕様の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
    - 統合テスト（`integrationTest`）で OpenAPI 仕様との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
 3. **依存関係の管理とロック**:
    - Gradle Version Catalog (`gradle/libs.versions.toml`) および依存関係ロック（`dependencyLocking { lockAllConfigurations() }`）を採用しています。
