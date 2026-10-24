@@ -311,6 +311,30 @@ object TodoApiTestCases {
                 "Reject request with invalid X-Admin-Key",
             ),
         ),
+        AcceptanceCriterion(
+            operationId = "getAdminUsers",
+            statusCode = 200,
+            summary = "Registered users retrieved successfully",
+            scenarios = listOf(
+                "Retrieve all registered users with valid admin key",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminUsers",
+            statusCode = 401,
+            summary = "Missing or invalid X-Admin-Key header",
+            scenarios = listOf(
+                "Reject unauthenticated request without admin key",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminUsers",
+            statusCode = 403,
+            summary = "Access denied",
+            scenarios = listOf(
+                "Reject request with invalid X-Admin-Key",
+            ),
+        ),
     )
 
     val acceptanceCriteriaMap: Map<Pair<String, Int>, List<String>>
