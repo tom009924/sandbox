@@ -16,6 +16,8 @@ tags:
     description: Todo management
   - name: Auth
     description: User authentication and registration
+  - name: Settings
+    description: User settings and preferences
 paths:
   /api/auth/register:
     post:
@@ -311,6 +313,70 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/user/settings:
+    get:
+      tags:
+        - Settings
+      summary: Get user settings
+      description: Retrieve settings and preferences for the authenticated user. If no settings exist yet, returns default settings.
+      operationId: getUserSettings
+      responses:
+        '200':
+          description: User settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettingsResponse'
+        '401':
+          description: Bearer authentication token is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Settings
+      summary: Update user settings
+      description: Update settings and preferences for the authenticated user.
+      operationId: updateUserSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserSettingsRequest'
+            example:
+              defaultPriority: HIGH
+              defaultEstimatedMinutes: 45
+              maxActiveTodos: 10
+      responses:
+        '200':
+          description: User settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettingsResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Bearer authentication token is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -454,9 +520,7 @@ components:
           nullable: true
           example: '2025-04-18'
         priority:
-          allOf:
-            - $ref: '#/components/schemas/TodoPriority'
-          default: MEDIUM
+          $ref: '#/components/schemas/TodoPriority'
         estimatedMinutes:
           type: integer
           format: int32
@@ -500,4 +564,51 @@ components:
         - LOW
         - MEDIUM
         - HIGH
-      default: MEDIUM
+    UserSettingsResponse:
+      type: object
+      required:
+        - userId
+        - defaultPriority
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10
+    UpdateUserSettingsRequest:
+      type: object
+      required:
+        - defaultPriority
+      properties:
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10

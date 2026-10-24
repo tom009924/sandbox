@@ -7,4 +7,6 @@ interface SpringDataTodoRepository : JpaRepository<TodoJpaEntity, UUID> {
     fun findAllByUserId(userId: UUID): List<TodoJpaEntity>
 
     fun findByIdAndUserId(id: UUID, userId: UUID): TodoJpaEntity?
+
+    fun countByUserIdAndCompletedFalse(userId: UUID): Long
 }

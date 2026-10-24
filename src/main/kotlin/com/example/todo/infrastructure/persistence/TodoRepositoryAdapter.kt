@@ -21,6 +21,9 @@ class TodoRepositoryAdapter(
     override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
         springDataTodoRepository.findByIdAndUserId(id, userId)?.toDomain()
 
+    override fun countByUserIdAndCompletedFalse(userId: UUID): Long =
+        springDataTodoRepository.countByUserIdAndCompletedFalse(userId)
+
     override fun save(todo: Todo): Todo =
         springDataTodoRepository.save(todo.toEntity()).toDomain()
 

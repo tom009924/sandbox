@@ -12,6 +12,8 @@ interface TodoRepository {
 
     fun findByIdAndUserId(id: UUID, userId: UUID): Todo?
 
+    fun countByUserIdAndCompletedFalse(userId: UUID): Long
+
     fun save(todo: Todo): Todo
 
     fun delete(todo: Todo)

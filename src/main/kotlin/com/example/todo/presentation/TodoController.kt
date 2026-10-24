@@ -44,7 +44,7 @@ class TodoController(
                 title = createTodoRequest.title,
                 description = createTodoRequest.description,
                 dueDate = createTodoRequest.dueDate,
-                priority = createTodoRequest.priority.toDomain(),
+                priority = createTodoRequest.priority?.toDomain(),
                 estimatedMinutes = createTodoRequest.estimatedMinutes,
             ),
         )
@@ -64,7 +64,7 @@ class TodoController(
                 completed = updateTodoRequest.completed,
                 description = updateTodoRequest.description,
                 dueDate = updateTodoRequest.dueDate,
-                priority = updateTodoRequest.priority.toDomain(),
+                priority = updateTodoRequest.priority?.toDomain() ?: TodoPriority.MEDIUM,
                 estimatedMinutes = updateTodoRequest.estimatedMinutes,
             ),
         )
@@ -88,6 +88,6 @@ class TodoController(
         estimatedMinutes = estimatedMinutes,
     )
 
-    private fun ApiTodoPriority?.toDomain(): TodoPriority =
-        this?.let { TodoPriority.valueOf(it.name) } ?: TodoPriority.MEDIUM
+    private fun ApiTodoPriority.toDomain(): TodoPriority =
+        TodoPriority.valueOf(name)
 }

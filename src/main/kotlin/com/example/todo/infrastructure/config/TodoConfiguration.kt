@@ -3,10 +3,12 @@ package com.example.todo.infrastructure.config
 import com.example.todo.application.AuthService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
+import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
+import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
@@ -32,7 +34,18 @@ class TodoConfiguration {
         todoRepository: TodoRepository,
         idempotencyRecordRepository: IdempotencyRecordRepository,
         todoEventPublisher: TodoEventPublisher,
-    ) = TodoService(todoRepository, idempotencyRecordRepository, todoEventPublisher)
+        userSettingsRepository: UserSettingsRepository,
+    ) = TodoService(
+        todoRepository = todoRepository,
+        idempotencyRecordRepository = idempotencyRecordRepository,
+        todoEventPublisher = todoEventPublisher,
+        userSettingsRepository = userSettingsRepository,
+    )
+
+    @Bean
+    fun userSettingsService(
+        userSettingsRepository: UserSettingsRepository,
+    ) = UserSettingsService(userSettingsRepository)
 
     @Bean
     fun authService(

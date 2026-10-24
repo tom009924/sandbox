@@ -101,8 +101,9 @@ private fun Schema<*>.toConstraints(
 }
 
 private fun Schema<*>.enumValues(schemas: Map<String, Schema<*>>): Set<String> {
-    val directValues = enum.orEmpty().map { it.toString() }
-    val referencedValues = allOf.orEmpty().flatMap { component ->
+    val targetSchema = `$ref`?.let { schemas[it.substringAfterLast("/")] } ?: this
+    val directValues = (enum.orEmpty() + targetSchema.enum.orEmpty()).map { it.toString() }
+    val referencedValues = (allOf.orEmpty() + targetSchema.allOf.orEmpty()).flatMap { component ->
         val schema = component.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: component
         schema.enum.orEmpty().map { it.toString() }
     }

@@ -7,6 +7,7 @@ import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
+import com.example.todo.infrastructure.persistence.SpringDataUserSettingsRepository
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.security.JwtTokenProvider
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -37,12 +38,13 @@ import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
     private val userRepository: UserRepository,
     private val pubSubReceiver: PubSubTestReceiver,
     private val jwtTokenProvider: JwtTokenProvider,
+    private val springDataUserSettingsRepository: SpringDataUserSettingsRepository,
 ) {
     @LocalServerPort
     private var port: Int = 0
@@ -54,6 +56,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     fun cleanDatabase() {
         todoRepository.findAll().forEach(todoRepository::delete)
         userRepository.deleteAll()
+        springDataUserSettingsRepository.deleteAll()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -185,6 +188,20 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest(token = null)
             .`when`()
             .delete("/api/todos/$missingId")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .`when`()
+            .get("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"HIGH"}""")
+            .`when`()
+            .put("/api/user/settings")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
     }
@@ -645,6 +662,137 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertPublishedEvent(TodoEventType.DELETED, todoId) {
             assertEquals(null, it.event.todo)
         }
+    }
+
+    @Test
+    fun getUserSettingsReturnsDefaultsWhenUnconfigured() {
+        validatedRequest()
+            .`when`()
+            .get("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("userId", equalTo(defaultUserId.toString()))
+            .body("defaultPriority", equalTo("MEDIUM"))
+            .body("defaultEstimatedMinutes", equalTo(null))
+            .body("maxActiveTodos", equalTo(null))
+    }
+
+    @ParameterizedTest
+    @EnumSource(TodoPriority::class)
+    fun updateUserSettingsAcceptsEveryPriorityValue(priority: TodoPriority) {
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"${priority.name}"}""")
+            .`when`()
+            .put("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("defaultPriority", equalTo(priority.name))
+    }
+
+    @Test
+    fun updateUserSettingsAcceptsBoundaryValues() {
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"MEDIUM","defaultEstimatedMinutes":0,"maxActiveTodos":1}""")
+            .`when`()
+            .put("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("defaultEstimatedMinutes", equalTo(0))
+            .body("maxActiveTodos", equalTo(1))
+    }
+
+    @Test
+    fun userSettingsAffectTodoCreationDefaults() {
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"HIGH","defaultEstimatedMinutes":45}""")
+            .`when`()
+            .put("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        val createResponse = validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Task with user settings"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .body("priority", equalTo("HIGH"))
+            .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
+            .extract()
+
+        val todoId = UUID.fromString(createResponse.path<String>("id"))
+        val stored = todoRepository.findById(todoId)
+        assertTrue(stored != null)
+        assertEquals(TodoPriority.HIGH, stored?.priority)
+        assertEquals(UPDATED_ESTIMATED_MINUTES, stored?.estimatedMinutes)
+    }
+
+    @Test
+    fun maxActiveTodosLimitEnforcedOnCreateAndUpdate() {
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"MEDIUM","maxActiveTodos":2}""")
+            .`when`()
+            .put("/api/user/settings")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        val firstId = validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 1"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .extract().path<String>("id")
+
+        validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 2"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        // 3rd active todo must be rejected with 400
+        validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 3 - exceeds limit"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        // Mark 1st todo completed
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 1","completed":true}""")
+            .`when`()
+            .put("/api/todos/$firstId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        // Now creating another active todo succeeds
+        validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 3 - now succeeds"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        // Reactivating 1st todo exceeds limit of 2, so it must be rejected with 400
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Active task 1","completed":false}""")
+            .`when`()
+            .put("/api/todos/$firstId")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
     }
 
     private fun assertStoredTodo(id: UUID, expected: Todo) {
