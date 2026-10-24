@@ -65,7 +65,20 @@ curl -X DELETE http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## 3. Emulator の停止
+## 3. Arazzo ワークフローによるシナリオ動作確認
+
+Arazzo 仕様（`docs/workflows/todo-workflows.arazzo.yaml`）を利用して、ユーザー登録から Todo の作成・更新・削除、および管理者監査までの一連のシナリオを自動実行して確認できます。
+
+```bash
+# 起動中のアプリケーション（http://localhost:8080）に対して Arazzo ワークフローを実行
+npm run test:arazzo
+```
+※ 任意のサーバーURLやカスタム入力値（ユーザー名等）を指定する場合:
+```bash
+npx redocly respect docs/workflows/todo-workflows.arazzo.yaml --server http://localhost:8080 --input username=test-user-01
+```
+
+## 4. Emulator の停止
 ```bash
 docker compose down
 ```

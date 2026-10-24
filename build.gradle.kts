@@ -285,6 +285,7 @@ val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
     inputs.file(".spectral.yaml")
+    inputs.dir("docs/workflows")
     inputs.file("package.json")
     inputs.file("package-lock.json")
 }

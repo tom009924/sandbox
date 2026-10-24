@@ -14,7 +14,8 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 1. 外部公開用APIを変更・追加する場合は、`docs/openapi.yaml`（外部向けベース・英語SSOT）に定義・更新します。
 2. 内部専用・管理者向けエンドポイント（Admin API等）を追加・更新する場合は、安全性を確保するため外部向けベースではなく OpenAPI Overlay 仕様（`docs/overlays/admin.yaml`）に拡張定義（`update`）を追加し、内部完全版（`docs/dist/openapi.admin.yaml`）を生成するようにします。
 3. 日本語の説明・要約を提供する場合は、OpenAPI Overlay 仕様に基づき `docs/overlays/ja.yaml` に対応するターゲットパス（JSONPath）と日本語翻訳（`update`）を追加します。
-4. `./gradlew lintOpenApi` を実行し、`bundleOpenApi` による外部向け仕様（`docs/dist/openapi.yaml` / `docs/dist/openapi.ja.yaml`）および内部仕様（`docs/dist/openapi.admin.yaml`）の生成、ならびに Spectral 静的検証をパスすることを確認します。
+4. 必要に応じて一連のユースケース（ユーザーシナリオ）を定義した Arazzo ワークフロー仕様（`docs/workflows/todo-workflows.arazzo.yaml`）も更新します。
+5. `./gradlew lintOpenApi` を実行し、`bundleOpenApi` による外部向け仕様（`docs/dist/openapi.yaml` / `docs/dist/openapi.ja.yaml`）および内部仕様（`docs/dist/openapi.admin.yaml`）の生成、Spectral による静的検証、ならびに Redocly による Arazzo ワークフローの静的検証をパスすることを確認します。
 
 ### Step 2: 実装コードの更新
 1. **DTO / Request / Response モデル**:
