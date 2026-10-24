@@ -405,6 +405,8 @@ components:
           maxLength: 100
           description: Password for the account.
           example: password123
+        role:
+          $ref: '#/components/schemas/UserRole'
     LoginRequest:
       type: object
       required:
@@ -444,6 +446,7 @@ components:
       required:
         - id
         - username
+        - role
       properties:
         id:
           type: string
@@ -454,6 +457,8 @@ components:
           type: string
           description: Registered username.
           example: alice
+        role:
+          $ref: '#/components/schemas/UserRole'
     Todo:
       type: object
       required:
@@ -612,3 +617,9 @@ components:
           minimum: 1
           description: Maximum number of active (uncompleted) todos allowed.
           example: 10
+    UserRole:
+      type: string
+      enum:
+        - USER
+        - ADMIN
+      example: USER

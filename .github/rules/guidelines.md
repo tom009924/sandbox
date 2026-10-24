@@ -15,11 +15,13 @@
    - Detekt のルールに準拠すること。
    - `./gradlew detekt` で静的解析を実施し、指摘事項を解消すること（自動修正可能ルールは自動修正されます）。
    - テストコードにおいても関数の長さ（`LongMethod`: 60行以内）、引数の数（`LongParameterList`: 6個以内）、マジックナンバーの排除（定数化）、メソッドの return 数（`ReturnCount`: 2以下）を意識した実装を行うこと。
-2. **OpenAPI仕様ファースト / 日英運用 & 品質検証**:
-   - APIのエンドポイント、リクエスト/レスポンス形式、バリデーションルールを変更・追加する場合は、必ず [`docs/openapi.yaml`](docs/openapi.yaml)（正本・英語）も同時に更新すること。
-   - 日英運用には OpenAPI Overlay 仕様（[`docs/overlays/ja.yaml`](docs/overlays/ja.yaml)）を採用しており、`./gradlew lintOpenApi` または `./gradlew bundleOpenApiJa` を実行することで日本語版仕様（`docs/dist/openapi.ja.yaml`）が自動生成・検証されます。
-   - `./gradlew lintOpenApi` で Spectral による日英両仕様の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
-   - 統合テスト（`integrationTest`）で OpenAPI 仕様との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
+2. **OpenAPI仕様ファースト / 日英運用 & 外部公開安全性 & 品質検証**:
+   - 外部公開用API（正本・英語SSOT）は [`docs/openapi.yaml`](docs/openapi.yaml) に定義します。外部配布物に内部・管理者向け情報が漏洩しないよう、安全性の原則（Allowlist）に従い外部公開可能なAPIのみをベース仕様とします。
+   - 内部専用・管理者向けエンドポイント（Admin API等）は OpenAPI Overlay 仕様（[`docs/overlays/admin.yaml`](docs/overlays/admin.yaml)）で拡張・合成し、内部完全版仕様（`docs/dist/openapi.admin.yaml`）を生成します。
+   - 日本語版仕様（`docs/dist/openapi.ja.yaml`）は [`docs/overlays/ja.yaml`](docs/overlays/ja.yaml) により自動生成されます。
+   - `./gradlew lintOpenApi` または `./gradlew bundleOpenApi` を実行することで各仕様書が自動生成・Spectral検証されます。
+   - `./gradlew lintOpenApi` で Spectral による全仕様（ベース・管理者向け・日英仕様）の静的検証（パス命名規則: kebab-case、プロパティ命名規則: camelCase、必須ドキュメント情報など）をパスすること。
+   - 統合テスト（`integrationTest`）で OpenAPI 仕様（内部完全版）との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
 3. **依存関係の管理とロック**:
    - Gradle Version Catalog (`gradle/libs.versions.toml`) および依存関係ロック（`dependencyLocking { lockAllConfigurations() }`）を採用しています。
    - 依存関係を追加または削除した際は、必ず `./gradlew dependencies --write-locks` を実行して `gradle.lockfile` を同期すること。

@@ -5,5 +5,6 @@ import java.util.UUID
 data class AuthenticatedUser(
     val userId: UUID,
     val username: String,
+    val role: UserRole = UserRole.USER,
 )
 

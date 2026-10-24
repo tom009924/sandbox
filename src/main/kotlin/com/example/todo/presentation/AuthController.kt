@@ -9,17 +9,21 @@ import com.example.todo.presentation.model.UserResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
+import com.example.todo.domain.model.UserRole as DomainUserRole
+import com.example.todo.presentation.model.UserRole as ApiUserRole
 
 @RestController
 class AuthController(
     private val authService: AuthService,
 ) : AuthApi {
     override fun registerUser(registerRequest: RegisterRequest): ResponseEntity<UserResponse> {
-        val user = authService.register(registerRequest.username, registerRequest.password)
+        val role = registerRequest.role?.let { DomainUserRole.valueOf(it.name) } ?: DomainUserRole.USER
+        val user = authService.register(registerRequest.username, registerRequest.password, role)
         return ResponseEntity.status(HttpStatus.CREATED).body(
             UserResponse(
                 id = requireNotNull(user.id) { "User id must not be null" },
                 username = user.username,
+                role = ApiUserRole.valueOf(user.role.name),
             ),
         )
     }

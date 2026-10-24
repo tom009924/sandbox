@@ -287,6 +287,69 @@ object TodoApiTestCases {
                 "Reject unauthenticated request without token",
             ),
         ),
+        AcceptanceCriterion(
+            operationId = "getAdminSettings",
+            statusCode = 200,
+            summary = "System settings retrieved",
+            scenarios = listOf(
+                "Retrieve system settings by admin user, returning defaults when unconfigured",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminSettings",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminSettings",
+            statusCode = 403,
+            summary = "Access denied",
+            scenarios = listOf(
+                "Reject regular user access without ADMIN role",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateAdminSettings",
+            statusCode = 200,
+            summary = "System settings updated",
+            scenarios = listOf(
+                "Update system settings by admin user",
+                "All priority enum values (LOW, MEDIUM, HIGH)",
+                "Boundary minimum maxAllowedActiveTodos (1)",
+                "Boundary minimum defaultEstimatedMinutes (0)",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateAdminSettings",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf(
+                "Missing required field maxAllowedActiveTodos",
+                "Missing required field allowUserRegistration",
+                "Missing required field defaultPriority",
+                "Zero maxAllowedActiveTodos (below minimum 1)",
+                "Negative defaultEstimatedMinutes (below minimum 0)",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateAdminSettings",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateAdminSettings",
+            statusCode = 403,
+            summary = "Access denied",
+            scenarios = listOf(
+                "Reject regular user access without ADMIN role",
+            ),
+        ),
     )
 
     val acceptanceCriteriaMap: Map<Pair<String, Int>, List<String>>
@@ -294,7 +357,10 @@ object TodoApiTestCases {
 
     @JvmStatic
     fun validationErrorTestCases(): List<ValidationErrorTestCase> =
-        postValidationErrorCases() + putValidationErrorCases() + authValidationErrorCases()
+        postValidationErrorCases() +
+            putValidationErrorCases() +
+            adminSettingsValidationErrorCases() +
+            authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
         ValidationErrorTestCase(
@@ -425,6 +491,45 @@ object TodoApiTestCases {
             method = PathItem.HttpMethod.PUT,
             pathProvider = { "/api/user/settings" },
             requestBody = """{"defaultPriority":"HIGH","maxActiveTodos":0}""",
+        ),
+    )
+
+    private fun adminSettingsValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
+        ValidationErrorTestCase(
+            operationId = "updateAdminSettings",
+            description = "Missing maxAllowedActiveTodos",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/admin/settings" },
+            requestBody = """{"allowUserRegistration":true,"defaultPriority":"HIGH"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateAdminSettings",
+            description = "Missing allowUserRegistration",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/admin/settings" },
+            requestBody = """{"maxAllowedActiveTodos":50,"defaultPriority":"HIGH"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateAdminSettings",
+            description = "Missing defaultPriority",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/admin/settings" },
+            requestBody = """{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateAdminSettings",
+            description = "Zero maxAllowedActiveTodos",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/admin/settings" },
+            requestBody = """{"maxAllowedActiveTodos":0,"allowUserRegistration":true,"defaultPriority":"HIGH"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateAdminSettings",
+            description = "Negative defaultEstimatedMinutes",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/admin/settings" },
+            requestBody = """{"maxAllowedActiveTodos":50,"allowUserRegistration":true,""" +
+                """"defaultPriority":"HIGH","defaultEstimatedMinutes":-1}""",
         ),
     )
 

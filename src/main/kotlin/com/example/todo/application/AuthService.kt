@@ -4,6 +4,7 @@ import com.example.todo.domain.exception.InvalidCredentialsException
 import com.example.todo.domain.exception.UserAlreadyExistsException
 import com.example.todo.domain.model.AuthenticatedUser
 import com.example.todo.domain.model.User
+import com.example.todo.domain.model.UserRole
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.security.PasswordEncoder
 
@@ -12,7 +13,11 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val tokenIssuer: TokenIssuer,
 ) {
-    fun register(username: String, rawPassword: String): User {
+    fun register(
+        username: String,
+        rawPassword: String,
+        role: UserRole = UserRole.USER,
+    ): User {
         val trimmedUsername = username.trim()
         if (userRepository.existsByUsername(trimmedUsername)) {
             throw UserAlreadyExistsException(trimmedUsername)
@@ -22,6 +27,7 @@ class AuthService(
             User(
                 username = trimmedUsername,
                 passwordHash = passwordHash,
+                role = role,
             ),
         )
     }
@@ -33,7 +39,7 @@ class AuthService(
             throw InvalidCredentialsException()
         }
         val userId = requireNotNull(user.id) { "User id must not be null" }
-        return tokenIssuer.issueToken(AuthenticatedUser(userId, user.username))
+        return tokenIssuer.issueToken(AuthenticatedUser(userId, user.username, user.role))
     }
 }
 

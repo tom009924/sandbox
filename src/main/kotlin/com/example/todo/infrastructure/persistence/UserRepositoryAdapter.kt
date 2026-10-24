@@ -33,6 +33,7 @@ class UserRepositoryAdapter(
             id = id,
             username = username,
             passwordHash = passwordHash,
+            role = role,
         )
 
     private fun User.toEntity(): UserJpaEntity =
@@ -40,6 +41,7 @@ class UserRepositoryAdapter(
             id = id,
             username = username,
             passwordHash = passwordHash,
+            role = role,
         )
 }
 

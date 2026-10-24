@@ -1,0 +1,622 @@
+openapi: 3.0.3
+info:
+  title: Todo API
+  version: 1.0.0
+  description: REST API for managing todos.
+  contact:
+    name: Todo API Team
+    email: support@example.com
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+security:
+  - bearerAuth: []
+tags:
+  - name: Todos
+    description: Todo management
+  - name: Auth
+    description: User authentication and registration
+  - name: Settings
+    description: User settings and preferences
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Register a new user account with unique credentials.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username is already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in user
+      description: Authenticate user credentials and return a Bearer JWT access token.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos:
+    get:
+      tags:
+        - Todos
+      summary: List todos
+      description: Retrieve a list of all todos for the authenticated user.
+      operationId: listTodos
+      responses:
+        '200':
+          description: Todo list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Todos
+      summary: Create a todo
+      description: Create a new todo item with an idempotency key.
+      operationId: createTodo
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Case-sensitive request key, unique across this API. The same key and identical request replays the original 201 response for 24 hours. Reusing the key with a different request returns 409 Conflict.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+            pattern: .*\S.*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+            example:
+              title: Buy milk
+              description: Buy before the weekend
+              dueDate: '2025-04-18'
+              priority: HIGH
+              estimatedMinutes: 30
+      responses:
+        '201':
+          description: Todo created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Missing or invalid Idempotency-Key or invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Idempotency-Key was already used with a different request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Todo identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Todos
+      summary: Get a todo
+      description: Retrieve a single todo by its ID.
+      operationId: getTodo
+      responses:
+        '200':
+          description: Todo found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Todos
+      summary: Update a todo
+      description: Update an existing todo by its ID.
+      operationId: updateTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoRequest'
+            example:
+              title: Buy milk
+              completed: true
+              description: Purchased
+              dueDate: '2025-04-18'
+              priority: LOW
+              estimatedMinutes: 30
+      responses:
+        '200':
+          description: Todo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid request body, including a blank title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Todos
+      summary: Delete a todo
+      description: Delete an existing todo by its ID.
+      operationId: deleteTodo
+      responses:
+        '204':
+          description: Todo deleted
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/user/settings:
+    get:
+      tags:
+        - Settings
+      summary: Get user settings
+      description: Retrieve settings and preferences for the authenticated user. If no settings exist yet, returns default settings.
+      operationId: getUserSettings
+      responses:
+        '200':
+          description: User settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettingsResponse'
+        '401':
+          description: Bearer authentication token is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Settings
+      summary: Update user settings
+      description: Update settings and preferences for the authenticated user.
+      operationId: updateUserSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserSettingsRequest'
+            example:
+              defaultPriority: HIGH
+              defaultEstimatedMinutes: 45
+              maxActiveTodos: 10
+      responses:
+        '200':
+          description: User settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettingsResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Bearer authentication token is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token obtained from /api/auth/login
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          pattern: .*\S.*
+          minLength: 3
+          maxLength: 50
+          description: Unique username for the account.
+          example: alice
+        password:
+          type: string
+          pattern: .*\S.*
+          minLength: 6
+          maxLength: 100
+          description: Password for the account.
+          example: password123
+        role:
+          $ref: '#/components/schemas/UserRole'
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Username of the registered account.
+          example: alice
+        password:
+          type: string
+          description: Password of the account.
+          example: password123
+    AuthTokenResponse:
+      type: object
+      required:
+        - token
+        - tokenType
+        - expiresIn
+      properties:
+        token:
+          type: string
+          description: Signed JWT access token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+        tokenType:
+          type: string
+          description: Token type prefix for Authorization header.
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token expiration period in seconds.
+          example: 86400
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        username:
+          type: string
+          description: Registered username.
+          example: alice
+        role:
+          $ref: '#/components/schemas/UserRole'
+    Todo:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - completed
+        - description
+        - dueDate
+        - priority
+        - estimatedMinutes
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        title:
+          type: string
+          example: Buy milk
+        completed:
+          type: boolean
+          example: false
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          example: 30
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+    CreateTodoRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
+          example: Buy milk
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
+    UpdateTodoRequest:
+      type: object
+      required:
+        - title
+        - completed
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
+          example: Buy milk
+        completed:
+          type: boolean
+          example: true
+        description:
+          type: string
+          nullable: true
+          example: Purchased
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TodoPriority'
+          default: MEDIUM
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
+    TodoPriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+    UserSettingsResponse:
+      type: object
+      required:
+        - userId
+        - defaultPriority
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10
+    UpdateUserSettingsRequest:
+      type: object
+      required:
+        - defaultPriority
+      properties:
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10
+    UserRole:
+      type: string
+      enum:
+        - USER
+        - ADMIN
+      example: USER

@@ -1,0 +1,154 @@
+overlay: 1.0.0
+info:
+  title: Admin & Internal API Overlay
+  version: 1.0.0
+actions:
+  # Add Admin tag
+  - target: $.tags
+    update:
+      - name: Admin
+        description: System administration and settings
+
+  # Add Admin paths
+  - target: $.paths
+    update:
+      /api/admin/settings:
+        get:
+          tags:
+            - Admin
+          summary: Get system settings
+          description: Retrieve system-wide administrative settings. Requires ADMIN role.
+          operationId: getAdminSettings
+          responses:
+            '200':
+              description: System settings retrieved successfully
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/AdminSettingsResponse'
+            '401':
+              description: Missing or invalid Bearer authentication token
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+            '403':
+              description: Access denied. Requires ADMIN role.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+        put:
+          tags:
+            - Admin
+          summary: Update system settings
+          description: Update system-wide administrative settings. Requires ADMIN role.
+          operationId: updateAdminSettings
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/UpdateAdminSettingsRequest'
+                example:
+                  maxAllowedActiveTodos: 50
+                  allowUserRegistration: true
+                  defaultPriority: MEDIUM
+                  defaultEstimatedMinutes: 30
+          responses:
+            '200':
+              description: System settings updated successfully
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/AdminSettingsResponse'
+            '400':
+              description: Invalid request body
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+            '401':
+              description: Missing or invalid Bearer authentication token
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+            '403':
+              description: Access denied. Requires ADMIN role.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+
+  # Add Admin schemas
+  - target: $.components.schemas
+    update:
+      AdminSettingsResponse:
+        type: object
+        required:
+          - maxAllowedActiveTodos
+          - allowUserRegistration
+          - defaultPriority
+        properties:
+          maxAllowedActiveTodos:
+            type: integer
+            format: int32
+            minimum: 1
+            description: Maximum number of active todos any user is allowed to configure.
+            example: 100
+          allowUserRegistration:
+            type: boolean
+            description: Whether new user registrations are permitted.
+            example: true
+          defaultPriority:
+            $ref: '#/components/schemas/TodoPriority'
+          defaultEstimatedMinutes:
+            type: integer
+            format: int32
+            nullable: true
+            minimum: 0
+            description: System default estimated duration in minutes.
+            example: 30
+      UpdateAdminSettingsRequest:
+        type: object
+        required:
+          - maxAllowedActiveTodos
+          - allowUserRegistration
+          - defaultPriority
+        properties:
+          maxAllowedActiveTodos:
+            type: integer
+            format: int32
+            minimum: 1
+            description: Maximum number of active todos any user is allowed to configure.
+            example: 100
+          allowUserRegistration:
+            type: boolean
+            description: Whether new user registrations are permitted.
+            example: true
+          defaultPriority:
+            $ref: '#/components/schemas/TodoPriority'
+          defaultEstimatedMinutes:
+            type: integer
+            format: int32
+            nullable: true
+            minimum: 0
+            description: System default estimated duration in minutes.
+            example: 30
+

@@ -1,7 +1,10 @@
 package com.example.todo.infrastructure.persistence
 
+import com.example.todo.domain.model.UserRole
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -20,5 +23,9 @@ class UserJpaEntity(
 
     @Column(nullable = false)
     var passwordHash: String,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var role: UserRole = UserRole.USER,
 )
 

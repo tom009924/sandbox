@@ -254,31 +254,39 @@ val npmInstall = tasks.register<Exec>("npmInstall") {
     onlyIf { !file("node_modules").exists() }
 }
 
-val bundleOpenApiJa = tasks.register<Exec>("bundleOpenApiJa") {
-    description = "Bundles Japanese OpenAPI specification using OpenAPI Overlays via Redocly CLI."
+val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
+    description = "Bundles public and internal OpenAPI specifications using OpenAPI Overlays via Redocly CLI."
     group = "documentation"
     dependsOn(npmInstall)
     setupNodeEnvironment()
-    commandLine(npmExecutable, "run", "bundle:openapi:ja")
+    commandLine(npmExecutable, "run", "bundle:openapi")
     inputs.file("docs/openapi.yaml")
+    inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
     inputs.file("package.json")
     inputs.file("package-lock.json")
+    outputs.file("docs/dist/openapi.yaml")
+    outputs.file("docs/dist/openapi.admin.yaml")
     outputs.file("docs/dist/openapi.ja.yaml")
+}
+
+val bundleOpenApiJa = tasks.register("bundleOpenApiJa") {
+    description = "Alias for bundleOpenApi for backwards compatibility."
+    dependsOn(bundleOpenApi)
 }
 
 val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     description = "Lints OpenAPI specifications using Stoplight Spectral."
     group = "verification"
-    dependsOn(npmInstall, bundleOpenApiJa)
+    dependsOn(npmInstall, bundleOpenApi)
     setupNodeEnvironment()
     commandLine(npmExecutable, "run", "lint:openapi")
     inputs.file("docs/openapi.yaml")
+    inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
     inputs.file(".spectral.yaml")
     inputs.file("package.json")
     inputs.file("package-lock.json")
-    outputs.file("docs/dist/openapi.ja.yaml")
 }
 
 tasks.bootJar {
@@ -287,7 +295,7 @@ tasks.bootJar {
 
 openApiGenerate {
     generatorName.set("kotlin-spring")
-    inputSpec.set("$projectDir/docs/openapi.yaml")
+    inputSpec.set("$projectDir/docs/dist/openapi.admin.yaml")
     outputDir.set(layout.buildDirectory.dir("generated/openapi").map { it.asFile.absolutePath })
     apiPackage.set("com.example.todo.presentation.api")
     modelPackage.set("com.example.todo.presentation.model")
@@ -309,6 +317,10 @@ openApiGenerate {
             "enumPropertyNaming" to "UPPERCASE",
         ),
     )
+}
+
+tasks.openApiGenerate {
+    dependsOn(bundleOpenApi)
 }
 
 sourceSets.main {

@@ -10,10 +10,11 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 
 ## 作業手順
 
-### Step 1: OpenAPI 仕様 (`docs/openapi.yaml`) および日本語オーバーレイ (`docs/overlays/ja.yaml`) の更新
-1. `docs/openapi.yaml` を開き、対象のエンドポイント（パス、HTTPメソッド、リクエストボディ、レスポンスコード、スキーマ）を英語（SSOT）で定義・更新します。
-2. 日本語の説明・要約を提供する場合は、OpenAPI Overlay 仕様に基づき `docs/overlays/ja.yaml` に対応するターゲットパス（JSONPath）と日本語翻訳（`update`）を追加します。
-3. `./gradlew lintOpenApi` を実行し、`bundleOpenApiJa` による日本語版仕様（`docs/dist/openapi.ja.yaml`）の生成および Spectral 静的検証（日英両仕様）をパスすることを確認します。
+### Step 1: OpenAPI 仕様 (`docs/openapi.yaml`) およびオーバーレイ (`docs/overlays/`) の更新
+1. 外部公開用APIを変更・追加する場合は、`docs/openapi.yaml`（外部向けベース・英語SSOT）に定義・更新します。
+2. 内部専用・管理者向けエンドポイント（Admin API等）を追加・更新する場合は、安全性を確保するため外部向けベースではなく OpenAPI Overlay 仕様（`docs/overlays/admin.yaml`）に拡張定義（`update`）を追加し、内部完全版（`docs/dist/openapi.admin.yaml`）を生成するようにします。
+3. 日本語の説明・要約を提供する場合は、OpenAPI Overlay 仕様に基づき `docs/overlays/ja.yaml` に対応するターゲットパス（JSONPath）と日本語翻訳（`update`）を追加します。
+4. `./gradlew lintOpenApi` を実行し、`bundleOpenApi` による外部向け仕様（`docs/dist/openapi.yaml` / `docs/dist/openapi.ja.yaml`）および内部仕様（`docs/dist/openapi.admin.yaml`）の生成、ならびに Spectral 静的検証をパスすることを確認します。
 
 ### Step 2: 実装コードの更新
 1. **DTO / Request / Response モデル**:
