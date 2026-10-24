@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+
+# Build outputs & caches
+build/
+.gradle/
+.kotlin/
+out/
+bin/
+
+# Node.js
+node_modules/
+npm-debug.log
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation build artifacts
+docs/dist/
+
