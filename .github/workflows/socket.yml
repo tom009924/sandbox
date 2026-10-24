@@ -18,27 +18,29 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
+    env:
+      SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java
-        if: ${{ secrets.SOCKET_SECURITY_API_KEY != '' }}
+        if: env.SOCKET_SECURITY_API_KEY != ''
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        if: ${{ secrets.SOCKET_SECURITY_API_KEY != '' }}
+        if: env.SOCKET_SECURITY_API_KEY != ''
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate Socket Gradle Manifest
-        if: ${{ secrets.SOCKET_SECURITY_API_KEY != '' }}
+        if: env.SOCKET_SECURITY_API_KEY != ''
         run: npx --yes @socketsecurity/cli manifest gradle || true
 
       - name: Run Socket Basics
-        if: ${{ secrets.SOCKET_SECURITY_API_KEY != '' }}
+        if: env.SOCKET_SECURITY_API_KEY != ''
         uses: SocketDev/socket-basics@v3.4.0
         env:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -47,6 +49,6 @@ jobs:
           socket_security_api_key: ${{ secrets.SOCKET_SECURITY_API_KEY }}
 
       - name: Socket API Key Missing Notice
-        if: ${{ secrets.SOCKET_SECURITY_API_KEY == '' }}
+        if: env.SOCKET_SECURITY_API_KEY == ''
         run: |
           echo "::notice title=Socket API Key Not Configured::SOCKET_SECURITY_API_KEY secret is not set. Please add your Socket API token to repository secrets to activate Socket Security scans."

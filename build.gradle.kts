@@ -229,12 +229,24 @@ openApiValidate {
     inputSpec.set("$projectDir/docs/openapi.yaml")
 }
 
-val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-val npmExecutable = if (isWindows) "npm.cmd" else "npm"
+val nvmBinDir = "/usr/local/share/nvm/current/bin"
+val npmExecutable = if (file("$nvmBinDir/npm").exists() && !System.getenv("PATH").orEmpty().contains(nvmBinDir)) {
+    "$nvmBinDir/npm"
+} else {
+    "npm"
+}
+
+fun Exec.setupNodeEnvironment() {
+    if (file(nvmBinDir).exists() && !System.getenv("PATH").orEmpty().contains(nvmBinDir)) {
+        val currentPath = System.getenv("PATH").orEmpty()
+        environment("PATH", if (currentPath.isEmpty()) nvmBinDir else "$nvmBinDir:$currentPath")
+    }
+}
 
 val npmInstall = tasks.register<Exec>("npmInstall") {
     description = "Installs Node dependencies using npm ci."
     group = "build setup"
+    setupNodeEnvironment()
     commandLine(npmExecutable, "ci")
     inputs.file("package.json")
     inputs.file("package-lock.json")
@@ -246,6 +258,7 @@ val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     description = "Lints OpenAPI specifications using Stoplight Spectral."
     group = "verification"
     dependsOn(npmInstall)
+    setupNodeEnvironment()
     commandLine(npmExecutable, "run", "lint:openapi")
     inputs.file("docs/openapi.yaml")
     inputs.file(".spectral.yaml")
