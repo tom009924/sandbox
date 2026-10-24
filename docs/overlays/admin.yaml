@@ -1,0 +1,93 @@
+overlay: 1.0.0
+info:
+  title: Admin & Internal API Overlay
+  version: 1.0.0
+actions:
+  # Add Admin tag
+  - target: $.tags
+    update:
+      - name: Admin
+        description: System administration and metrics
+
+  # Add Admin security scheme
+  - target: $.components.securitySchemes
+    update:
+      adminApiKey:
+        type: apiKey
+        in: header
+        name: X-Admin-Key
+        description: Secret API key for administrative operations
+
+  # Add Admin paths
+  - target: $.paths
+    update:
+      /api/admin/stats:
+        get:
+          tags:
+            - Admin
+          summary: Get system statistics
+          description: Retrieve system-wide usage statistics. Requires X-Admin-Key header.
+          operationId: getAdminStats
+          security:
+            - adminApiKey: []
+          responses:
+            '200':
+              description: System statistics retrieved successfully
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/AdminStatsResponse'
+            '401':
+              description: Missing or invalid X-Admin-Key header
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+            '403':
+              description: Access denied. Invalid X-Admin-Key.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+                application/problem+json:
+                  schema:
+                    $ref: '#/components/schemas/ErrorResponse'
+
+  # Add Admin schemas
+  - target: $.components.schemas
+    update:
+      AdminStatsResponse:
+        type: object
+        required:
+          - totalUsers
+          - totalTodos
+          - completedTodos
+          - activeTodos
+        properties:
+          totalUsers:
+            type: integer
+            format: int64
+            minimum: 0
+            description: Total registered users count.
+            example: 10
+          totalTodos:
+            type: integer
+            format: int64
+            minimum: 0
+            description: Total todos count across all users.
+            example: 45
+          completedTodos:
+            type: integer
+            format: int64
+            minimum: 0
+            description: Total completed todos count.
+            example: 20
+          activeTodos:
+            type: integer
+            format: int64
+            minimum: 0
+            description: Total active todos count.
+            example: 25

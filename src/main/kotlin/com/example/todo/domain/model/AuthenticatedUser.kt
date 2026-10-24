@@ -6,4 +6,3 @@ data class AuthenticatedUser(
     val userId: UUID,
     val username: String,
 )
-

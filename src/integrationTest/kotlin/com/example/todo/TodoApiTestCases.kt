@@ -287,6 +287,30 @@ object TodoApiTestCases {
                 "Reject unauthenticated request without token",
             ),
         ),
+        AcceptanceCriterion(
+            operationId = "getAdminStats",
+            statusCode = 200,
+            summary = "System statistics retrieved",
+            scenarios = listOf(
+                "Retrieve system statistics with valid admin key",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminStats",
+            statusCode = 401,
+            summary = "Missing or invalid X-Admin-Key header",
+            scenarios = listOf(
+                "Reject unauthenticated request without admin key",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "getAdminStats",
+            statusCode = 403,
+            summary = "Access denied",
+            scenarios = listOf(
+                "Reject request with invalid X-Admin-Key",
+            ),
+        ),
     )
 
     val acceptanceCriteriaMap: Map<Pair<String, Int>, List<String>>
@@ -294,7 +318,9 @@ object TodoApiTestCases {
 
     @JvmStatic
     fun validationErrorTestCases(): List<ValidationErrorTestCase> =
-        postValidationErrorCases() + putValidationErrorCases() + authValidationErrorCases()
+        postValidationErrorCases() +
+            putValidationErrorCases() +
+            authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
         ValidationErrorTestCase(

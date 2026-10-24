@@ -21,4 +21,3 @@ class UserJpaEntity(
     @Column(nullable = false)
     var passwordHash: String,
 )
-

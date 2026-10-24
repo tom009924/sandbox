@@ -24,32 +24,37 @@ class TodoRepositoryAdapter(
     override fun countByUserIdAndCompletedFalse(userId: UUID): Long =
         springDataTodoRepository.countByUserIdAndCompletedFalse(userId)
 
+    override fun count(): Long = springDataTodoRepository.count()
+
+    override fun countByCompleted(completed: Boolean): Long =
+        springDataTodoRepository.countByCompleted(completed)
+
     override fun save(todo: Todo): Todo =
         springDataTodoRepository.save(todo.toEntity()).toDomain()
 
     override fun delete(todo: Todo) {
         springDataTodoRepository.deleteById(requireNotNull(todo.id))
     }
-
-    private fun TodoJpaEntity.toDomain() = Todo(
-        id = id,
-        userId = userId,
-        title = title,
-        completed = completed,
-        description = description,
-        dueDate = dueDate,
-        priority = priority,
-        estimatedMinutes = estimatedMinutes,
-    )
-
-    private fun Todo.toEntity() = TodoJpaEntity(
-        id = id,
-        userId = userId,
-        title = title,
-        completed = completed,
-        description = description,
-        dueDate = dueDate,
-        priority = priority,
-        estimatedMinutes = estimatedMinutes,
-    )
 }
+
+private fun TodoJpaEntity.toDomain() = Todo(
+    id = id,
+    userId = userId,
+    title = title,
+    completed = completed,
+    description = description,
+    dueDate = dueDate,
+    priority = priority,
+    estimatedMinutes = estimatedMinutes,
+)
+
+private fun Todo.toEntity() = TodoJpaEntity(
+    id = id,
+    userId = userId,
+    title = title,
+    completed = completed,
+    description = description,
+    dueDate = dueDate,
+    priority = priority,
+    estimatedMinutes = estimatedMinutes,
+)

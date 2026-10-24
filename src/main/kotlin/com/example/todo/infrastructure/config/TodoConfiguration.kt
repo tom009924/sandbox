@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.config
 
+import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AuthService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
@@ -46,6 +47,11 @@ class TodoConfiguration {
     fun userSettingsService(
         userSettingsRepository: UserSettingsRepository,
     ) = UserSettingsService(userSettingsRepository)
+    @Bean
+    fun adminStatsService(
+        userRepository: UserRepository,
+        todoRepository: TodoRepository,
+    ) = AdminStatsService(userRepository, todoRepository)
 
     @Bean
     fun authService(

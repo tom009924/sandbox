@@ -204,6 +204,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .put("/api/user/settings")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .`when`()
+            .get("/api/admin/stats")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
     }
 
     @Test
@@ -795,6 +801,50 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.BAD_REQUEST.value())
     }
 
+    @Test
+    fun adminEndpointsRejectInvalidApiKey() {
+        validatedRequest(token = defaultToken)
+            .`when`()
+            .get("/api/admin/stats")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
+            .`when`()
+            .get("/api/admin/stats")
+            .then()
+            .statusCode(HttpStatus.FORBIDDEN.value())
+    }
+
+    @Test
+    fun getAdminStatsReturnsAggregateMetrics() {
+        // Create an uncompleted todo and a completed todo
+        todoRepository.save(
+            Todo(
+                userId = defaultUserId,
+                title = "Uncompleted task",
+                completed = false,
+            ),
+        )
+        todoRepository.save(
+            Todo(
+                userId = defaultUserId,
+                title = "Completed task",
+                completed = true,
+            ),
+        )
+
+        validatedAdminRequest()
+            .`when`()
+            .get("/api/admin/stats")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("totalUsers", equalTo(1))
+            .body("totalTodos", equalTo(2))
+            .body("completedTodos", equalTo(1))
+            .body("activeTodos", equalTo(1))
+    }
+
     private fun assertStoredTodo(id: UUID, expected: Todo) {
         val stored = requireNotNull(todoRepository.findById(id)) {
             "Expected todo with ID $id to exist in database, but was not found"
@@ -854,12 +904,18 @@ class TodoApiIntegrationTest @Autowired constructor(
             )
     }
 
-    private fun validatedRequest(token: String? = defaultToken) =
-        given()
-            .port(port)
-            .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
-            .filter(openApiCoverageFilter)
-            .filter(openApiValidationFilter)
+    private fun validatedRequest(
+        token: String? = defaultToken,
+        adminKey: String? = null,
+    ) = given()
+        .port(port)
+        .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
+        .let { if (adminKey != null) it.header("X-Admin-Key", adminKey) else it }
+        .filter(openApiCoverageFilter)
+        .filter(openApiValidationFilter)
+
+    private fun validatedAdminRequest(adminKey: String? = VALID_ADMIN_KEY) =
+        validatedRequest(token = null, adminKey = adminKey)
 
     private fun validatedPostRequest(
         idempotencyKey: String = UUID.randomUUID().toString(),
@@ -868,13 +924,15 @@ class TodoApiIntegrationTest @Autowired constructor(
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
+        const val VALID_ADMIN_KEY = "admin-secret-key"
+        const val INVALID_ADMIN_KEY = "wrong-admin-key"
         const val DEFAULT_TOKEN_EXPIRES_IN = 86400
         const val SHORT_WAIT_TIMEOUT_MS = 500L
         const val ESTIMATED_MINUTES = 30
         const val UPDATED_ESTIMATED_MINUTES = 45
         const val MIN_ESTIMATED_MINUTES = 0
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
-        const val OPEN_API_SPEC_PATH = "docs/openapi.yaml"
+        const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
 
         val openAPI = requireNotNull(
             OpenAPIV3Parser().read(

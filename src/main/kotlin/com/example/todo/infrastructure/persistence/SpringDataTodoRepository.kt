@@ -9,4 +9,6 @@ interface SpringDataTodoRepository : JpaRepository<TodoJpaEntity, UUID> {
     fun findByIdAndUserId(id: UUID, userId: UUID): TodoJpaEntity?
 
     fun countByUserIdAndCompletedFalse(userId: UUID): Long
+
+    fun countByCompleted(completed: Boolean): Long
 }

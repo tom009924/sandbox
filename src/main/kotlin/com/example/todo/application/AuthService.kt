@@ -12,7 +12,10 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val tokenIssuer: TokenIssuer,
 ) {
-    fun register(username: String, rawPassword: String): User {
+    fun register(
+        username: String,
+        rawPassword: String,
+    ): User {
         val trimmedUsername = username.trim()
         if (userRepository.existsByUsername(trimmedUsername)) {
             throw UserAlreadyExistsException(trimmedUsername)
@@ -36,4 +39,3 @@ class AuthService(
         return tokenIssuer.issueToken(AuthenticatedUser(userId, user.username))
     }
 }
-

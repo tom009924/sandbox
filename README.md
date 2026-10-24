@@ -28,7 +28,7 @@ gh auth status
 GradleのビルドキャッシュとKotlinのインクリメンタルコンパイルを有効にし、メモリ使用量を抑えるためGradleの並列ワーカー数を1に制限しています。
 
 APIのベースURLは `http://localhost:8080/api` です。
-OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml) にあります。
+OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml)（日本語版は [`docs/dist/openapi.ja.yaml`](docs/dist/openapi.ja.yaml)）にあります。※ 管理者・内部向けを含む完全版は [`docs/dist/openapi.admin.yaml`](docs/dist/openapi.admin.yaml)（`docs/overlays/admin.yaml` によるオーバーレイ合成）として生成されます。
 
 ## API
 
@@ -75,6 +75,15 @@ Todoの`id`にはUUIDを使用します。作成レスポンスに含まれる`i
 `description`と`dueDate`は省略可能です。`dueDate`は`YYYY-MM-DD`形式で、`priority`は`LOW`・`MEDIUM`・`HIGH`のいずれかです。優先度を省略すると`MEDIUM`になります。
 `estimatedMinutes`は任意の0以上の整数です。所要時間が未定の場合は省略できます。
 
+### ユーザー設定 API (要認証)
+
+ログイン中のユーザーの設定やデフォルト値を管理します。
+
+| Method | Path | 説明 |
+| --- | --- | --- |
+| `GET` | `/api/user/settings` | ユーザー設定取得 |
+| `PUT` | `/api/user/settings` | ユーザー設定更新 |
+
 ## アーキテクチャ
 
 Todo機能は依存関係を内側へ向けたレイヤード構成です。
@@ -116,7 +125,7 @@ OpenAPI仕様書（`docs/openapi.yaml`）の静的解析（Stoplight Spectralに
 ./gradlew lintOpenApi
 ```
 
-MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/openapi.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
+MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/dist/openapi.admin.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
 
 ```bash
 docker compose up -d spanner-emulator pubsub-emulator
