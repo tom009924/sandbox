@@ -1,9 +1,7 @@
 package com.example.todo
 
-import com.example.todo.domain.model.AuthenticatedUser
-import com.example.todo.domain.model.UserRole
 import com.example.todo.infrastructure.persistence.SpringDataAdminSettingsRepository
-import com.example.todo.infrastructure.security.JwtTokenProvider
+import com.example.todo.infrastructure.security.AdminApiKeyFilter.Companion.ADMIN_API_KEY_HEADER
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,27 +13,16 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import java.util.UUID
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class AdminSettingsControllerTest @Autowired constructor(
     private val mockMvc: MockMvc,
     private val springDataAdminSettingsRepository: SpringDataAdminSettingsRepository,
-    private val jwtTokenProvider: JwtTokenProvider,
 ) {
-    private lateinit var userToken: String
-    private lateinit var adminToken: String
-
     @BeforeEach
     fun cleanDatabase() {
         springDataAdminSettingsRepository.deleteAll()
-        userToken = jwtTokenProvider.generateToken(
-            AuthenticatedUser(UUID.randomUUID(), "normaluser", UserRole.USER),
-        )
-        adminToken = jwtTokenProvider.generateToken(
-            AuthenticatedUser(UUID.randomUUID(), "adminuser", UserRole.ADMIN),
-        )
     }
 
     @Test
@@ -54,18 +41,18 @@ class AdminSettingsControllerTest @Autowired constructor(
     }
 
     @Test
-    fun `reject user role for get settings request`() {
+    fun `reject invalid admin key for get settings request`() {
         mockMvc.perform(
             get("/api/admin/settings")
-                .header("Authorization", "Bearer $userToken"),
+                .header(ADMIN_API_KEY_HEADER, INVALID_ADMIN_KEY),
         ).andExpect(status().isForbidden)
     }
 
     @Test
-    fun `reject user role for update settings request`() {
+    fun `reject invalid admin key for update settings request`() {
         mockMvc.perform(
             put("/api/admin/settings")
-                .header("Authorization", "Bearer $userToken")
+                .header(ADMIN_API_KEY_HEADER, INVALID_ADMIN_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}"""),
         ).andExpect(status().isForbidden)
@@ -75,7 +62,7 @@ class AdminSettingsControllerTest @Autowired constructor(
     fun `admin get settings returns default values when not configured`() {
         mockMvc.perform(
             get("/api/admin/settings")
-                .header("Authorization", "Bearer $adminToken"),
+                .header(ADMIN_API_KEY_HEADER, VALID_ADMIN_KEY),
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.maxAllowedActiveTodos").value(EXPECTED_DEFAULT_MAX_TODOS))
@@ -86,7 +73,7 @@ class AdminSettingsControllerTest @Autowired constructor(
     fun `admin update and get settings`() {
         mockMvc.perform(
             put("/api/admin/settings")
-                .header("Authorization", "Bearer $adminToken")
+                .header(ADMIN_API_KEY_HEADER, VALID_ADMIN_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"maxAllowedActiveTodos":50,"allowUserRegistration":false}"""),
         )
@@ -96,7 +83,7 @@ class AdminSettingsControllerTest @Autowired constructor(
 
         mockMvc.perform(
             get("/api/admin/settings")
-                .header("Authorization", "Bearer $adminToken"),
+                .header(ADMIN_API_KEY_HEADER, VALID_ADMIN_KEY),
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.maxAllowedActiveTodos").value(UPDATED_MAX_TODOS))
@@ -107,15 +94,16 @@ class AdminSettingsControllerTest @Autowired constructor(
     fun `update settings rejects invalid request body`() {
         mockMvc.perform(
             put("/api/admin/settings")
-                .header("Authorization", "Bearer $adminToken")
+                .header(ADMIN_API_KEY_HEADER, VALID_ADMIN_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"maxAllowedActiveTodos":0,"allowUserRegistration":true}"""),
         ).andExpect(status().isBadRequest)
     }
 
     private companion object {
+        const val VALID_ADMIN_KEY = "admin-secret-key"
+        const val INVALID_ADMIN_KEY = "wrong-admin-key"
         const val EXPECTED_DEFAULT_MAX_TODOS = 100
         const val UPDATED_MAX_TODOS = 50
     }
 }
-

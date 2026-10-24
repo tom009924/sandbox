@@ -22,7 +22,7 @@ class JwtAuthenticationFilter(
             if (token.isNotEmpty()) {
                 val user = jwtTokenProvider.validateAndGetPrincipal(token)
                 if (user != null) {
-                    val authorities = listOf(SimpleGrantedAuthority("ROLE_${user.role.name}"))
+                    val authorities = listOf(SimpleGrantedAuthority("ROLE_USER"))
                     val authentication = UsernamePasswordAuthenticationToken(
                         user,
                         null,
@@ -39,4 +39,3 @@ class JwtAuthenticationFilter(
         const val BEARER_PREFIX = "Bearer "
     }
 }
-

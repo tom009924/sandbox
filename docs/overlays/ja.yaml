@@ -156,8 +156,4 @@ actions:
     update: TODO作成時に未指定の場合に適用されるデフォルト所要時間（分）
   - target: $.components.schemas.UpdateUserSettingsRequest.properties.maxActiveTodos.description
     update: 同時に保持できる未完了TODOタスクの最大件数
-  - target: $.components.schemas.RegisterRequest.properties.role.description
-    update: アカウントのユーザー権限ロール (USER または ADMIN)
-  - target: $.components.schemas.UserResponse.properties.role.description
-    update: ユーザー権限ロール (USER または ADMIN)
 

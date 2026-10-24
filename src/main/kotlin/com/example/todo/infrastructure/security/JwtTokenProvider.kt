@@ -3,7 +3,6 @@ package com.example.todo.infrastructure.security
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
 import com.example.todo.domain.model.AuthenticatedUser
-import com.example.todo.domain.model.UserRole
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
@@ -34,7 +33,6 @@ class JwtTokenProvider(
         val token = Jwts.builder()
             .subject(user.userId.toString())
             .claim("username", user.username)
-            .claim("role", user.role.name)
             .issuedAt(Date.from(now))
             .expiration(Date.from(validity))
             .signWith(key)
@@ -56,13 +54,10 @@ class JwtTokenProvider(
             .payload
         val userIdStr = claims.subject
         val username = claims.get("username", String::class.java)
-        val roleStr = claims.get("role", String::class.java)
-        val role = roleStr?.let { runCatching { UserRole.valueOf(it) }.getOrNull() } ?: UserRole.USER
         if (userIdStr != null && username != null) {
             AuthenticatedUser(
                 userId = UUID.fromString(userIdStr),
                 username = username,
-                role = role,
             )
         } else {
             null
@@ -73,4 +68,3 @@ class JwtTokenProvider(
         null
     }
 }
-

@@ -5,7 +5,6 @@ import com.example.todo.domain.model.AuthenticatedUser
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
-import com.example.todo.domain.model.UserRole
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.infrastructure.persistence.SpringDataAdminSettingsRepository
@@ -54,8 +53,6 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     private lateinit var defaultUserId: UUID
     private lateinit var defaultToken: String
-    private lateinit var adminUserId: UUID
-    private lateinit var adminToken: String
 
     @BeforeEach
     fun cleanDatabase() {
@@ -69,10 +66,6 @@ class TodoApiIntegrationTest @Autowired constructor(
         val user = userRepository.save(User(username = "default_user", passwordHash = "hash"))
         defaultUserId = requireNotNull(user.id)
         defaultToken = jwtTokenProvider.generateToken(AuthenticatedUser(defaultUserId, user.username))
-
-        val admin = userRepository.save(User(username = "admin_user", passwordHash = "hash", role = UserRole.ADMIN))
-        adminUserId = requireNotNull(admin.id)
-        adminToken = jwtTokenProvider.generateToken(AuthenticatedUser(adminUserId, admin.username, UserRole.ADMIN))
     }
 
     @Suppress("LongParameterList")
@@ -106,7 +99,6 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.CREATED.value())
             .body("username", equalTo("newuser"))
-            .body("role", equalTo("USER"))
             .extract()
 
         val userId = UUID.fromString(response.path("id"))
@@ -518,7 +510,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         val request = when {
             tc.operationId == "createTodo" -> validatedPostRequest()
             tc.operationId in listOf("registerUser", "loginUser") -> validatedRequest(token = null)
-            tc.operationId == "updateAdminSettings" -> validatedRequest(token = adminToken)
+            tc.operationId == "updateAdminSettings" -> validatedAdminRequest()
             else -> validatedRequest()
         }
 
@@ -822,14 +814,20 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun regularUserCannotAccessAdminEndpoints() {
+    fun adminEndpointsRejectInvalidApiKey() {
         validatedRequest(token = defaultToken)
+            .`when`()
+            .get("/api/admin/settings")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
             .`when`()
             .get("/api/admin/settings")
             .then()
             .statusCode(HttpStatus.FORBIDDEN.value())
 
-        validatedRequest(token = defaultToken)
+        validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
             .contentType(ContentType.JSON)
             .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""")
             .`when`()
@@ -840,7 +838,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun getAdminSettingsReturnsDefaultsWhenUnconfigured() {
-        validatedRequest(token = adminToken)
+        validatedAdminRequest()
             .`when`()
             .get("/api/admin/settings")
             .then()
@@ -851,7 +849,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun updateAdminSettingsAcceptsBoundaryValues() {
-        validatedRequest(token = adminToken)
+        validatedAdminRequest()
             .contentType(ContentType.JSON)
             .body("""{"maxAllowedActiveTodos":1,"allowUserRegistration":false}""")
             .`when`()
@@ -864,7 +862,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun updateAndGetAdminSettings() {
-        validatedRequest(token = adminToken)
+        validatedAdminRequest()
             .contentType(ContentType.JSON)
             .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":false}""")
             .`when`()
@@ -874,46 +872,13 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
             .body("allowUserRegistration", equalTo(false))
 
-        validatedRequest(token = adminToken)
+        validatedAdminRequest()
             .`when`()
             .get("/api/admin/settings")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
             .body("allowUserRegistration", equalTo(false))
-    }
-
-    @Test
-    fun registerUserWithRoleEnumValues() {
-        val adminResponse = validatedRequest(token = null)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"newadmin","password":"password123","role":"ADMIN"}""")
-            .`when`()
-            .post("/api/auth/register")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .body("username", equalTo("newadmin"))
-            .body("role", equalTo("ADMIN"))
-            .extract()
-
-        val adminId = UUID.fromString(adminResponse.path("id"))
-        val storedAdmin = userRepository.findById(adminId)
-        assertTrue(storedAdmin?.role == UserRole.ADMIN)
-
-        val userResponse = validatedRequest(token = null)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"explicituser","password":"password123","role":"USER"}""")
-            .`when`()
-            .post("/api/auth/register")
-            .then()
-            .statusCode(HttpStatus.CREATED.value())
-            .body("username", equalTo("explicituser"))
-            .body("role", equalTo("USER"))
-            .extract()
-
-        val userId = UUID.fromString(userResponse.path("id"))
-        val storedUser = userRepository.findById(userId)
-        assertTrue(storedUser?.role == UserRole.USER)
     }
 
     private fun assertStoredTodo(id: UUID, expected: Todo) {
@@ -975,12 +940,18 @@ class TodoApiIntegrationTest @Autowired constructor(
             )
     }
 
-    private fun validatedRequest(token: String? = defaultToken) =
-        given()
-            .port(port)
-            .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
-            .filter(openApiCoverageFilter)
-            .filter(openApiValidationFilter)
+    private fun validatedRequest(
+        token: String? = defaultToken,
+        adminKey: String? = null,
+    ) = given()
+        .port(port)
+        .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
+        .let { if (adminKey != null) it.header("X-Admin-Key", adminKey) else it }
+        .filter(openApiCoverageFilter)
+        .filter(openApiValidationFilter)
+
+    private fun validatedAdminRequest(adminKey: String? = VALID_ADMIN_KEY) =
+        validatedRequest(token = null, adminKey = adminKey)
 
     private fun validatedPostRequest(
         idempotencyKey: String = UUID.randomUUID().toString(),
@@ -989,6 +960,8 @@ class TodoApiIntegrationTest @Autowired constructor(
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
+        const val VALID_ADMIN_KEY = "admin-secret-key"
+        const val INVALID_ADMIN_KEY = "wrong-admin-key"
         const val DEFAULT_MAX_ALLOWED_ACTIVE_TODOS = 100
         const val UPDATED_ADMIN_MAX_ACTIVE_TODOS = 50
         const val DEFAULT_TOKEN_EXPIRES_IN = 86400

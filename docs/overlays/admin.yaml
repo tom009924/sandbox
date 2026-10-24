@@ -9,6 +9,15 @@ actions:
       - name: Admin
         description: System administration and settings
 
+  # Add Admin security scheme
+  - target: $.components.securitySchemes
+    update:
+      adminApiKey:
+        type: apiKey
+        in: header
+        name: X-Admin-Key
+        description: Secret API key for administrative operations
+
   # Add Admin paths
   - target: $.paths
     update:
@@ -17,8 +26,10 @@ actions:
           tags:
             - Admin
           summary: Get system settings
-          description: Retrieve system-wide administrative settings. Requires ADMIN role.
+          description: Retrieve system-wide administrative settings. Requires X-Admin-Key header.
           operationId: getAdminSettings
+          security:
+            - adminApiKey: []
           responses:
             '200':
               description: System settings retrieved successfully
@@ -27,7 +38,7 @@ actions:
                   schema:
                     $ref: '#/components/schemas/AdminSettingsResponse'
             '401':
-              description: Missing or invalid Bearer authentication token
+              description: Missing or invalid X-Admin-Key header
               content:
                 application/json:
                   schema:
@@ -36,7 +47,7 @@ actions:
                   schema:
                     $ref: '#/components/schemas/ErrorResponse'
             '403':
-              description: Access denied. Requires ADMIN role.
+              description: Access denied. Invalid X-Admin-Key.
               content:
                 application/json:
                   schema:
@@ -48,8 +59,10 @@ actions:
           tags:
             - Admin
           summary: Update system settings
-          description: Update system-wide administrative settings. Requires ADMIN role.
+          description: Update system-wide administrative settings. Requires X-Admin-Key header.
           operationId: updateAdminSettings
+          security:
+            - adminApiKey: []
           requestBody:
             required: true
             content:
@@ -76,7 +89,7 @@ actions:
                   schema:
                     $ref: '#/components/schemas/ErrorResponse'
             '401':
-              description: Missing or invalid Bearer authentication token
+              description: Missing or invalid X-Admin-Key header
               content:
                 application/json:
                   schema:
@@ -85,7 +98,7 @@ actions:
                   schema:
                     $ref: '#/components/schemas/ErrorResponse'
             '403':
-              description: Access denied. Requires ADMIN role.
+              description: Access denied. Invalid X-Admin-Key.
               content:
                 application/json:
                   schema:
@@ -129,4 +142,3 @@ actions:
             type: boolean
             description: Whether new user registrations are permitted.
             example: true
-

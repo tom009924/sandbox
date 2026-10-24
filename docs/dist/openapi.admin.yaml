@@ -381,8 +381,10 @@ paths:
       tags:
         - Admin
       summary: Get system settings
-      description: Retrieve system-wide administrative settings. Requires ADMIN role.
+      description: Retrieve system-wide administrative settings. Requires X-Admin-Key header.
       operationId: getAdminSettings
+      security:
+        - adminApiKey: []
       responses:
         '200':
           description: System settings retrieved successfully
@@ -391,7 +393,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminSettingsResponse'
         '401':
-          description: Missing or invalid Bearer authentication token
+          description: Missing or invalid X-Admin-Key header
           content:
             application/json:
               schema:
@@ -400,7 +402,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Access denied. Requires ADMIN role.
+          description: Access denied. Invalid X-Admin-Key.
           content:
             application/json:
               schema:
@@ -412,8 +414,10 @@ paths:
       tags:
         - Admin
       summary: Update system settings
-      description: Update system-wide administrative settings. Requires ADMIN role.
+      description: Update system-wide administrative settings. Requires X-Admin-Key header.
       operationId: updateAdminSettings
+      security:
+        - adminApiKey: []
       requestBody:
         required: true
         content:
@@ -440,7 +444,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Missing or invalid Bearer authentication token
+          description: Missing or invalid X-Admin-Key header
           content:
             application/json:
               schema:
@@ -449,7 +453,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Access denied. Requires ADMIN role.
+          description: Access denied. Invalid X-Admin-Key.
           content:
             application/json:
               schema:
@@ -464,6 +468,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT Bearer token obtained from /api/auth/login
+    adminApiKey:
+      type: apiKey
+      in: header
+      name: X-Admin-Key
+      description: Secret API key for administrative operations
   schemas:
     RegisterRequest:
       type: object
@@ -485,8 +494,6 @@ components:
           maxLength: 100
           description: Password for the account.
           example: password123
-        role:
-          $ref: '#/components/schemas/UserRole'
     LoginRequest:
       type: object
       required:
@@ -526,7 +533,6 @@ components:
       required:
         - id
         - username
-        - role
       properties:
         id:
           type: string
@@ -537,8 +543,6 @@ components:
           type: string
           description: Registered username.
           example: alice
-        role:
-          $ref: '#/components/schemas/UserRole'
     Todo:
       type: object
       required:
@@ -697,12 +701,6 @@ components:
           minimum: 1
           description: Maximum number of active (uncompleted) todos allowed.
           example: 10
-    UserRole:
-      type: string
-      enum:
-        - USER
-        - ADMIN
-      example: USER
     AdminSettingsResponse:
       type: object
       required:

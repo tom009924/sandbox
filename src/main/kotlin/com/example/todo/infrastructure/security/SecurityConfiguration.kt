@@ -2,6 +2,7 @@ package com.example.todo.infrastructure.security
 
 import com.example.todo.domain.security.PasswordEncoder
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -20,6 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfiguration(
     private val jwtTokenProvider: JwtTokenProvider,
     private val objectMapper: ObjectMapper,
+    @Value("\${todo.security.admin-api-key:admin-secret-key}")
+    private val adminApiKey: String,
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder {
@@ -62,6 +65,7 @@ class SecurityConfiguration(
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         val jwtFilter = JwtAuthenticationFilter(jwtTokenProvider)
+        val adminFilter = AdminApiKeyFilter(adminApiKey, objectMapper)
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -75,6 +79,7 @@ class SecurityConfiguration(
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.anyRequest().authenticated()
             }
+            .addFilterBefore(adminFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()

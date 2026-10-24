@@ -6,6 +6,4 @@ data class User(
     val id: UUID? = null,
     val username: String,
     val passwordHash: String,
-    val role: UserRole = UserRole.USER,
 )
-

@@ -298,9 +298,9 @@ object TodoApiTestCases {
         AcceptanceCriterion(
             operationId = "getAdminSettings",
             statusCode = 401,
-            summary = "Missing or invalid Bearer authentication token",
+            summary = "Missing or invalid X-Admin-Key header",
             scenarios = listOf(
-                "Reject unauthenticated request without token",
+                "Reject unauthenticated request without admin key",
             ),
         ),
         AcceptanceCriterion(
@@ -308,7 +308,7 @@ object TodoApiTestCases {
             statusCode = 403,
             summary = "Access denied",
             scenarios = listOf(
-                "Reject regular user access without ADMIN role",
+                "Reject request with invalid X-Admin-Key",
             ),
         ),
         AcceptanceCriterion(
@@ -316,7 +316,7 @@ object TodoApiTestCases {
             statusCode = 200,
             summary = "System settings updated",
             scenarios = listOf(
-                "Update system settings by admin user",
+                "Update system settings with valid admin key",
                 "Boundary minimum maxAllowedActiveTodos (1)",
             ),
         ),
@@ -333,9 +333,9 @@ object TodoApiTestCases {
         AcceptanceCriterion(
             operationId = "updateAdminSettings",
             statusCode = 401,
-            summary = "Missing or invalid Bearer authentication token",
+            summary = "Missing or invalid X-Admin-Key header",
             scenarios = listOf(
-                "Reject unauthenticated request without token",
+                "Reject unauthenticated request without admin key",
             ),
         ),
         AcceptanceCriterion(
@@ -343,7 +343,7 @@ object TodoApiTestCases {
             statusCode = 403,
             summary = "Access denied",
             scenarios = listOf(
-                "Reject regular user access without ADMIN role",
+                "Reject request with invalid X-Admin-Key",
             ),
         ),
     )
