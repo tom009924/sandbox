@@ -7,7 +7,6 @@ import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
-import com.example.todo.infrastructure.persistence.SpringDataAdminSettingsRepository
 import com.example.todo.infrastructure.persistence.SpringDataUserSettingsRepository
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.security.JwtTokenProvider
@@ -46,7 +45,6 @@ class TodoApiIntegrationTest @Autowired constructor(
     private val pubSubReceiver: PubSubTestReceiver,
     private val jwtTokenProvider: JwtTokenProvider,
     private val springDataUserSettingsRepository: SpringDataUserSettingsRepository,
-    private val springDataAdminSettingsRepository: SpringDataAdminSettingsRepository,
 ) {
     @LocalServerPort
     private var port: Int = 0
@@ -59,7 +57,6 @@ class TodoApiIntegrationTest @Autowired constructor(
         todoRepository.findAll().forEach(todoRepository::delete)
         userRepository.deleteAll()
         springDataUserSettingsRepository.deleteAll()
-        springDataAdminSettingsRepository.deleteAll()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -210,15 +207,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         validatedRequest(token = null)
             .`when`()
-            .get("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.UNAUTHORIZED.value())
-
-        validatedRequest(token = null)
-            .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""")
-            .`when`()
-            .put("/api/admin/settings")
+            .get("/api/admin/stats")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
     }
@@ -510,7 +499,6 @@ class TodoApiIntegrationTest @Autowired constructor(
         val request = when {
             tc.operationId == "createTodo" -> validatedPostRequest()
             tc.operationId in listOf("registerUser", "loginUser") -> validatedRequest(token = null)
-            tc.operationId == "updateAdminSettings" -> validatedAdminRequest()
             else -> validatedRequest()
         }
 
@@ -817,68 +805,44 @@ class TodoApiIntegrationTest @Autowired constructor(
     fun adminEndpointsRejectInvalidApiKey() {
         validatedRequest(token = defaultToken)
             .`when`()
-            .get("/api/admin/settings")
+            .get("/api/admin/stats")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
 
         validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
             .`when`()
-            .get("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.FORBIDDEN.value())
-
-        validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
-            .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":true}""")
-            .`when`()
-            .put("/api/admin/settings")
+            .get("/api/admin/stats")
             .then()
             .statusCode(HttpStatus.FORBIDDEN.value())
     }
 
     @Test
-    fun getAdminSettingsReturnsDefaultsWhenUnconfigured() {
-        validatedAdminRequest()
-            .`when`()
-            .get("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("maxAllowedActiveTodos", equalTo(DEFAULT_MAX_ALLOWED_ACTIVE_TODOS))
-            .body("allowUserRegistration", equalTo(true))
-    }
-
-    @Test
-    fun updateAdminSettingsAcceptsBoundaryValues() {
-        validatedAdminRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":1,"allowUserRegistration":false}""")
-            .`when`()
-            .put("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("maxAllowedActiveTodos", equalTo(1))
-            .body("allowUserRegistration", equalTo(false))
-    }
-
-    @Test
-    fun updateAndGetAdminSettings() {
-        validatedAdminRequest()
-            .contentType(ContentType.JSON)
-            .body("""{"maxAllowedActiveTodos":50,"allowUserRegistration":false}""")
-            .`when`()
-            .put("/api/admin/settings")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
-            .body("allowUserRegistration", equalTo(false))
+    fun getAdminStatsReturnsAggregateMetrics() {
+        // Create an uncompleted todo and a completed todo
+        todoRepository.save(
+            Todo(
+                userId = defaultUserId,
+                title = "Uncompleted task",
+                completed = false,
+            ),
+        )
+        todoRepository.save(
+            Todo(
+                userId = defaultUserId,
+                title = "Completed task",
+                completed = true,
+            ),
+        )
 
         validatedAdminRequest()
             .`when`()
-            .get("/api/admin/settings")
+            .get("/api/admin/stats")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("maxAllowedActiveTodos", equalTo(UPDATED_ADMIN_MAX_ACTIVE_TODOS))
-            .body("allowUserRegistration", equalTo(false))
+            .body("totalUsers", equalTo(1))
+            .body("totalTodos", equalTo(2))
+            .body("completedTodos", equalTo(1))
+            .body("activeTodos", equalTo(1))
     }
 
     private fun assertStoredTodo(id: UUID, expected: Todo) {
@@ -962,8 +926,6 @@ class TodoApiIntegrationTest @Autowired constructor(
     private companion object {
         const val VALID_ADMIN_KEY = "admin-secret-key"
         const val INVALID_ADMIN_KEY = "wrong-admin-key"
-        const val DEFAULT_MAX_ALLOWED_ACTIVE_TODOS = 100
-        const val UPDATED_ADMIN_MAX_ACTIVE_TODOS = 50
         const val DEFAULT_TOKEN_EXPIRES_IN = 86400
         const val SHORT_WAIT_TIMEOUT_MS = 500L
         const val ESTIMATED_MINUTES = 30

@@ -12,6 +12,8 @@ interface UserRepository {
 
     fun save(user: User): User
 
+    fun count(): Long
+
     fun deleteAll()
 }
 

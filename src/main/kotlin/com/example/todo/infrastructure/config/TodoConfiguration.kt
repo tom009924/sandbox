@@ -1,12 +1,11 @@
 package com.example.todo.infrastructure.config
 
-import com.example.todo.application.AdminSettingsService
+import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AuthService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
 import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.event.TodoEventPublisher
-import com.example.todo.domain.repository.AdminSettingsRepository
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
@@ -49,9 +48,10 @@ class TodoConfiguration {
         userSettingsRepository: UserSettingsRepository,
     ) = UserSettingsService(userSettingsRepository)
     @Bean
-    fun adminSettingsService(
-        adminSettingsRepository: AdminSettingsRepository,
-    ) = AdminSettingsService(adminSettingsRepository)
+    fun adminStatsService(
+        userRepository: UserRepository,
+        todoRepository: TodoRepository,
+    ) = AdminStatsService(userRepository, todoRepository)
 
     @Bean
     fun authService(

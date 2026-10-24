@@ -19,7 +19,7 @@ tags:
   - name: Settings
     description: User settings and preferences
   - name: Admin
-    description: System administration and settings
+    description: System administration and metrics
 paths:
   /api/auth/register:
     post:
@@ -376,73 +376,22 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/admin/settings:
+  /api/admin/stats:
     get:
       tags:
         - Admin
-      summary: Get system settings
-      description: Retrieve system-wide administrative settings. Requires X-Admin-Key header.
-      operationId: getAdminSettings
+      summary: Get system statistics
+      description: Retrieve system-wide usage statistics. Requires X-Admin-Key header.
+      operationId: getAdminStats
       security:
         - adminApiKey: []
       responses:
         '200':
-          description: System settings retrieved successfully
+          description: System statistics retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AdminSettingsResponse'
-        '401':
-          description: Missing or invalid X-Admin-Key header
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Access denied. Invalid X-Admin-Key.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    put:
-      tags:
-        - Admin
-      summary: Update system settings
-      description: Update system-wide administrative settings. Requires X-Admin-Key header.
-      operationId: updateAdminSettings
-      security:
-        - adminApiKey: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateAdminSettingsRequest'
-            example:
-              maxAllowedActiveTodos: 50
-              allowUserRegistration: true
-      responses:
-        '200':
-          description: System settings updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminSettingsResponse'
-        '400':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/AdminStatsResponse'
         '401':
           description: Missing or invalid X-Admin-Key header
           content:
@@ -701,35 +650,35 @@ components:
           minimum: 1
           description: Maximum number of active (uncompleted) todos allowed.
           example: 10
-    AdminSettingsResponse:
+    AdminStatsResponse:
       type: object
       required:
-        - maxAllowedActiveTodos
-        - allowUserRegistration
+        - totalUsers
+        - totalTodos
+        - completedTodos
+        - activeTodos
       properties:
-        maxAllowedActiveTodos:
+        totalUsers:
           type: integer
-          format: int32
-          minimum: 1
-          description: Maximum number of active todos any user is allowed to configure.
-          example: 100
-        allowUserRegistration:
-          type: boolean
-          description: Whether new user registrations are permitted.
-          example: true
-    UpdateAdminSettingsRequest:
-      type: object
-      required:
-        - maxAllowedActiveTodos
-        - allowUserRegistration
-      properties:
-        maxAllowedActiveTodos:
+          format: int64
+          minimum: 0
+          description: Total registered users count.
+          example: 10
+        totalTodos:
           type: integer
-          format: int32
-          minimum: 1
-          description: Maximum number of active todos any user is allowed to configure.
-          example: 100
-        allowUserRegistration:
-          type: boolean
-          description: Whether new user registrations are permitted.
-          example: true
+          format: int64
+          minimum: 0
+          description: Total todos count across all users.
+          example: 45
+        completedTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Total completed todos count.
+          example: 20
+        activeTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Total active todos count.
+          example: 25

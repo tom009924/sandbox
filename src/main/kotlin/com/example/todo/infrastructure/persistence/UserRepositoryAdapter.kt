@@ -24,6 +24,8 @@ class UserRepositoryAdapter(
         return saved.toDomain()
     }
 
+    override fun count(): Long = springDataUserRepository.count()
+
     override fun deleteAll() {
         springDataUserRepository.deleteAll()
     }

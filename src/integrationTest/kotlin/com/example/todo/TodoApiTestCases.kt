@@ -288,15 +288,15 @@ object TodoApiTestCases {
             ),
         ),
         AcceptanceCriterion(
-            operationId = "getAdminSettings",
+            operationId = "getAdminStats",
             statusCode = 200,
-            summary = "System settings retrieved",
+            summary = "System statistics retrieved",
             scenarios = listOf(
-                "Retrieve system settings by admin user, returning defaults when unconfigured",
+                "Retrieve system statistics with valid admin key",
             ),
         ),
         AcceptanceCriterion(
-            operationId = "getAdminSettings",
+            operationId = "getAdminStats",
             statusCode = 401,
             summary = "Missing or invalid X-Admin-Key header",
             scenarios = listOf(
@@ -304,42 +304,7 @@ object TodoApiTestCases {
             ),
         ),
         AcceptanceCriterion(
-            operationId = "getAdminSettings",
-            statusCode = 403,
-            summary = "Access denied",
-            scenarios = listOf(
-                "Reject request with invalid X-Admin-Key",
-            ),
-        ),
-        AcceptanceCriterion(
-            operationId = "updateAdminSettings",
-            statusCode = 200,
-            summary = "System settings updated",
-            scenarios = listOf(
-                "Update system settings with valid admin key",
-                "Boundary minimum maxAllowedActiveTodos (1)",
-            ),
-        ),
-        AcceptanceCriterion(
-            operationId = "updateAdminSettings",
-            statusCode = 400,
-            summary = "Invalid request body",
-            scenarios = listOf(
-                "Missing required field maxAllowedActiveTodos",
-                "Missing required field allowUserRegistration",
-                "Zero maxAllowedActiveTodos (below minimum 1)",
-            ),
-        ),
-        AcceptanceCriterion(
-            operationId = "updateAdminSettings",
-            statusCode = 401,
-            summary = "Missing or invalid X-Admin-Key header",
-            scenarios = listOf(
-                "Reject unauthenticated request without admin key",
-            ),
-        ),
-        AcceptanceCriterion(
-            operationId = "updateAdminSettings",
+            operationId = "getAdminStats",
             statusCode = 403,
             summary = "Access denied",
             scenarios = listOf(
@@ -355,7 +320,6 @@ object TodoApiTestCases {
     fun validationErrorTestCases(): List<ValidationErrorTestCase> =
         postValidationErrorCases() +
             putValidationErrorCases() +
-            adminSettingsValidationErrorCases() +
             authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
@@ -487,30 +451,6 @@ object TodoApiTestCases {
             method = PathItem.HttpMethod.PUT,
             pathProvider = { "/api/user/settings" },
             requestBody = """{"defaultPriority":"HIGH","maxActiveTodos":0}""",
-        ),
-    )
-
-    private fun adminSettingsValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
-        ValidationErrorTestCase(
-            operationId = "updateAdminSettings",
-            description = "Missing maxAllowedActiveTodos",
-            method = PathItem.HttpMethod.PUT,
-            pathProvider = { "/api/admin/settings" },
-            requestBody = """{"allowUserRegistration":true}""",
-        ),
-        ValidationErrorTestCase(
-            operationId = "updateAdminSettings",
-            description = "Missing allowUserRegistration",
-            method = PathItem.HttpMethod.PUT,
-            pathProvider = { "/api/admin/settings" },
-            requestBody = """{"maxAllowedActiveTodos":50}""",
-        ),
-        ValidationErrorTestCase(
-            operationId = "updateAdminSettings",
-            description = "Zero maxAllowedActiveTodos",
-            method = PathItem.HttpMethod.PUT,
-            pathProvider = { "/api/admin/settings" },
-            requestBody = """{"maxAllowedActiveTodos":0,"allowUserRegistration":true}""",
         ),
     )
 

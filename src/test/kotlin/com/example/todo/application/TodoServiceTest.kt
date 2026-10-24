@@ -253,6 +253,11 @@ class TodoServiceTest {
         override fun countByUserIdAndCompletedFalse(userId: UUID): Long =
             todos.values.count { it.userId == userId && !it.completed }.toLong()
 
+        override fun count(): Long = todos.size.toLong()
+
+        override fun countByCompleted(completed: Boolean): Long =
+            todos.values.count { it.completed == completed }.toLong()
+
         override fun save(todo: Todo): Todo {
             val saved = todo.copy(id = todo.id ?: UUID.randomUUID())
             todos[requireNotNull(saved.id)] = saved
