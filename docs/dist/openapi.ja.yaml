@@ -1,0 +1,500 @@
+openapi: 3.0.3
+info:
+  title: Todo API
+  version: 1.0.0
+  description: REST API によるTODOタスク管理サービス。
+  contact:
+    name: Todo API Team
+    email: support@example.com
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+security:
+  - bearerAuth: []
+tags:
+  - name: Todos
+    description: TODOタスクの管理
+  - name: Auth
+    description: ユーザー認証および登録
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: 新規ユーザー登録
+      description: 一意の認証情報を用いて新規ユーザーアカウントを登録します。
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '201':
+          description: ユーザー登録完了
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: 不正なリクエストボディ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 指定されたユーザー名は既に登録済みです
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: ユーザーログイン
+      description: ユーザー認証情報を検証し、Bearer JWTアクセストークンを発行します。
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: alice
+              password: password123
+      responses:
+        '200':
+          description: 認証成功（トークン発行）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: 不正なリクエストボディ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: ユーザー名またはパスワードが無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos:
+    get:
+      tags:
+        - Todos
+      summary: TODO一覧取得
+      description: 認証済みユーザーの全TODOタスク一覧を取得します。
+      operationId: listTodos
+      responses:
+        '200':
+          description: TODOタスク一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Todos
+      summary: TODO作成
+      description: 冪等性キー（Idempotency-Key）を指定して新しいTODOタスクを作成します。
+      operationId: createTodo
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: 大文字小文字を区別するリクエスト識別キー。同一キーかつ同一リクエスト内容の場合、24時間以内であれば最初の201レスポンスを再返却します。異なる内容でキーを再利用した場合は409 Conflictを返します。
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+            pattern: .*\S.*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoRequest'
+            example:
+              title: Buy milk
+              description: Buy before the weekend
+              dueDate: '2025-04-18'
+              priority: HIGH
+              estimatedMinutes: 30
+      responses:
+        '201':
+          description: TODO作成完了
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Idempotency-Keyが未指定または不正、あるいはリクエストボディが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 指定されたIdempotency-Keyは既に異なるリクエスト内容で使用されています
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: TODOタスクの一意識別子 (UUID)
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Todos
+      summary: TODO詳細取得
+      description: 指定されたIDのTODOタスクを1件取得します。
+      operationId: getTodo
+      responses:
+        '200':
+          description: TODOタスク取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 指定されたTODOタスクが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Todos
+      summary: TODO更新
+      description: 指定されたIDのTODOタスクを更新します。
+      operationId: updateTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoRequest'
+            example:
+              title: Buy milk
+              completed: true
+              description: Purchased
+              dueDate: '2025-04-18'
+              priority: LOW
+              estimatedMinutes: 30
+      responses:
+        '200':
+          description: TODO更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: 不正なリクエストボディ（空白のみのタイトルなど）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 指定されたTODOタスクが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Todos
+      summary: TODO削除
+      description: 指定されたIDのTODOタスクを削除します。
+      operationId: deleteTodo
+      responses:
+        '204':
+          description: TODO削除完了
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 指定されたTODOタスクが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: /api/auth/login より取得したJWT Bearerトークン
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          pattern: .*\S.*
+          minLength: 3
+          maxLength: 50
+          description: アカウントの一意なユーザー名
+          example: alice
+        password:
+          type: string
+          pattern: .*\S.*
+          minLength: 6
+          maxLength: 100
+          description: アカウントのパスワード
+          example: password123
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 登録済みアカウントのユーザー名
+          example: alice
+        password:
+          type: string
+          description: アカウントのパスワード
+          example: password123
+    AuthTokenResponse:
+      type: object
+      required:
+        - token
+        - tokenType
+        - expiresIn
+      properties:
+        token:
+          type: string
+          description: 署名済みJWTアクセストークン
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+        tokenType:
+          type: string
+          description: Authorizationヘッダーで使用するトークンタイププレフィックス (Bearer)
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: トークンの有効期間（秒数）
+          example: 86400
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ユーザーの一意識別子 (UUID)
+          example: 550e8400-e29b-41d4-a716-446655440000
+        username:
+          type: string
+          description: 登録されたユーザー名
+          example: alice
+    Todo:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - completed
+        - description
+        - dueDate
+        - priority
+        - estimatedMinutes
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        title:
+          type: string
+          example: Buy milk
+        completed:
+          type: boolean
+          example: false
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          example: 30
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+    CreateTodoRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
+          example: Buy milk
+        description:
+          type: string
+          nullable: true
+          example: Buy before the weekend
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TodoPriority'
+          default: MEDIUM
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
+    UpdateTodoRequest:
+      type: object
+      required:
+        - title
+        - completed
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
+          example: Buy milk
+        completed:
+          type: boolean
+          example: true
+        description:
+          type: string
+          nullable: true
+          example: Purchased
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/TodoPriority'
+          default: MEDIUM
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 30
+    TodoPriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+      default: MEDIUM

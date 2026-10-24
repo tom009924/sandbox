@@ -254,16 +254,31 @@ val npmInstall = tasks.register<Exec>("npmInstall") {
     onlyIf { !file("node_modules").exists() }
 }
 
+val bundleOpenApiJa = tasks.register<Exec>("bundleOpenApiJa") {
+    description = "Bundles Japanese OpenAPI specification using OpenAPI Overlays via Redocly CLI."
+    group = "documentation"
+    dependsOn(npmInstall)
+    setupNodeEnvironment()
+    commandLine(npmExecutable, "run", "bundle:openapi:ja")
+    inputs.file("docs/openapi.yaml")
+    inputs.file("docs/overlays/ja.yaml")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
+    outputs.file("docs/dist/openapi.ja.yaml")
+}
+
 val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     description = "Lints OpenAPI specifications using Stoplight Spectral."
     group = "verification"
-    dependsOn(npmInstall)
+    dependsOn(npmInstall, bundleOpenApiJa)
     setupNodeEnvironment()
     commandLine(npmExecutable, "run", "lint:openapi")
     inputs.file("docs/openapi.yaml")
+    inputs.file("docs/overlays/ja.yaml")
     inputs.file(".spectral.yaml")
     inputs.file("package.json")
     inputs.file("package-lock.json")
+    outputs.file("docs/dist/openapi.ja.yaml")
 }
 
 tasks.bootJar {

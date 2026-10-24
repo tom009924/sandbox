@@ -1,0 +1,126 @@
+overlay: 1.0.0
+info:
+  title: Japanese Translation Overlay
+  version: 1.0.0
+actions:
+  # Info & Tags
+  - target: $.info.description
+    update: REST API によるTODOタスク管理サービス。
+  - target: $.tags[?(@.name=='Todos')].description
+    update: TODOタスクの管理
+  - target: $.tags[?(@.name=='Auth')].description
+    update: ユーザー認証および登録
+
+  # /api/auth/register
+  - target: $.paths['/api/auth/register'].post.summary
+    update: 新規ユーザー登録
+  - target: $.paths['/api/auth/register'].post.description
+    update: 一意の認証情報を用いて新規ユーザーアカウントを登録します。
+  - target: $.paths['/api/auth/register'].post.responses['201'].description
+    update: ユーザー登録完了
+  - target: $.paths['/api/auth/register'].post.responses['400'].description
+    update: 不正なリクエストボディ
+  - target: $.paths['/api/auth/register'].post.responses['409'].description
+    update: 指定されたユーザー名は既に登録済みです
+
+  # /api/auth/login
+  - target: $.paths['/api/auth/login'].post.summary
+    update: ユーザーログイン
+  - target: $.paths['/api/auth/login'].post.description
+    update: ユーザー認証情報を検証し、Bearer JWTアクセストークンを発行します。
+  - target: $.paths['/api/auth/login'].post.responses['200'].description
+    update: 認証成功（トークン発行）
+  - target: $.paths['/api/auth/login'].post.responses['400'].description
+    update: 不正なリクエストボディ
+  - target: $.paths['/api/auth/login'].post.responses['401'].description
+    update: ユーザー名またはパスワードが無効です
+
+  # /api/todos
+  - target: $.paths['/api/todos'].get.summary
+    update: TODO一覧取得
+  - target: $.paths['/api/todos'].get.description
+    update: 認証済みユーザーの全TODOタスク一覧を取得します。
+  - target: $.paths['/api/todos'].get.responses['200'].description
+    update: TODOタスク一覧
+  - target: $.paths['/api/todos'].get.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+
+  - target: $.paths['/api/todos'].post.summary
+    update: TODO作成
+  - target: $.paths['/api/todos'].post.description
+    update: 冪等性キー（Idempotency-Key）を指定して新しいTODOタスクを作成します。
+  - target: $.paths['/api/todos'].post.parameters[?(@.name=='Idempotency-Key')].description
+    update: 大文字小文字を区別するリクエスト識別キー。同一キーかつ同一リクエスト内容の場合、24時間以内であれば最初の201レスポンスを再返却します。異なる内容でキーを再利用した場合は409 Conflictを返します。
+  - target: $.paths['/api/todos'].post.responses['201'].description
+    update: TODO作成完了
+  - target: $.paths['/api/todos'].post.responses['400'].description
+    update: Idempotency-Keyが未指定または不正、あるいはリクエストボディが不正です
+  - target: $.paths['/api/todos'].post.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+  - target: $.paths['/api/todos'].post.responses['409'].description
+    update: 指定されたIdempotency-Keyは既に異なるリクエスト内容で使用されています
+
+  # /api/todos/{id}
+  - target: $.paths['/api/todos/{id}'].parameters[?(@.name=='id')].description
+    update: TODOタスクの一意識別子 (UUID)
+  - target: $.paths['/api/todos/{id}'].get.summary
+    update: TODO詳細取得
+  - target: $.paths['/api/todos/{id}'].get.description
+    update: 指定されたIDのTODOタスクを1件取得します。
+  - target: $.paths['/api/todos/{id}'].get.responses['200'].description
+    update: TODOタスク取得成功
+  - target: $.paths['/api/todos/{id}'].get.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+  - target: $.paths['/api/todos/{id}'].get.responses['404'].description
+    update: 指定されたTODOタスクが見つかりません
+
+  - target: $.paths['/api/todos/{id}'].put.summary
+    update: TODO更新
+  - target: $.paths['/api/todos/{id}'].put.description
+    update: 指定されたIDのTODOタスクを更新します。
+  - target: $.paths['/api/todos/{id}'].put.responses['200'].description
+    update: TODO更新成功
+  - target: $.paths['/api/todos/{id}'].put.responses['400'].description
+    update: 不正なリクエストボディ（空白のみのタイトルなど）
+  - target: $.paths['/api/todos/{id}'].put.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+  - target: $.paths['/api/todos/{id}'].put.responses['404'].description
+    update: 指定されたTODOタスクが見つかりません
+
+  - target: $.paths['/api/todos/{id}'].delete.summary
+    update: TODO削除
+  - target: $.paths['/api/todos/{id}'].delete.description
+    update: 指定されたIDのTODOタスクを削除します。
+  - target: $.paths['/api/todos/{id}'].delete.responses['204'].description
+    update: TODO削除完了
+  - target: $.paths['/api/todos/{id}'].delete.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+  - target: $.paths['/api/todos/{id}'].delete.responses['404'].description
+    update: 指定されたTODOタスクが見つかりません
+
+  # Components
+  - target: $.components.securitySchemes.bearerAuth.description
+    update: /api/auth/login より取得したJWT Bearerトークン
+  - target: $.components.schemas.RegisterRequest.properties.username.description
+    update: アカウントの一意なユーザー名
+  - target: $.components.schemas.RegisterRequest.properties.password.description
+    update: アカウントのパスワード
+  - target: $.components.schemas.LoginRequest.properties.username.description
+    update: 登録済みアカウントのユーザー名
+  - target: $.components.schemas.LoginRequest.properties.password.description
+    update: アカウントのパスワード
+  - target: $.components.schemas.AuthTokenResponse.properties.token.description
+    update: 署名済みJWTアクセストークン
+  - target: $.components.schemas.AuthTokenResponse.properties.tokenType.description
+    update: Authorizationヘッダーで使用するトークンタイププレフィックス (Bearer)
+  - target: $.components.schemas.AuthTokenResponse.properties.expiresIn.description
+    update: トークンの有効期間（秒数）
+  - target: $.components.schemas.UserResponse.properties.id.description
+    update: ユーザーの一意識別子 (UUID)
+  - target: $.components.schemas.UserResponse.properties.username.description
+    update: 登録されたユーザー名
+  - target: $.components.schemas.CreateTodoRequest.properties.title.description
+    update: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
+  - target: $.components.schemas.UpdateTodoRequest.properties.title.description
+    update: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
+
