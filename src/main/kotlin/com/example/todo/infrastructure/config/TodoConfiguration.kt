@@ -48,7 +48,6 @@ class TodoConfiguration {
     fun userSettingsService(
         userSettingsRepository: UserSettingsRepository,
     ) = UserSettingsService(userSettingsRepository)
-
     @Bean
     fun adminSettingsService(
         adminSettingsRepository: AdminSettingsRepository,
