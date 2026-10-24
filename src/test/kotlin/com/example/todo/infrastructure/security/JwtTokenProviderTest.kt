@@ -71,6 +71,18 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    fun `validate returns null when subject is not a valid UUID`() {
+        val key = Keys.hmacShaKeyFor(secret.toByteArray(StandardCharsets.UTF_8))
+        val tokenWithInvalidUuidSubject = Jwts.builder()
+            .subject("not-a-valid-uuid")
+            .claim("username", "frank")
+            .signWith(key)
+            .compact()
+
+        assertNull(provider.validateAndGetPrincipal(tokenWithInvalidUuidSubject))
+    }
+
+    @Test
     fun `validate returns null when token is expired`() {
         val key = Keys.hmacShaKeyFor(secret.toByteArray(StandardCharsets.UTF_8))
         val expiredToken = Jwts.builder()
