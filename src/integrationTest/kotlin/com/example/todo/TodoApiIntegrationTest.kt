@@ -210,6 +210,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .get("/api/admin/stats")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
+            .`when`()
+            .get("/api/admin/users")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
     }
 
     @Test
@@ -809,9 +815,21 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
 
+        validatedRequest(token = defaultToken)
+            .`when`()
+            .get("/api/admin/users")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
         validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
             .`when`()
             .get("/api/admin/stats")
+            .then()
+            .statusCode(HttpStatus.FORBIDDEN.value())
+
+        validatedAdminRequest(adminKey = INVALID_ADMIN_KEY)
+            .`when`()
+            .get("/api/admin/users")
             .then()
             .statusCode(HttpStatus.FORBIDDEN.value())
     }
@@ -843,6 +861,18 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("totalTodos", equalTo(2))
             .body("completedTodos", equalTo(1))
             .body("activeTodos", equalTo(1))
+    }
+
+    @Test
+    fun getAdminUsersReturnsRegisteredUsers() {
+        validatedAdminRequest()
+            .`when`()
+            .get("/api/admin/users")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(1))
+            .body("[0].id", equalTo(defaultUserId.toString()))
+            .body("[0].username", equalTo("default_user"))
     }
 
     private fun assertStoredTodo(id: UUID, expected: Todo) {

@@ -6,6 +6,8 @@ import java.util.UUID
 interface UserRepository {
     fun findById(id: UUID): User?
 
+    fun findAll(): List<User>
+
     fun findByUsername(username: String): User?
 
     fun existsByUsername(username: String): Boolean
