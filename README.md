@@ -125,6 +125,12 @@ OpenAPI仕様書（`docs/openapi.yaml`）の静的解析（Stoplight Spectralに
 ./gradlew lintOpenApi
 ```
 
+CI では JetBrains Qodana（設定: [`qodana.yaml`](qodana.yaml)）による静的コード解析および品質チェックが `.github/workflows/qodana.yml` で実行されます。ローカルで実行する場合は Docker を利用できます:
+
+```bash
+docker run --rm -v "$(pwd):/data/project" jetbrains/qodana-jvm-community:latest
+```
+
 MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/dist/openapi.admin.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
 
 ```bash
