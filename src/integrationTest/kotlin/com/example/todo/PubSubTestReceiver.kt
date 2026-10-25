@@ -131,6 +131,7 @@ class PubSubTestReceiver(
     /**
      * Pulls up to [maxMessages] events from the subscription, waiting up to [maxWait].
      */
+    @Suppress("DEPRECATION")
     fun pullEvents(
         maxMessages: Int = DEFAULT_MAX_MESSAGES,
         maxWait: Duration = Duration.ofSeconds(DEFAULT_TIMEOUT_SECONDS),
@@ -170,6 +171,7 @@ class PubSubTestReceiver(
     /**
      * Drains and acknowledges all pending messages in the subscription.
      */
+    @Suppress("DEPRECATION")
     fun drain() {
         val stub = subscriberStub ?: return
         while (true) {
