@@ -28,6 +28,8 @@ Use this skill at the start of any repository task that will change files. Estab
    git worktree add -b <branch-name> <sibling-worktree-path> origin/<default-branch>
    ```
 
+   *Note for container environments (Dev Container / Sandbox)*: If creating a directory in the workspace parent (`/workspaces`) fails with permission denied, use a writable path such as `/tmp/<worktree-name>`.
+
 6. Verify that the worktree is on the new branch, based on the latest fetched default branch, and clean. Report the branch and worktree path, then perform all task edits and validation there.
 7. When the task is complete, follow `commit-push-pr` from that worktree. Do not return to the default-branch worktree to finish or deliver the changes.
 
