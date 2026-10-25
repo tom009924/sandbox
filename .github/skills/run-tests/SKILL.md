@@ -52,6 +52,11 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   docker run --rm -v "$(pwd):/data/project" jetbrains/qodana-jvm-community:latest
   ```
   ※ GitHub Actions（`.github/workflows/qodana.yml`）で自動実行されます。ローカルで検証する場合は Docker を使用して実行できます。
+- **Aqua Security Trivy によるセキュリティ・脆弱性検証 (CI / Docker)**:
+  ```bash
+  docker run --rm -v "$(pwd):/project" -w /project aquasec/trivy:latest fs .
+  ```
+  ※ GitHub Actions（`.github/workflows/trivy.yml`）で自動実行されます。既知のトリアージ済み脆弱性は `.trivyignore` で管理されており、新規の CRITICAL / HIGH 脆弱性が検出されるとビルドが失敗（exit-code: 1）します。ローカルで検証する場合は Docker を使用してファイルシステム（依存関係・設定ミス・シークレット）をスキャンできます。
 
 ## エラー発生時のトラブルシューティング
 
