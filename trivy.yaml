@@ -1,0 +1,23 @@
+# Trivy configuration
+severity:
+  - HIGH
+  - CRITICAL
+
+scan:
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+  skip-dirs:
+    - .gradle
+    - build
+    - node_modules
+    - .idea
+
+pkg:
+  types:
+    - os
+    - library
+
+vulnerability:
+  ignore-unfixed: true
