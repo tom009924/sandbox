@@ -219,6 +219,41 @@ object TodoApiTestCases {
             ),
         ),
         AcceptanceCriterion(
+            operationId = "patchTodo",
+            statusCode = 200,
+            summary = "Todo updated",
+            scenarios = listOf(
+                "Partially update stored todo, asserting database record and Pub/Sub event values",
+                "All priority enum values (LOW, MEDIUM, HIGH), asserting database record and Pub/Sub event values",
+                "Boundary minimum estimatedMinutes (0), asserting database record and Pub/Sub event values",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodo",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf(
+                "Blank title",
+                "Negative estimatedMinutes",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodo",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf(
+                "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodo",
+            statusCode = 404,
+            summary = "Todo not found",
+            scenarios = listOf(
+                "Patch missing todo returns 404",
+            ),
+        ),
+        AcceptanceCriterion(
             operationId = "deleteTodo",
             statusCode = 204,
             summary = "Todo deleted",
@@ -344,6 +379,7 @@ object TodoApiTestCases {
     fun validationErrorTestCases(): List<ValidationErrorTestCase> =
         postValidationErrorCases() +
             putValidationErrorCases() +
+            patchValidationErrorCases() +
             authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
@@ -478,6 +514,25 @@ object TodoApiTestCases {
         ),
     )
 
+    private fun patchValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
+        ValidationErrorTestCase(
+            operationId = "patchTodo",
+            description = "Blank title",
+            method = PathItem.HttpMethod.PATCH,
+            pathProvider = { id -> "/api/todos/$id" },
+            requestBody = """{"title":"  "}""",
+            needsExistingTodo = true,
+        ),
+        ValidationErrorTestCase(
+            operationId = "patchTodo",
+            description = "Negative estimatedMinutes",
+            method = PathItem.HttpMethod.PATCH,
+            pathProvider = { id -> "/api/todos/$id" },
+            requestBody = """{"estimatedMinutes":-1}""",
+            needsExistingTodo = true,
+        ),
+    )
+
     @JvmStatic
     fun notFoundTestCases(): List<NotFoundTestCase> = listOf(
         NotFoundTestCase(
@@ -490,6 +545,12 @@ object TodoApiTestCases {
             description = "Update missing todo",
             method = PathItem.HttpMethod.PUT,
             requestBody = """{"title":"Milk bought","completed":true}""",
+        ),
+        NotFoundTestCase(
+            operationId = "patchTodo",
+            description = "Patch missing todo",
+            method = PathItem.HttpMethod.PATCH,
+            requestBody = """{"completed":true}""",
         ),
         NotFoundTestCase(
             operationId = "deleteTodo",

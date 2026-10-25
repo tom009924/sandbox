@@ -42,6 +42,10 @@ actions:
     update: TODO一覧取得
   - target: $.paths['/api/todos'].get.description
     update: 認証済みユーザーの全TODOタスク一覧を取得します。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='completed')].description
+    update: 完了状態でTODOタスクを絞り込みます。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='priority')].description
+    update: 優先度でTODOタスクを絞り込みます。
   - target: $.paths['/api/todos'].get.responses['200'].description
     update: TODOタスク一覧
   - target: $.paths['/api/todos'].get.responses['401'].description
@@ -87,6 +91,19 @@ actions:
   - target: $.paths['/api/todos/{id}'].put.responses['401'].description
     update: Bearer認証トークンが不足しているか無効です
   - target: $.paths['/api/todos/{id}'].put.responses['404'].description
+    update: 指定されたTODOタスクが見つかりません
+
+  - target: $.paths['/api/todos/{id}'].patch.summary
+    update: TODO部分更新
+  - target: $.paths['/api/todos/{id}'].patch.description
+    update: 指定されたIDのTODOタスクを指定された項目のみ部分更新します。
+  - target: $.paths['/api/todos/{id}'].patch.responses['200'].description
+    update: TODO部分更新成功
+  - target: $.paths['/api/todos/{id}'].patch.responses['400'].description
+    update: 不正なリクエストボディ（空白のみのタイトルなど）
+  - target: $.paths['/api/todos/{id}'].patch.responses['401'].description
+    update: Bearer認証トークンが不足しているか無効です
+  - target: $.paths['/api/todos/{id}'].patch.responses['404'].description
     update: 指定されたTODOタスクが見つかりません
 
   - target: $.paths['/api/todos/{id}'].delete.summary

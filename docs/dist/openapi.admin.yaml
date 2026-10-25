@@ -112,6 +112,19 @@ paths:
       summary: List todos
       description: Retrieve a list of all todos for the authenticated user.
       operationId: listTodos
+      parameters:
+        - name: completed
+          in: query
+          required: false
+          description: Filter todos by completion status.
+          schema:
+            type: boolean
+        - name: priority
+          in: query
+          required: false
+          description: Filter todos by priority.
+          schema:
+            $ref: '#/components/schemas/TodoPriority'
       responses:
         '200':
           description: Todo list
@@ -251,6 +264,54 @@ paths:
               dueDate: '2025-04-18'
               priority: LOW
               estimatedMinutes: 30
+      responses:
+        '200':
+          description: Todo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid request body, including a blank title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - Todos
+      summary: Partially update a todo
+      description: Partially update an existing todo by its ID.
+      operationId: patchTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTodoRequest'
+            example:
+              completed: true
       responses:
         '200':
           description: Todo updated
@@ -631,6 +692,34 @@ components:
           type: integer
           format: int32
           minimum: 0
+          example: 30
+    PatchTodoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
+          example: Buy milk
+        completed:
+          type: boolean
+          example: true
+        description:
+          type: string
+          nullable: true
+          example: Purchased
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
           example: 30
     TodoPriority:
       type: string

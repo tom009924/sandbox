@@ -110,6 +110,19 @@ paths:
       summary: TODO一覧取得
       description: 認証済みユーザーの全TODOタスク一覧を取得します。
       operationId: listTodos
+      parameters:
+        - name: completed
+          in: query
+          required: false
+          description: 完了状態でTODOタスクを絞り込みます。
+          schema:
+            type: boolean
+        - name: priority
+          in: query
+          required: false
+          description: 優先度でTODOタスクを絞り込みます。
+          schema:
+            $ref: '#/components/schemas/TodoPriority'
       responses:
         '200':
           description: TODOタスク一覧
@@ -252,6 +265,54 @@ paths:
       responses:
         '200':
           description: TODO更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: 不正なリクエストボディ（空白のみのタイトルなど）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 指定されたTODOタスクが見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - Todos
+      summary: TODO部分更新
+      description: 指定されたIDのTODOタスクを指定された項目のみ部分更新します。
+      operationId: patchTodo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTodoRequest'
+            example:
+              completed: true
+      responses:
+        '200':
+          description: TODO部分更新成功
           content:
             application/json:
               schema:
@@ -554,6 +615,34 @@ components:
           type: integer
           format: int32
           minimum: 0
+          example: 30
+    PatchTodoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          pattern: .*\S.*
+          description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
+          example: Buy milk
+        completed:
+          type: boolean
+          example: true
+        description:
+          type: string
+          nullable: true
+          example: Purchased
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2025-04-18'
+        priority:
+          $ref: '#/components/schemas/TodoPriority'
+        estimatedMinutes:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
           example: 30
     TodoPriority:
       type: string

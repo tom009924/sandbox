@@ -100,6 +100,75 @@ class TodoServiceTest {
     }
 
     @Test
+    fun `patch partially updates fields and keeps other fields`() {
+        val created = service.create(
+            userId,
+            TodoCommand(
+                title = "Initial Title",
+                description = "Initial Description",
+                dueDate = LocalDate.parse("2025-04-18"),
+                priority = TodoPriority.LOW,
+                estimatedMinutes = 15,
+            ),
+        )
+        val todoId = requireNotNull(created.id)
+
+        val patched = service.patch(
+            todoId,
+            userId,
+            PatchTodoCommand(completed = true, priority = TodoPriority.HIGH),
+        )
+
+        assertEquals("Initial Title", patched.title)
+        assertTrue(patched.completed)
+        assertEquals("Initial Description", patched.description)
+        assertEquals(LocalDate.parse("2025-04-18"), patched.dueDate)
+        assertEquals(TodoPriority.HIGH, patched.priority)
+        assertEquals(15, patched.estimatedMinutes)
+
+        val event = eventPublisher.publishedEvents.last()
+        assertEquals(TodoEventType.UPDATED, event.eventType)
+        assertEquals(todoId, event.todoId)
+    }
+
+    @Test
+    fun `patch reactivating completed todo rejects when active limit is reached`() {
+        userSettingsRepository.save(
+            UserSettings(
+                userId = userId,
+                maxActiveTodos = 1,
+            ),
+        )
+        service.create(userId, TodoCommand(title = "Task 1"))
+        val todo2 = service.create(userId, TodoCommand(title = "Task 2", completed = true))
+
+        assertThrows(ActiveTodosLimitExceededException::class.java) {
+            service.patch(
+                requireNotNull(todo2.id),
+                userId,
+                PatchTodoCommand(completed = false),
+            )
+        }
+    }
+
+    @Test
+    fun `list with completed and priority filters`() {
+        service.create(userId, TodoCommand(title = "Task 1", completed = false, priority = TodoPriority.LOW))
+        service.create(userId, TodoCommand(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
+        service.create(userId, TodoCommand(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
+
+        val completedHigh = service.list(userId, completed = true, priority = TodoPriority.HIGH)
+        assertEquals(1, completedHigh.size)
+        assertEquals("Task 2", completedHigh.first().title)
+
+        val uncompleted = service.list(userId, completed = false)
+        assertEquals(2, uncompleted.size)
+
+        val highOnly = service.list(userId, priority = TodoPriority.HIGH)
+        assertEquals(2, highOnly.size)
+    }
+
+    @Test
     fun `missing todo raises domain exception`() {
         assertThrows(TodoNotFoundException::class.java) {
             service.get(UUID.randomUUID(), userId)
@@ -242,8 +311,16 @@ class TodoServiceTest {
 
         override fun findAll(): List<Todo> = todos.values.toList()
 
-        override fun findAllByUserId(userId: UUID): List<Todo> =
-            todos.values.filter { it.userId == userId }
+        override fun findAllByUserId(
+            userId: UUID,
+            completed: Boolean?,
+            priority: TodoPriority?,
+        ): List<Todo> =
+            todos.values.filter {
+                it.userId == userId &&
+                    (completed == null || it.completed == completed) &&
+                    (priority == null || it.priority == priority)
+            }
 
         override fun findById(id: UUID): Todo? = todos[id]
 
