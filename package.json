@@ -9,7 +9,9 @@
     "bundle:openapi": "npm run bundle:openapi:public && npm run bundle:openapi:admin && npm run bundle:openapi:ja",
     "lint:arazzo": "redocly lint docs/workflows/*.arazzo.yaml",
     "lint:openapi": "npm run bundle:openapi && spectral lint docs/openapi.yaml docs/dist/openapi.yaml docs/dist/openapi.admin.yaml docs/dist/openapi.ja.yaml --ruleset .spectral.yaml --fail-severity=warn && npm run lint:arazzo",
-    "test:arazzo": "redocly respect docs/workflows/todo-workflows.arazzo.yaml --server ${SERVER_URL:-http://localhost:8080}"
+    "test:arazzo": "redocly respect docs/workflows/todo-workflows.arazzo.yaml --server ${SERVER_URL:-http://localhost:8080}",
+    "trivy:scan": "scripts/trivy-scan.sh",
+    "trivy:suppressed": "scripts/trivy-scan.sh --show-suppressed"
   },
   "devDependencies": {
     "@redocly/cli": "^2.71.0",
