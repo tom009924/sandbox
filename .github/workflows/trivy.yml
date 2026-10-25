@@ -37,6 +37,7 @@ jobs:
           output: "trivy-results.txt"
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
+          exit-code: "1"
 
       - name: Display Trivy scan results in CI log and Job Summary
         if: always()

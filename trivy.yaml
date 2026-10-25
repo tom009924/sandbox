@@ -3,6 +3,8 @@ severity:
   - HIGH
   - CRITICAL
 
+exit-code: 1
+
 scan:
   scanners:
     - vuln
