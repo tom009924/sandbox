@@ -1,6 +1,7 @@
 package com.example.todo.infrastructure.persistence
 
 import com.example.todo.domain.model.Todo
+import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.TodoRepository
 import org.springframework.stereotype.Repository
 import java.util.UUID
@@ -12,8 +13,23 @@ class TodoRepositoryAdapter(
     override fun findAll(): List<Todo> =
         springDataTodoRepository.findAll().map { it.toDomain() }
 
-    override fun findAllByUserId(userId: UUID): List<Todo> =
-        springDataTodoRepository.findAllByUserId(userId).map { it.toDomain() }
+    override fun findAllByUserId(
+        userId: UUID,
+        completed: Boolean?,
+        priority: TodoPriority?,
+    ): List<Todo> {
+        val entities = when {
+            completed != null && priority != null ->
+                springDataTodoRepository.findAllByUserIdAndCompletedAndPriority(userId, completed, priority)
+            completed != null ->
+                springDataTodoRepository.findAllByUserIdAndCompleted(userId, completed)
+            priority != null ->
+                springDataTodoRepository.findAllByUserIdAndPriority(userId, priority)
+            else ->
+                springDataTodoRepository.findAllByUserId(userId)
+        }
+        return entities.map { it.toDomain() }
+    }
 
     override fun findById(id: UUID): Todo? =
         springDataTodoRepository.findById(id).orElse(null)?.toDomain()

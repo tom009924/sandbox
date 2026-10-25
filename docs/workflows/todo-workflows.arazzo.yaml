@@ -149,8 +149,29 @@ workflows:
           - name: Authorization
             in: header
             value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: completed
+            in: query
+            value: true
         successCriteria:
           - condition: $statusCode == 200
+
+      - stepId: patchTodo
+        description: Partially update the Todo priority
+        operationId: $sourceDescriptions.publicApi.patchTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            priority: LOW
+        successCriteria:
+          - condition: $statusCode == 200
+          - condition: $response.body#/priority == 'LOW'
 
       - stepId: deleteTodo
         description: Delete the completed Todo item

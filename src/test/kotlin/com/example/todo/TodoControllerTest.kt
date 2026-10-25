@@ -14,6 +14,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
@@ -129,6 +130,52 @@ class TodoControllerTest @Autowired constructor(
 
         mockMvc.perform(get("/api/todos/$id").header("Authorization", "Bearer $token"))
             .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `patch partially updates todo`() {
+        val created = mockMvc.perform(
+            createRequest("""{"title":"Buy milk","description":"Grocery","priority":"LOW"}"""),
+        ).andReturn().response.contentAsString
+        val id = UUID.fromString(Regex(""""id":"([^"]+)"""").find(created)!!.groupValues[1])
+
+        mockMvc.perform(
+            patch("/api/todos/$id")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"completed":true,"priority":"HIGH"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.title").value("Buy milk"))
+            .andExpect(jsonPath("$.completed").value(true))
+            .andExpect(jsonPath("$.description").value("Grocery"))
+            .andExpect(jsonPath("$.priority").value("HIGH"))
+    }
+
+    @Test
+    fun `filter todos by completed and priority`() {
+        mockMvc.perform(createRequest("""{"title":"Task 1","priority":"LOW"}"""))
+            .andExpect(status().isCreated)
+        val created2 = mockMvc.perform(createRequest("""{"title":"Task 2","priority":"HIGH"}"""))
+            .andExpect(status().isCreated)
+            .andReturn().response.contentAsString
+        val id2 = UUID.fromString(Regex(""""id":"([^"]+)"""").find(created2)!!.groupValues[1])
+        mockMvc.perform(
+            patch("/api/todos/$id2")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"completed":true}"""),
+        ).andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/todos?completed=true&priority=HIGH").header("Authorization", "Bearer $token"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].title").value("Task 2"))
+
+        mockMvc.perform(get("/api/todos?completed=false").header("Authorization", "Bearer $token"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].title").value("Task 1"))
     }
 
     @Test

@@ -30,6 +30,15 @@ data class TodoCommand(
     val estimatedMinutes: Int? = null,
 )
 
+data class PatchTodoCommand(
+    val title: String? = null,
+    val completed: Boolean? = null,
+    val description: String? = null,
+    val dueDate: LocalDate? = null,
+    val priority: TodoPriority? = null,
+    val estimatedMinutes: Int? = null,
+)
+
 class TodoService(
     private val todoRepository: TodoRepository,
     private val idempotencyRecordRepository: IdempotencyRecordRepository,
@@ -37,7 +46,11 @@ class TodoService(
     private val clock: Clock = Clock.systemUTC(),
     private val userSettingsRepository: UserSettingsRepository? = null,
 ) {
-    fun list(userId: UUID): List<Todo> = todoRepository.findAllByUserId(userId)
+    fun list(
+        userId: UUID,
+        completed: Boolean? = null,
+        priority: TodoPriority? = null,
+    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority)
 
     fun get(id: UUID, userId: UUID): Todo = findTodo(id, userId)
 
@@ -102,16 +115,7 @@ class TodoService(
 
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id, userId)
-        if (!command.completed && todo.completed) {
-            val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
-            val maxActive = settings.maxActiveTodos
-            if (maxActive != null) {
-                val activeCount = todoRepository.countByUserIdAndCompletedFalse(userId)
-                if (activeCount >= maxActive) {
-                    throw ActiveTodosLimitExceededException(maxActive)
-                }
-            }
-        }
+        checkActiveLimitOnReopen(userId, wasCompleted = todo.completed, nowCompleted = command.completed)
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
@@ -131,6 +135,44 @@ class TodoService(
             ),
         )
         return updated
+    }
+
+    fun patch(id: UUID, userId: UUID, command: PatchTodoCommand): Todo {
+        val todo = findTodo(id, userId)
+        val newCompleted = command.completed ?: todo.completed
+        checkActiveLimitOnReopen(userId, wasCompleted = todo.completed, nowCompleted = newCompleted)
+        val updated = todoRepository.save(
+            todo.copy(
+                title = command.title?.trim() ?: todo.title,
+                completed = newCompleted,
+                description = command.description ?: todo.description,
+                dueDate = command.dueDate ?: todo.dueDate,
+                priority = command.priority ?: todo.priority,
+                estimatedMinutes = command.estimatedMinutes ?: todo.estimatedMinutes,
+            ),
+        )
+        todoEventPublisher.publish(
+            TodoEvent(
+                eventType = TodoEventType.UPDATED,
+                timestamp = clock.instant(),
+                todoId = requireNotNull(updated.id),
+                todo = updated,
+            ),
+        )
+        return updated
+    }
+
+    private fun checkActiveLimitOnReopen(userId: UUID, wasCompleted: Boolean, nowCompleted: Boolean) {
+        if (!nowCompleted && wasCompleted) {
+            val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
+            val maxActive = settings.maxActiveTodos
+            if (maxActive != null) {
+                val activeCount = todoRepository.countByUserIdAndCompletedFalse(userId)
+                if (activeCount >= maxActive) {
+                    throw ActiveTodosLimitExceededException(maxActive)
+                }
+            }
+        }
     }
 
     fun delete(id: UUID, userId: UUID) {

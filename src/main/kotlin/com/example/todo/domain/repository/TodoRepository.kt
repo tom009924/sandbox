@@ -1,12 +1,17 @@
 package com.example.todo.domain.repository
 
 import com.example.todo.domain.model.Todo
+import com.example.todo.domain.model.TodoPriority
 import java.util.UUID
 
 interface TodoRepository {
     fun findAll(): List<Todo>
 
-    fun findAllByUserId(userId: UUID): List<Todo>
+    fun findAllByUserId(
+        userId: UUID,
+        completed: Boolean? = null,
+        priority: TodoPriority? = null,
+    ): List<Todo>
 
     fun findById(id: UUID): Todo?
 

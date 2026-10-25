@@ -58,10 +58,11 @@ Todoデータはユーザー単位でスコープ分離されており、ログ�
 
 | Method | Path | 説明 |
 | --- | --- | --- |
-| `GET` | `/api/todos` | ログインユーザーのTodo一覧 |
+| `GET` | `/api/todos` | ログインユーザーのTodo一覧（`completed`, `priority` で絞り込み可） |
 | `GET` | `/api/todos/{id}` | Todo取得 |
 | `POST` | `/api/todos` | Todo作成 |
-| `PUT` | `/api/todos/{id}` | Todo更新 |
+| `PUT` | `/api/todos/{id}` | Todo更新（全置換） |
+| `PATCH` | `/api/todos/{id}` | Todo部分更新（指定フィールドのみ変更） |
 | `DELETE` | `/api/todos/{id}` | Todo削除 |
 
 作成リクエスト:
@@ -103,6 +104,14 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 ```
 
 `PUT`ではTodoを置き換えます。`description`、`dueDate`または`estimatedMinutes`を省略すると未設定になり、`priority`を省略すると`MEDIUM`になります。
+
+部分更新リクエスト (`PATCH`):
+
+```json
+{"completed":true,"priority":"HIGH"}
+```
+
+`PATCH`では指定した項目のみを更新し、未指定の項目は既存の値を保持します。
 
 存在しないIDは `404 Not Found`、空のタイトルは `400 Bad Request` を返します。
 

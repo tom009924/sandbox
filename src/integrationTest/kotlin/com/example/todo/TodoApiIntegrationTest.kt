@@ -155,7 +155,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
-    fun unauthenticatedRequestsReturnUnauthorized() {
+    fun unauthenticatedTodoRequestsReturnUnauthorized() {
         val missingId = UUID.randomUUID()
         validatedRequest(token = null)
             .`when`()
@@ -186,11 +186,22 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.UNAUTHORIZED.value())
 
         validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"completed":true}""")
+            .`when`()
+            .patch("/api/todos/$missingId")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        validatedRequest(token = null)
             .`when`()
             .delete("/api/todos/$missingId")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
 
+    @Test
+    fun unauthenticatedSettingsAndAdminRequestsReturnUnauthorized() {
         validatedRequest(token = null)
             .`when`()
             .get("/api/user/settings")
@@ -656,6 +667,95 @@ class TodoApiIntegrationTest @Autowired constructor(
         val expectedSecond = testTodo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM)
         assertStoredTodo(todoId, expectedSecond)
         assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedSecond)
+    }
+
+    @Test
+    fun listTodosFiltersByCompletedAndPriority() {
+        todoRepository.save(testTodo(title = "Task 1", completed = false, priority = TodoPriority.LOW))
+        todoRepository.save(testTodo(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
+        todoRepository.save(testTodo(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?completed=true&priority=HIGH")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(1))
+            .body("[0].title", equalTo("Task 2"))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?completed=false")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(2))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?priority=HIGH")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(2))
+    }
+
+    @Test
+    fun patchTodoChangesStoredTodo() {
+        val todo = todoRepository.save(testTodo(title = "Buy milk", completed = false, priority = TodoPriority.LOW))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"completed":true,"priority":"HIGH"}""")
+            .`when`()
+            .patch("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("title", equalTo("Buy milk"))
+            .body("completed", equalTo(true))
+            .body("priority", equalTo("HIGH"))
+
+        val expected = testTodo(title = "Buy milk", completed = true, priority = TodoPriority.HIGH)
+        assertStoredTodo(todoId, expected)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
+    }
+
+    @ParameterizedTest(name = "Priority: {0}")
+    @EnumSource(TodoPriority::class)
+    fun patchTodoAcceptsEveryPriorityValue(priority: TodoPriority) {
+        val todo = todoRepository.save(testTodo(title = "Buy milk", priority = TodoPriority.LOW))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"priority":"${priority.name}"}""")
+            .`when`()
+            .patch("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("priority", equalTo(priority.name))
+
+        val expected = testTodo(title = "Buy milk", completed = false, priority = priority)
+        assertStoredTodo(todoId, expected)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
+    }
+
+    @Test
+    fun patchTodoAcceptsEstimatedMinutesMinimum() {
+        val todo = todoRepository.save(testTodo(title = "Buy milk", estimatedMinutes = 30))
+        val todoId = requireNotNull(todo.id)
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"estimatedMinutes":0}""")
+            .`when`()
+            .patch("/api/todos/$todoId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("estimatedMinutes", equalTo(MIN_ESTIMATED_MINUTES))
+
+        val expected = testTodo(title = "Buy milk", completed = false, estimatedMinutes = MIN_ESTIMATED_MINUTES)
+        assertStoredTodo(todoId, expected)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
     }
 
     @Test

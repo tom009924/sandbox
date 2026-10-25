@@ -1,5 +1,6 @@
 package com.example.todo.presentation
 
+import com.example.todo.application.PatchTodoCommand
 import com.example.todo.application.TodoCommand
 import com.example.todo.application.TodoService
 import com.example.todo.application.UserContext
@@ -7,6 +8,7 @@ import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.presentation.api.TodosApi
 import com.example.todo.presentation.model.CreateTodoRequest
+import com.example.todo.presentation.model.PatchTodoRequest
 import com.example.todo.presentation.model.UpdateTodoRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -21,9 +23,13 @@ class TodoController(
     private val todoService: TodoService,
     private val userContext: UserContext,
 ) : TodosApi {
-    override fun listTodos(): ResponseEntity<List<TodoResponse>> {
+    override fun listTodos(
+        completed: Boolean?,
+        priority: ApiTodoPriority?,
+    ): ResponseEntity<List<TodoResponse>> {
         val userId = userContext.currentUserId()
-        return ResponseEntity.ok(todoService.list(userId).map { it.toResponse() })
+        val todos = todoService.list(userId, completed, priority?.toDomain())
+        return ResponseEntity.ok(todos.map { it.toResponse() })
     }
 
     override fun getTodo(id: UUID): ResponseEntity<TodoResponse> {
@@ -66,6 +72,26 @@ class TodoController(
                 dueDate = updateTodoRequest.dueDate,
                 priority = updateTodoRequest.priority?.toDomain() ?: TodoPriority.MEDIUM,
                 estimatedMinutes = updateTodoRequest.estimatedMinutes,
+            ),
+        )
+        return ResponseEntity.ok(updated.toResponse())
+    }
+
+    override fun patchTodo(
+        id: UUID,
+        patchTodoRequest: PatchTodoRequest,
+    ): ResponseEntity<TodoResponse> {
+        val userId = userContext.currentUserId()
+        val updated = todoService.patch(
+            id,
+            userId,
+            PatchTodoCommand(
+                title = patchTodoRequest.title,
+                completed = patchTodoRequest.completed,
+                description = patchTodoRequest.description,
+                dueDate = patchTodoRequest.dueDate,
+                priority = patchTodoRequest.priority?.toDomain(),
+                estimatedMinutes = patchTodoRequest.estimatedMinutes,
             ),
         )
         return ResponseEntity.ok(updated.toResponse())
