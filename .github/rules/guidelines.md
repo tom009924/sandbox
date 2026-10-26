@@ -37,6 +37,7 @@
 ```
 ※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis: `buildHealth`）、OpenAPIリンティング（Spectral: `lintOpenApi` / `openApiValidate`）、ユニットテスト、結合テストが一括実行されます。
 ※ エミュレータ接続を伴うテスト実行時は、ポート 9010 (Spanner) および 8085 (Pub/Sub) へのソケット接続が必要です。
+※ ステージングやQA環境等のテスト環境における検証手順・チェックリスト・自動スモークテストは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) に定義されています。
 
 ## 4. スキル・手順書（Runbook）の参照
 特定のタスクを実施する際は、[.github/skills/](.github/skills/) 配下の各手順書（`SKILL.md`）を参照してください:

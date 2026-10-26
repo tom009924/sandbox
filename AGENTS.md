@@ -11,6 +11,7 @@
 - **セキュリティスキャン (Trivy)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・設定ミススキャンが実行され、未トリアージの重大脆弱性検出時は失敗します
 - **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期し、`./gradlew lintOpenApi` (Spectral) をパスすること
 - **全検証**: コミット前に必ず `./gradlew check` を実行すること
+- **テスト戦略・テスト環境検証**: 全体テスト方針は [docs/testing/test-strategy.md](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) を参照すること
 
 ## 利用可能なスキル (Workflows & Runbooks)
 タスクに応じて、[.github/skills/](.github/skills/) 配下の各スキルを参照・実行してください:
