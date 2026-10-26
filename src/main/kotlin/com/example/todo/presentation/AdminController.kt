@@ -6,6 +6,7 @@ import com.example.todo.presentation.api.AdminApi
 import com.example.todo.presentation.model.AdminStatsResponse
 import com.example.todo.presentation.model.AdminUserResponse
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -13,6 +14,7 @@ class AdminController(
     private val adminStatsService: AdminStatsService,
     private val adminUserService: AdminUserService,
 ) : AdminApi {
+    @Transactional(readOnly = true)
     override fun getAdminStats(): ResponseEntity<AdminStatsResponse> {
         val stats = adminStatsService.getStats()
         return ResponseEntity.ok(
@@ -25,6 +27,7 @@ class AdminController(
         )
     }
 
+    @Transactional(readOnly = true)
     override fun getAdminUsers(): ResponseEntity<List<AdminUserResponse>> {
         val users = adminUserService.getUsers().map { user ->
             AdminUserResponse(

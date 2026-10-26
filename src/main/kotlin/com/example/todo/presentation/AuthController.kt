@@ -8,12 +8,14 @@ import com.example.todo.presentation.model.RegisterRequest
 import com.example.todo.presentation.model.UserResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
 class AuthController(
     private val authService: AuthService,
 ) : AuthApi {
+    @Transactional
     override fun registerUser(registerRequest: RegisterRequest): ResponseEntity<UserResponse> {
         val user = authService.register(registerRequest.username, registerRequest.password)
         return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -24,6 +26,7 @@ class AuthController(
         )
     }
 
+    @Transactional(readOnly = true)
     override fun loginUser(loginRequest: LoginRequest): ResponseEntity<AuthTokenResponse> {
         val tokenResult = authService.login(loginRequest.username, loginRequest.password)
         return ResponseEntity.ok(

@@ -8,6 +8,7 @@ import com.example.todo.presentation.api.SettingsApi
 import com.example.todo.presentation.model.UpdateUserSettingsRequest
 import com.example.todo.presentation.model.UserSettingsResponse
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
 import com.example.todo.domain.model.TodoPriority as DomainTodoPriority
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
@@ -18,12 +19,14 @@ class UserSettingsController(
     private val userContext: UserContext,
 ) : SettingsApi {
 
+    @Transactional(readOnly = true)
     override fun getUserSettings(): ResponseEntity<UserSettingsResponse> {
         val userId = userContext.currentUserId()
         val settings = userSettingsService.getSettings(userId)
         return ResponseEntity.ok(settings.toResponse())
     }
 
+    @Transactional
     override fun updateUserSettings(
         updateUserSettingsRequest: UpdateUserSettingsRequest,
     ): ResponseEntity<UserSettingsResponse> {

@@ -23,6 +23,7 @@ class TodoController(
     private val todoService: TodoService,
     private val userContext: UserContext,
 ) : TodosApi {
+    @Transactional(readOnly = true)
     override fun listTodos(
         completed: Boolean?,
         priority: ApiTodoPriority?,
@@ -32,6 +33,7 @@ class TodoController(
         return ResponseEntity.ok(todos.map { it.toResponse() })
     }
 
+    @Transactional(readOnly = true)
     override fun getTodo(id: UUID): ResponseEntity<TodoResponse> {
         val userId = userContext.currentUserId()
         return ResponseEntity.ok(todoService.get(id, userId).toResponse())
@@ -57,6 +59,7 @@ class TodoController(
         return ResponseEntity.status(HttpStatus.CREATED).body(created.toResponse())
     }
 
+    @Transactional
     override fun updateTodo(
         id: UUID,
         updateTodoRequest: UpdateTodoRequest,
@@ -77,6 +80,7 @@ class TodoController(
         return ResponseEntity.ok(updated.toResponse())
     }
 
+    @Transactional
     override fun patchTodo(
         id: UUID,
         patchTodoRequest: PatchTodoRequest,
@@ -97,6 +101,7 @@ class TodoController(
         return ResponseEntity.ok(updated.toResponse())
     }
 
+    @Transactional
     override fun deleteTodo(id: UUID): ResponseEntity<Unit> {
         val userId = userContext.currentUserId()
         todoService.delete(id, userId)
