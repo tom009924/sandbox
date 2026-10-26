@@ -7,39 +7,62 @@
 ## 1. テスト環境テストの位置づけと運用フロー
 
 `src/integrationTest`（CI自動テスト）をパスしたコードがテスト環境にデプロイされた後、以下の 3 つのフェーズで検証を実施します。
+実環境における API の E2E シナリオおよびスモーク疎通は、**Arazzo ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](../workflows/todo-workflows.arazzo.yaml)）を実行する `npm run test:arazzo`** を第一級のテストランナーとして採用します。
 
 ```mermaid
 flowchart TD
-    Deploy["テスト環境へのデプロイ完了"] --> Phase1["【Phase 1】自動スモークテスト\n(スクリプト実行: 約1分)"]
-    Phase1 -->|成功| Phase2["【Phase 2】E2Eシナリオ検証\n(Arazzo / 手動 / 自動: 約10分)"]
+    Deploy["テスト環境へのデプロイ完了"] --> Phase1["【Phase 1 & 2】Arazzo 自動ワークフロー実行\n(SERVER_URL=... npm run test:arazzo)"]
+    Phase1 -->|成功| Phase2Manual["【Phase 2】外部連携・通知の目視/着信確認\n(Slack / メール連携など)"]
     Phase1 -->|失敗| Alert1["🚨 デプロイロールバック / 即時調査"]
-    Phase2 -->|リリース判定時| Phase3["【Phase 3】非機能・運用検証\n(負荷 / 耐障害性 / マイグレーション)"]
+    Phase2Manual -->|リリース判定時| Phase3["【Phase 3】非機能・運用検証\n(負荷 / 耐障害性 / マイグレーション)"]
     Phase3 --> ReleaseGate{"リリース判定会議 / 承認"}
     ReleaseGate -->|承認| ProdDeploy["本番デプロイ"]
 ```
 
 ---
 
-## 2. テストケース一覧と仕様（B-01 〜 B-11）
+## 2. Arazzo ワークフローテスト（実環境テストの中核）
 
-### Phase 1: インフラ疎通・スモークテスト（デプロイ直後に自動実行）
+本リポジトリでは **Redocly Respect (`redocly respect`)** を用い、Arazzo ワークフロー定義に従って実環境への E2E 疎通を自動実行します。
 
-| ID | テストケース名 | 実行主体 | 前提条件・入力 | 合格判定基準 | 実行手段 / コマンド例 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **B-01** | Spanner 疎通 & IAM | 自動 | アプリが起動していること | Spanner への読み書きクエリが 403 PERMISSION_DENIED なしで実行できること | `./scripts/smoke-test.sh` |
-| **B-02** | Pub/Sub 権限疎通 | 自動/手動 | テスト用トピックが存在すること | メッセージ Publish 時に IAM 認証エラーが発生しないこと | `./scripts/smoke-test.sh` |
-| **B-03** | SSL / ドメイン / ALB 疎通 | 自動 | ドメイン経由で HTTPS リクエスト | 有効な証明書で 200 OK が返り、`/actuator/health` が `UP` であること | `curl -f -k https://<STAGING_HOST>/actuator/health` |
-| **B-04** | CORS / セキュリティヘッダ | 自動 | 指定オリジンからの Preflight リクエスト | 許可された Origin にのみ `Access-Control-Allow-Origin` が返ること | `curl -X OPTIONS -H "Origin: https://app.staging.example.com" -I ...` |
-| **B-05** | Secret 注入 & JWT 署名 | 自動 | Secret Manager の鍵が注入されていること | 生成された JWT トークンが正しく署名・復号できること | `./scripts/smoke-test.sh` のログインステップ |
+### 実行コマンド
+```bash
+# ステージング環境への実行
+SERVER_URL=https://staging-api.example.com npm run test:arazzo
+
+# ローカル起動環境への実行（デフォルト: http://localhost:8080）
+npm run test:arazzo
+```
+
+### 検証されるワークフロー
+1. **`user-todo-lifecycle` (一般ユーザー ライフサイクル)**
+   - ユーザー登録 (`POST /api/auth/register`)
+   - ログイン & JWT 取得 (`POST /api/auth/login`)
+   - 設定取得 & 更新 (`GET/PUT /api/user/settings`)
+   - TODO 作成 (`POST /api/todos`) ※Idempotency-Key 含む
+   - TODO 取得・更新・一覧・削除 (`GET/PUT/DELETE /api/todos/{id}`)
+2. **`admin-audit-lifecycle` (管理者 ライフサイクル)**
+   - API キー認証による管理者統計取得 (`GET /api/admin/stats`)
+   - 登録ユーザー一覧取得 (`GET /api/admin/users`)
 
 ---
 
-### Phase 2: E2E シナリオ・外部連携テスト（機能リリース前）
+## 3. テストケース一覧と仕様（B-01 〜 B-11）
 
-| ID | テストケース名 | 実行主体 | 前提条件・入力 | 合格判定基準 | 実行手段 / コマンド例 |
+### Phase 1 & 2: インフラ疎通・E2E ワークフロー（デプロイ直後・自動実行）
+
+| ID | テストケース名 | 実行主体 | 前提条件・入力 | 合格判定基準 | 推奨実行手段 / コマンド |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **B-06** | ライフサイクル E2E | 自動 / QA | Web UI または API クライアント | [登録 $\rightarrow$ ログイン $\rightarrow$ TODO作成 $\rightarrow$ 設定変更 $\rightarrow$ 完了 $\rightarrow$ 削除] がエラーなく完了すること | [todo-workflows.arazzo.yaml](../workflows/todo-workflows.arazzo.yaml) または UI 操作 |
+| **B-01** | Spanner 疎通 & IAM | 自動 | アプリが起動していること | Spanner への読み書きクエリが 403 PERMISSION_DENIED なしで実行できること | `SERVER_URL=... npm run test:arazzo`<br>(または `./scripts/smoke-test.sh`) |
+| **B-02** | Pub/Sub 権限疎通 | 自動/手動 | テスト用トピックが存在すること | メッセージ Publish 時に IAM 認証エラーが発生しないこと | `SERVER_URL=... npm run test:arazzo`<br>(または `./scripts/smoke-test.sh`) |
+| **B-03** | SSL / ドメイン / ALB 疎通 | 自動 | ドメイン経由で HTTPS リクエスト | 有効な証明書で 200 OK が返り、`/actuator/health` が `UP` であること | `curl -f -k https://<HOST>/actuator/health` |
+| **B-04** | CORS / セキュリティヘッダ | 自動 | 指定オリジンからの Preflight リクエスト | 許可された Origin にのみ `Access-Control-Allow-Origin` が返ること | `curl -X OPTIONS -H "Origin: https://app.example.com" -I ...` |
+| **B-05** | Secret 注入 & JWT 署名 | 自動 | Secret Manager の鍵が注入されていること | 生成された JWT トークンが正しく署名・復号できること | `SERVER_URL=... npm run test:arazzo` |
+| **B-06** | ライフサイクル E2E | 自動 | 実環境エンドポイント | [登録 $\rightarrow$ ログイン $\rightarrow$ 設定 $\rightarrow$ TODO作成 $\rightarrow$ 完了 $\rightarrow$ 削除] がエラーなく完了すること | **`SERVER_URL=... npm run test:arazzo`** |
 | **B-07** | 非同期通知 / 外部連携 | 手動 / QA | メール/Slack 等の通知先設定 | TODO 作成・更新に伴う外部通知（実連携）が受信できること | 実際にテスト用 Slack チャンネル等を確認 |
+
+> **補足（`smoke-test.sh` について）**:
+> Node.js / npm 環境がない軽量コンテナや curl のみ利用可能なデプロイパイプラインでは、代替手段として [`./scripts/smoke-test.sh`](../../scripts/smoke-test.sh) を利用できます。
 
 ---
 
@@ -54,29 +77,27 @@ flowchart TD
 
 ---
 
-## 3. テストデータの管理方針
+## 4. テストデータの管理方針
 
-1. **シードデータ（ベースライン）**:
-   - ステージング環境には初期確認用の固定アカウント（例: `staging-tester@example.com`）を常に用意する。
-2. **テスト自動生成データ**:
-   - 自動テストで作成するエンティティには必ずプレフィックス `test-staging-[UUID]` を付与する。
-   - 毎日深夜のバッチ処理またはテストスクリプト末尾で `test-staging-*` のデータを削除する。
+1. **Arazzo テスト実行時の自動生成データ**:
+   - Arazzo ワークフロー（`todo-workflows.arazzo.yaml`）はテスト実行ごとに動的なユーザー名（デフォルト: `arazzo-user` または UUID プレフィックス）で登録を行い、最後に自身が作成した TODO をクリーンアップ（DELETE）します。
+2. **シードデータ（ベースライン）**:
+   - 事前動作確認用の固定アカウント（例: `staging-tester@example.com`）をステージング DB に保持します。
 3. **本番データコピー（データマスキング）**:
-   - パフォーマンステストやマイグレーション検証用に本番 DB のバックアップを利用する場合、個人情報・機密情報を必ず匿名化・マスキングしてからステージング DB へリストアする。
+   - パフォーマンステストやマイグレーション検証用に本番 DB のバックアップを利用する場合、個人情報・機密情報を必ず匿名化・マスキングしてからステージング DB へリストアします。
 
 ---
 
-## 4. リリース前チェックリスト（テンプレート）
+## 5. リリース前チェックリスト（テンプレート）
 
 リリース作業時の PR や Issue に以下のチェックリストを貼り付けて管理します。
 
 ```markdown
 ### テスト環境検証チェックリスト (Release: vX.Y.Z)
-- [ ] **Phase 1: 自動スモークテスト**
-  - [ ] B-01〜B-05: `./scripts/smoke-test.sh` 実行成功
-- [ ] **Phase 2: E2E・業務シナリオ**
-  - [ ] B-06: ユーザーライフサイクル E2E 完了 (Arazzo / 手動)
-  - [ ] B-07: 外部連携・通知の着信確認
+- [ ] **Phase 1 & 2: Arazzo 自動ワークフロー・疎通検証**
+  - [ ] `SERVER_URL=https://<STAGING_URL> npm run test:arazzo` (100% PASS)
+  - [ ] B-03: `/actuator/health` 疎通確認 (UP)
+  - [ ] B-07: 外部連携・Slack等の通知着信確認
 - [ ] **Phase 3: 非機能・運用（該当する場合のみ）**
   - [ ] B-08: 負荷テスト実施（レイテンシ・エラー率クリア）
   - [ ] B-11: DB マイグレーション適用完了・データ破損なし
@@ -84,4 +105,3 @@ flowchart TD
   - [ ] 担当者: @username
   - [ ] 承認日: YYYY-MM-DD
 ```
-
