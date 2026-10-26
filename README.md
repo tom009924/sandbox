@@ -159,6 +159,20 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 
 `check`を実行するとDetekt、ユニットテスト、インテグレーションテストを順に実行します。
 
+### Arazzo ワークフローテスト（E2E / スモーク）
+
+Redocly Respect を利用し、`docs/workflows/todo-workflows.arazzo.yaml` で定義された一連の業務シナリオ（登録、ログイン、設定、TODO CRUD、管理者監査）を自動実行します。
+
+```bash
+# 起動中のローカル環境（http://localhost:8080）に対して実行
+npm run test:arazzo
+
+# 実環境（ステージング環境等）に対して実行
+SERVER_URL=https://staging.api.example.com npm run test:arazzo
+```
+
+全体のテスト方針やピラミッド設計は [テスト戦略ドキュメント](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [テスト環境仕様書・管理台帳](docs/testing/test-environment-specification.md) を参照してください。
+
 ## AI コーディングエージェント設定
 
 本リポジトリでは、Antigravity および GitHub Copilot に対応した共通スキルとルールを一元管理しています。

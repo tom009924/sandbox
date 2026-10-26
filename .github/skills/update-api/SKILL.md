@@ -42,3 +42,4 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 ./gradlew check
 ```
 すべてのテストと Detekt 静的解析がパスすることを確認します。
+※ アプリケーション起動後（`./gradlew bootRun`）に一連のユースケースが正常に動作するかをクイック検証する場合は、`npm run test:arazzo` を実行してください。テスト環境へのデプロイ後の検証手順は [`docs/testing/test-environment-specification.md`](../../docs/testing/test-environment-specification.md) を参照してください。
