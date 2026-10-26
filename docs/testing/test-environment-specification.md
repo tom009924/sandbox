@@ -32,10 +32,14 @@ flowchart TD
 
 ```bash
 # 1. テスト環境（ステージング / QA）への実行（デプロイ直後のスモーク・E2E検証）
+# ※ ARAZZO_USERNAME を指定しない場合は自動的に一意のサフィックス（arazzo-user-<timestamp>）が付与され、競合を防ぎます
 SERVER_URL=https://staging-api.example.com npm run test:arazzo
 
 # 2. ローカル開発環境（localhost:8080）への実行（起動後のクイック動作確認）
 npm run test:arazzo
+
+# 3. 特定のアカウント名を指定して実行する場合
+ARAZZO_USERNAME=custom-tester SERVER_URL=https://staging-api.example.com npm run test:arazzo
 ```
 
 ### 自動検証される 2 大ワークフロー
@@ -87,8 +91,9 @@ npm run test:arazzo
 
 ## 4. テストデータの管理方針
 
-1. **Arazzo による自動クリーンアップ**:
-   - Arazzo ワークフローは実行時に動的なユーザー名（デフォルト: `arazzo-user` または環境変数で渡す UUID）で登録を行い、**ワークフローの最終ステップで作成した TODO を必ず DELETE して自己パージ**します。
+1. **Arazzo による自動クリーンアップ & データ分離**:
+   - Arazzo ワークフローは実行時に動的なユーザー名（デフォルト: `arazzo-user-<timestamp>`、または環境変数 `ARAZZO_USERNAME`）で登録を行い、同一環境での連続実行によるアカウント衝突（409 Conflict）を防ぎます。
+   - **ワークフローの最終ステップで作成した TODO を必ず DELETE して自己パージ**します。
 2. **シードデータ（ベースライン）**:
    - 事前動作確認用の固定アカウント（例: `staging-tester@example.com`）をステージング DB に保持します。
 3. **本番データコピー（データマスキング）**:

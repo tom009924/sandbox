@@ -44,13 +44,16 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ```
 - **Arazzo ワークフローテスト（E2E / スモーク・ローカルまたは実環境）**:
   ```bash
-  # 起動中のアプリケーション（localhost:8080）に対して実行
+  # 起動中のアプリケーション（localhost:8080）に対して実行（一意のユーザー名で自己完結）
   npm run test:arazzo
 
   # 実環境（ステージング等）に対して実行
   SERVER_URL=https://staging-api.example.com npm run test:arazzo
+
+  # 任意のアカウント名を指定して実行する場合
+  ARAZZO_USERNAME=custom-user npm run test:arazzo
   ```
-  ※ Redocly Respect を利用し、`docs/workflows/todo-workflows.arazzo.yaml` で定義された一連の業務シナリオ（登録〜設定〜TODO CRUD、管理者監査）を自動実行します。全体のテスト方針は [`docs/testing/test-strategy.md`](../../docs/testing/test-strategy.md) を参照してください。
+  ※ Redocly Respect を利用し、`docs/workflows/todo-workflows.arazzo.yaml` で定義された一連の業務シナリオ（登録〜設定〜TODO CRUD、管理者監査）を自動実行します。未指定時は実行ごとに一意なユーザー名（`arazzo-user-<timestamp>`）が自動採番され、アカウント衝突（409）を防ぎます。全体のテスト方針は [`docs/testing/test-strategy.md`](../../docs/testing/test-strategy.md) を参照してください。
 - **依存関係の健全性検証のみ (Dependency Analysis)**:
   ```bash
   ./gradlew buildHealth
