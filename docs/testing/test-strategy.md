@@ -12,8 +12,10 @@
    - 仕様違反、バリデーション漏れ、DB制約違反、例外ハンドリングの不具合は、すべてコミット前の CI（`integrationTest`）で 100% 検出できるように自動化し、後工程（ステージング環境や本番）への持ち越しを防ぐ。
 2. **OpenAPI / Arazzo 仕様駆動 (Spec-First Quality)**
    - API 仕様書（[`docs/openapi.yaml`](../openapi.yaml)）および E2E ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](../workflows/todo-workflows.arazzo.yaml)）を正本（Single Source of Truth）とし、実装コード・単体/統合テスト・実環境 E2E テスト（Redocly Respect）を完全に同期させる。
-3. **環境特性に応じた責務分離**
-   - 「ロジック・仕様・スキーマ」はエミュレータ上の自動テストで担保し、「実インフラ・IAM権限・性能・外部連携」はテスト環境で担保する。
+   - **個別のシェルスクリプト（curl等）を二重管理せず、Arazzo ワークフローをスモークテストおよび E2E テストの唯一の実行基盤とする。**
+3. **環境ポータビリティと責務分離**
+   - Arazzo ワークフローは、**ローカル開発時（`localhost:8080`）のクイック検証**と**実環境（ステージング）デプロイ後のスモーク・E2E検証**で全く同じシナリオを再利用する。
+   - 負荷・耐障害性・インフラ固有の挙動のみをテスト環境の非機能テストとして分離する。
 
 ---
 
@@ -21,9 +23,9 @@
 
 ```mermaid
 flowchart TD
-    subgraph Level3["Level 3: テスト環境テスト (Staging / QA)"]
+    subgraph Level3["Level 3: 実環境・非機能検証 (Staging / QA)"]
         L3_1["実クラウドインフラ (IAM / SSL / LB) 疎通"]
-        L3_2["E2E シナリオ (Arazzo: npm run test:arazzo)"]
+        L3_2["E2E & スモークワークフロー (Arazzo: npm run test:arazzo)"]
         L3_3["非機能検証 (負荷 / HPA / マイグレーション)"]
     end
 
@@ -46,8 +48,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- | :--- |
 | **単体テスト (Unit)** | `src/test/` | CI / ローカル (JUnit 5) | 数秒 | 個々の関数、マッパー、独立したビジネスロジックの正当性 |
 | **統合テスト (Integration)** | `src/integrationTest/` | CI (Emulator) | 1〜3分 | OpenAPI 適合性、DB 永続化、Pub/Sub 送受信、異常系・境界値 |
-| **実環境 E2E / スモーク (Arazzo)** | `docs/workflows/` | テスト環境 (`npm run test:arazzo`) | 約10〜30秒 | 実インフラ・IAM疎通、認証、一連の業務ライフサイクルの実機貫通 |
-| **補完スモーク (Curl)** | `scripts/smoke-test.sh` | テスト環境 (Bash / curl) | 約10秒 | Node.js 非搭載の軽量環境用ヘルスチェック・疎通 |
+| **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
 | **非機能テスト (Non-Functional)** | 負荷・運用スクリプト | テスト環境 (k6 等) | 数十分 | ピークトラフィック耐性、無停止デプロイ、マイグレーション |
 
 ---
@@ -64,7 +65,7 @@ flowchart TD
     Q2 -- "No (純粋なロジック・関数)" --> ActionUnit["`src/test` に単体テストとして追加"]
     
     Q1 -- "Yes" --> Q3{"API の一連の呼び出しシナリオや\n実環境疎通（スモーク）か？"}
-    Q3 -- "Yes" --> ActionArazzo["`docs/workflows/todo-workflows.arazzo.yaml` に\nArazzo ワークフローとして定義\n(npm run test:arazzo で実行)"]
+    Q3 -- "Yes" --> ActionArazzo["`docs/workflows/todo-workflows.arazzo.yaml` に\nArazzo ワークフローとして定義\n(ローカル・実環境共通で npm run test:arazzo)"]
     Q3 -- "No (負荷・耐障害性・インフラ)" --> ActionStaging["`docs/testing/test-environment-specification.md` の\n非機能検証チェックリストに追加"]
 ```
 
@@ -77,7 +78,7 @@ flowchart TD
 | 環境 | データ方針 | クリーンアップ / 初期化手法 |
 | :--- | :--- | :--- |
 | **CI (`integrationTest`)** | **使い捨て・完全独立** | テストケースごとにエミュレータのテーブルを初期化、または独立した ID/トランザクションで実行 |
-| **Arazzo E2E (Staging)** | **シナリオ内自己完結** | テスト実行時に一意のユーザー名で登録し、ワークフロー末尾の DELETE ステップで作成リソースをパージ |
+| **Arazzo E2E (ローカル & 実環境)** | **シナリオ内自己完結** | テスト実行時に一意のユーザー名で登録し、ワークフロー末尾の DELETE ステップで作成リソースをパージ |
 | **テスト環境 (Staging 固定)** | **固定シード + プレフィックス** | ・事前検証用の固定ユーザーを保持<br>・動的作成データには `test-staging-[UUID]` を付与し、日次バッチでパージ |
 | **パフォーマンステスト** | **本番データマスキング** | 本番 DB のスナップショットから個人情報・機密情報をハッシュ化・置換したデータのみをステージングに反映 |
 
@@ -98,7 +99,7 @@ flowchart LR
 
     subgraph Gate2["Gate 2: Deploy Gate (CD)"]
         G2_1["ステージングへの自動デプロイ"]
-        G2_2["SERVER_URL=... npm run test:arazzo\n(Arazzo ワークフロー 100% 成功)"]
+        G2_2["SERVER_URL=... npm run test:arazzo\n(スモーク & E2E 100% 成功)"]
     end
 
     subgraph Gate3["Gate 3: Release Gate (本番直前)"]
@@ -130,6 +131,5 @@ flowchart LR
 ## 7. 関連仕様書・リンク
 - [テスト環境テスト仕様書・管理台帳](test-environment-specification.md)
 - [Arazzo E2E ワークフロー仕様](../workflows/todo-workflows.arazzo.yaml)
-- [自動スモークテストスクリプト](../../scripts/smoke-test.sh)
 - [OpenAPI 仕様書](../openapi.yaml)
 - [プロジェクト共通コーディング規約](../../.github/rules/guidelines.md)
