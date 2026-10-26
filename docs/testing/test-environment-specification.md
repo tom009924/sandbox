@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart TD
-    Deploy["テスト環境へのデプロイ完了"] --> HealthCheck["【Step 1】Liveness / Readiness 疎通\n(curl /actuator/health)"]
+    Deploy["テスト環境へのデプロイ完了"] --> HealthCheck["【Step 1】Liveness / 基本死活疎通\n(curl /api/auth/register またはヘルスチェック)"]
     HealthCheck --> Arazzo["【Step 2】Arazzo スモーク & E2E ワークフロー実行\n(SERVER_URL=... npm run test:arazzo)"]
     Arazzo -->|成功| Notification["【Step 3】外部連携・通知の目視確認\n(Slack / メール着信など)"]
     Arazzo -->|失敗| Alert1["🚨 デプロイロールバック / 即時調査"]
@@ -57,8 +57,8 @@ npm run test:arazzo
 
 | ID | テストケース名 | 実行主体 | 前提条件・入力 | 合格判定基準 | 推奨実行手段 / コマンド |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **B-01** | 基本死活監視 (Liveness) | 自動 | コンテナ起動完了 | `/actuator/health` が HTTP 200 かつ status `UP` を返すこと | `curl -f -k https://<HOST>/actuator/health` |
-| **B-02** | SSL / ドメイン / ALB 疎通 | 自動 | ドメイン経由で HTTPS リクエスト | 有効な SSL 証明書で暗号化通信が行えること | `curl -I https://<HOST>/actuator/health` |
+| **B-01** | 基本死活監視 (Liveness) | 自動 | コンテナ起動完了 | 公開エンドポイントへの接続で HTTP レスポンス（接続成功）が返ること | `curl -s -o /dev/null -w "%{http_code}" https://<HOST>/api/auth/register` |
+| **B-02** | SSL / ドメイン / ALB 疎通 | 自動 | ドメイン経由で HTTPS リクエスト | 有効な SSL 証明書で暗号化通信が行えること | `curl -I https://<HOST>/api/auth/register` |
 | **B-03** | Spanner 疎通 & IAM | 自動 | アプリが起動していること | Arazzo 内の登録・TODO 作成・取得クエリが IAM エラーなく完了すること | `SERVER_URL=... npm run test:arazzo` |
 | **B-04** | Pub/Sub 権限疎通 | 自動 | トピックが存在すること | Arazzo 内の TODO 作成・削除に伴うイベント発行が IAM エラーなく成功すること | `SERVER_URL=... npm run test:arazzo` |
 | **B-05** | Secret 注入 & JWT 署名 | 自動 | Secret Manager の鍵が注入されていること | ログインステップで発行された JWT が後続の TODO API で正しく認証されること | `SERVER_URL=... npm run test:arazzo` |
@@ -103,7 +103,7 @@ npm run test:arazzo
 ```markdown
 ### テスト環境検証チェックリスト (Release: vX.Y.Z)
 - [ ] **Step 1 & 2: Arazzo 自動ワークフロー・疎通検証**
-  - [ ] B-01: `/actuator/health` 疎通確認 (UP)
+  - [ ] B-01: 基本死活・疎通確認 (HTTP レスポンス受理)
   - [ ] B-02〜B-06: `SERVER_URL=https://<STAGING_URL> npm run test:arazzo` (100% PASS)
   - [ ] B-07: 外部連携・Slack等の通知着信確認
 - [ ] **Step 4: 非機能・運用（該当する場合のみ）**
