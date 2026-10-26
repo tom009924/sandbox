@@ -53,3 +53,36 @@ jobs:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
         run: ./gradlew check --no-daemon
+
+      - name: Build application JAR
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Run Arazzo E2E workflow tests
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          PUBSUB_EMULATOR_HOST: localhost:8085
+        run: |
+          java -jar build/libs/app.jar > app.log 2>&1 &
+          APP_PID=$!
+          echo "Started application with PID $APP_PID"
+
+          echo "Waiting for application to become healthy..."
+          READY=0
+          for i in $(seq 1 30); do
+            if curl -s -f http://localhost:8080/actuator/health > /dev/null; then
+              echo "Application is healthy!"
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Application failed to start within timeout. Logs:"
+            cat app.log
+            kill "$APP_PID" 2>/dev/null || true
+            exit 1
+          fi
+
+          npm run test:arazzo
+          kill "$APP_PID" 2>/dev/null || true

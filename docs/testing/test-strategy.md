@@ -95,6 +95,7 @@ flowchart LR
         G1_2["./gradlew check (全テスト成功)"]
         G1_3["OpenAPI & Arazzo Lint (Redocly/Spectral)"]
         G1_4["Trivy / Qodana スキャンパス"]
+        G1_5["Arazzo E2E ワークフロー実行 (npm run test:arazzo)"]
     end
 
     subgraph Gate2["Gate 2: Deploy Gate (CD)"]
