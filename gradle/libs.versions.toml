@@ -1,8 +1,8 @@
 [versions]
-kotlin = "1.9.23"
+kotlin = "2.0.21"
 springBoot = "3.4.5"
 springDependencyManagement = "1.1.7"
-detekt = "1.23.6"
+detekt = "1.23.8"
 dependencyAnalysis = "1.33.0"
 openapiGenerator = "7.10.0"
 jacoco = "0.8.12"

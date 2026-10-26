@@ -5,7 +5,7 @@
 ## 共通ルール
 詳細なコーディング規約および設計方針は [.github/rules/guidelines.md](.github/rules/guidelines.md) を参照してください。
 
-- **Java/Kotlin**: Java 21, Kotlin 1.9, Spring Boot 3.3
+- **Java/Kotlin**: Java 21, Kotlin 2.0, Spring Boot 3.4
 - **スタイル/検証**: `./gradlew detekt`（Detekt 静的解析をパスすること）
 - **コード品質 (Qodana)**: CI で JetBrains Qodana（[qodana.yaml](qodana.yaml)）による静的コード解析が実行されます
 - **セキュリティスキャン (Trivy)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・設定ミススキャンが実行され、未トリアージの重大脆弱性検出時は失敗します

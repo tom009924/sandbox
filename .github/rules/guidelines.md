@@ -3,7 +3,7 @@
 本リポジトリ（Kotlin Spring Boot CRUD API）で作業する AI コーディングエージェント（Antigravity, GitHub Copilot）および開発者向けの共通ガイドラインです。
 
 ## 1. 技術スタック
-- **言語**: Kotlin 1.9 (Java 21)
+- **言語**: Kotlin 2.0 (Java 21)
 - **フレームワーク**: Spring Boot 3.3 (Web, Data JPA, Validation)
 - **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析・セキュリティ**: Detekt 1.23, JetBrains Qodana (Community JVM), Aqua Security Trivy, Socket Security

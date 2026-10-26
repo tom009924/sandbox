@@ -4,7 +4,7 @@
 
 ## 開発ルール & ガイドライン
 詳細なガイドラインは [.github/rules/guidelines.md](.github/rules/guidelines.md) に定義されています。
-- **言語 & フレームワーク**: Kotlin 1.9, Java 21, Spring Boot 3.3
+- **言語 & フレームワーク**: Kotlin 2.0, Java 21, Spring Boot 3.4
 - **コードスタイル**: Detekt のルールに準拠してください。
 - **OpenAPI 仕様との同期**: APIの追加・変更・削除を行う場合は、必ず `docs/openapi.yaml` も同時に更新してください。統合テストで `swagger-parser` と Kotest により仕様との不整合が検知されます。
 - **検証コマンド**: 作業完了時は `./gradlew check` を実行し、全テストと Detekt のパスを確認してください。
