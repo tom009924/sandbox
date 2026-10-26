@@ -66,6 +66,7 @@ jobs:
         run: |
           java -jar build/libs/app.jar > app.log 2>&1 &
           APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
           echo "Started application with PID $APP_PID"
 
           echo "Waiting for application to become healthy..."
@@ -83,9 +84,7 @@ jobs:
           if [ "$READY" -ne 1 ]; then
             echo "Application failed to start within timeout. Logs:"
             cat app.log
-            kill "$APP_PID" 2>/dev/null || true
             exit 1
           fi
 
           npm run test:arazzo
-          kill "$APP_PID" 2>/dev/null || true
