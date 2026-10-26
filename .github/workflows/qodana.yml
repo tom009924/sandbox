@@ -2,32 +2,30 @@ name: Qodana Code Quality
 
 on:
   workflow_dispatch:
-  # NOTE: Temporarily disabled automatic triggers on pull_request and push due to execution time overhead.
-  # Can be triggered manually via workflow_dispatch when needed.
-  # pull_request:
-  #   branches: [main]
-  #   paths:
-  #     - "src/**"
-  #     - "build.gradle.kts"
-  #     - "settings.gradle.kts"
-  #     - "gradle/**"
-  #     - "docs/openapi.yaml"
-  #     - "docs/overlays/**"
-  #     - "package.json"
-  #     - "qodana.yaml"
-  #     - ".github/workflows/qodana.yml"
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "src/**"
-  #     - "build.gradle.kts"
-  #     - "settings.gradle.kts"
-  #     - "gradle/**"
-  #     - "docs/openapi.yaml"
-  #     - "docs/overlays/**"
-  #     - "package.json"
-  #     - "qodana.yaml"
-  #     - ".github/workflows/qodana.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "docs/openapi.yaml"
+      - "docs/overlays/**"
+      - "package.json"
+      - "qodana.yaml"
+      - ".github/workflows/qodana.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "docs/openapi.yaml"
+      - "docs/overlays/**"
+      - "package.json"
+      - "qodana.yaml"
+      - ".github/workflows/qodana.yml"
 
 permissions:
   contents: read
@@ -74,8 +72,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Generate OpenAPI code
-        run: ./gradlew openApiGenerate --no-daemon
+      - name: Pre-build & generate OpenAPI code
+        run: ./gradlew openApiGenerate compileKotlin --no-daemon
 
       - name: Run Qodana Scan
         uses: JetBrains/qodana-action@v2026.2
@@ -86,6 +84,10 @@ jobs:
             --linter qodana-jvm-community
             --within-docker false
             --property indexer.follows.symlinks=false
-          pr-mode: ${{ github.event_name == 'pull_request' }}
+          pr-mode: false
           use-annotations: true
           upload-result: true
+          use-caches: true
+          cache-default-branch-only: true
+          primary-cache-key: qodana-2026.2-${{ github.sha }}
+          additional-cache-key: qodana-2026.2-
