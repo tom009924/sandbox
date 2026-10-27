@@ -2,8 +2,7 @@ package com.example.todo.infrastructure.pubsub
 
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import tools.jackson.databind.ObjectMapper
 import com.google.api.gax.core.NoCredentialsProvider
 import com.google.api.gax.grpc.GrpcTransportChannel
 import com.google.api.gax.rpc.FixedTransportChannelProvider
@@ -23,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 class PubSubTodoEventPublisher(
     private val properties: PubSubProperties,
-    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(JavaTimeModule()),
+    private val objectMapper: ObjectMapper = ObjectMapper(),
 ) : TodoEventPublisher, Closeable {
 
     private val logger = LoggerFactory.getLogger(PubSubTodoEventPublisher::class.java)

@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component
 @Component
 class SecurityStartupValidator(
     private val environment: Environment,
-    @Value("\${jwt.secret:default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}")
+    @param:Value("\${jwt.secret:default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}")
     private val jwtSecret: String,
-    @Value("\${todo.security.admin-api-key:admin-secret-key}")
+    @param:Value("\${todo.security.admin-api-key:admin-secret-key}")
     private val adminApiKey: String,
 ) {
     private val logger = LoggerFactory.getLogger(SecurityStartupValidator::class.java)

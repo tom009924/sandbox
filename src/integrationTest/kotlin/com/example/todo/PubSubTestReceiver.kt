@@ -1,9 +1,7 @@
 package com.example.todo
 
 import com.example.todo.domain.event.TodoEvent
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.databind.ObjectMapper
 import com.google.api.gax.core.NoCredentialsProvider
 import com.google.api.gax.grpc.GrpcTransportChannel
 import com.google.api.gax.rpc.AlreadyExistsException
@@ -44,7 +42,7 @@ class PubSubTestReceiver(
     private val topicId: String,
     subscriptionId: String = "todo-events-integration-test-sub",
     emulatorHost: String?,
-    private val objectMapper: ObjectMapper = jacksonObjectMapper().registerModule(JavaTimeModule()),
+    private val objectMapper: ObjectMapper = ObjectMapper(),
 ) : Closeable {
 
     private val logger = LoggerFactory.getLogger(PubSubTestReceiver::class.java)

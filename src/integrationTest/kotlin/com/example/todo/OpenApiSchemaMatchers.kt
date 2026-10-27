@@ -2,8 +2,8 @@
 
 package com.example.todo
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import io.restassured.filter.Filter
 import io.restassured.filter.FilterContext
 import io.restassured.response.Response
@@ -83,9 +83,9 @@ private fun validateObject(node: JsonNode, schema: Schema<*>, path: String): Lis
         val props = schema.properties.orEmpty()
         val missing = schema.required.orEmpty().filter { !node.has(it) }.map { "$path.$it: required" }
         val extra = if (schema.additionalProperties != true && props.isNotEmpty()) {
-            node.fieldNames().asSequence().filter { it !in props }.map { "$path.$it: unexpected property" }.toList()
+            node.propertyNames().asSequence().filter { it !in props }.map { "$path.$it: unexpected property" }.toList()
         } else {
-            emptyList()
+            emptyList<String>()
         }
         val children = props.flatMap { (k, v) ->
             if (node.has(k)) validateSchema(node.get(k), v, "$path.$k") else emptyList()
@@ -109,7 +109,7 @@ private fun validateString(node: JsonNode, schema: Schema<*>, path: String): Lis
     if (!node.isTextual) {
         listOf("$path: expected string, got ${node.nodeTypeName}")
     } else {
-        val text = node.asText()
+        val text = node.asString()
         val enums = schema.enum.orEmpty().map { it.toString() }
         buildList {
             schema.pattern?.let { if (!Regex(it).containsMatchIn(text)) add("$path: pattern '$it' mismatch") }

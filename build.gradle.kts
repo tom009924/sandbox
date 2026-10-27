@@ -32,6 +32,22 @@ detekt {
     )
 }
 
+configurations.matching { it.name.startsWith("detekt") }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion("2.0.21")
+        }
+    }
+}
+
+configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.apache.groovy") {
+            useVersion("4.0.26")
+        }
+    }
+}
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
@@ -61,15 +77,15 @@ dependencies {
     runtimeOnly(libs.jjwt.impl)
     runtimeOnly(libs.jjwt.jackson)
     implementation(libs.jackson.annotations)
-    runtimeOnly(libs.spanner.hibernate.dialect)
     runtimeOnly(libs.spanner.jdbc)
     implementation(libs.google.cloud.pubsub)
     runtimeOnly(libs.jackson.module.kotlin)
     runtimeOnly(libs.kotlin.reflect)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.archunit.junit5)
-    testImplementation(libs.jackson.module.kotlin)
+    testRuntimeOnly(libs.jackson.module.kotlin)
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
 }
@@ -82,6 +98,17 @@ dependencyAnalysis {
             }
             onUsedTransitiveDependencies {
                 severity("ignore")
+            }
+            onUnusedDependencies {
+                exclude(
+                    "org.springframework.boot:spring-boot-starter-data-jpa",
+                    "org.springframework.boot:spring-boot-starter-security",
+                    "org.springframework.boot:spring-boot-starter-validation",
+                    "org.springframework.boot:spring-boot-starter-web",
+                    "org.springframework.boot:spring-boot-starter-test",
+                    "org.springframework.boot:spring-boot-starter-webmvc-test",
+                    "com.tngtech.archunit:archunit-junit5",
+                )
             }
             onIncorrectConfiguration {
                 exclude(

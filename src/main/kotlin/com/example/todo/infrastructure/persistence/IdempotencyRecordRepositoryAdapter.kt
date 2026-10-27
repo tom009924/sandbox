@@ -3,7 +3,7 @@ package com.example.todo.infrastructure.persistence
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.repository.IdempotencyRecordRepository
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Repository
 import java.time.Instant
 
