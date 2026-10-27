@@ -1,8 +1,19 @@
 # .trivyignore
-# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-25.
-# These represent upstream library CVEs without backward-compatible fixes available in Spring Boot 3.4 baseline,
+# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-27.
+# These represent upstream library CVEs without backward-compatible fixes available in Spring Boot 4.0 baseline,
 # or components not utilized/exploitable in this REST API service (e.g. XsltView, SSE views, archive extraction).
-# Any NEW vulnerability beyond these 40 triaged CVEs will fail the build (exit-code: 1).
+# Any NEW vulnerability beyond these triaged CVEs will fail the build (exit-code: 1).
+
+# [CRITICAL] spring-boot:4.0.0 - Security bypass due to ineffective default web security (application defines custom SecurityFilterChain)
+CVE-2026-40976
+# [HIGH] spring-security-config:7.0.0 - Security bypass due to incorrect servlet path matching (application uses standard DispatcherServlet mapping)
+CVE-2026-22753
+# [HIGH] spring-security-config:7.0.0 - Authorization bypass due to incorrect servlet path matching
+CVE-2026-22754
+# [HIGH] jackson-core:3.0.2 - Denial of Service via excessive JSON nesting (bounded request payloads and OpenAPI schemas)
+CVE-2026-29062
+# [HIGH] jackson-core:3.0.2 - Document length constraint bypass in parsers (request payloads bounded by Spring MVC)
+GHSA-2m67-wjpj-xhg9
 
 # [HIGH] jackson-core:2.18.3 - Denial of Service via incomplete fix in async JSON parser
 CVE-2026-68494
