@@ -18,9 +18,9 @@ import javax.crypto.SecretKey
 
 @Component
 class JwtTokenProvider(
-    @Value("\${jwt.secret:default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}")
+    @param:Value("\${jwt.secret:default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}")
     private val secret: String,
-    @Value("\${jwt.expiration:86400}")
+    @param:Value("\${jwt.expiration:86400}")
     val expirationSeconds: Long,
 ) : TokenIssuer {
     private val key: SecretKey by lazy {

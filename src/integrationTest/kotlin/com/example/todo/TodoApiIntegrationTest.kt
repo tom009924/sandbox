@@ -10,7 +10,7 @@ import com.example.todo.domain.repository.UserRepository
 import com.example.todo.infrastructure.persistence.SpringDataUserSettingsRepository
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.security.JwtTokenProvider
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import io.swagger.v3.oas.models.PathItem

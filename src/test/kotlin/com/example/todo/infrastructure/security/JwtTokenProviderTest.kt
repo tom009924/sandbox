@@ -108,8 +108,7 @@ class JwtTokenProviderTest {
 
         filter.doFilter(request, response, chain)
 
-        val auth = SecurityContextHolder.getContext().authentication
-        assertNotNull(auth)
+        val auth = checkNotNull(SecurityContextHolder.getContext().authentication)
         assertEquals(user, auth.principal)
     }
 

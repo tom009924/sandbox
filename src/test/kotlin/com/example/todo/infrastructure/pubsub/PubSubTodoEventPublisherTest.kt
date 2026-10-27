@@ -4,9 +4,7 @@ import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import tools.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -17,8 +15,6 @@ import java.util.UUID
 class PubSubTodoEventPublisherTest {
 
     private val objectMapper = ObjectMapper()
-        .registerModule(JavaTimeModule())
-        .registerKotlinModule()
 
     @Test
     fun `event serializes to valid json with eventType and todo details`() {
@@ -47,11 +43,11 @@ class PubSubTodoEventPublisherTest {
         val json = objectMapper.writeValueAsString(event)
         val tree = objectMapper.readTree(json)
 
-        assertEquals(eventId.toString(), tree.get("eventId").asText())
-        assertEquals("CREATED", tree.get("eventType").asText())
-        assertEquals(todoId.toString(), tree.get("todoId").asText())
-        assertEquals("Buy milk", tree.get("todo").get("title").asText())
-        assertEquals("HIGH", tree.get("todo").get("priority").asText())
+        assertEquals(eventId.toString(), tree.get("eventId").asString())
+        assertEquals("CREATED", tree.get("eventType").asString())
+        assertEquals(todoId.toString(), tree.get("todoId").asString())
+        assertEquals("Buy milk", tree.get("todo").get("title").asString())
+        assertEquals("HIGH", tree.get("todo").get("priority").asString())
         assertEquals(30, tree.get("todo").get("estimatedMinutes").asInt())
     }
 
@@ -67,7 +63,7 @@ class PubSubTodoEventPublisherTest {
         val json = objectMapper.writeValueAsString(event)
         val tree = objectMapper.readTree(json)
 
-        assertEquals("DELETED", tree.get("eventType").asText())
+        assertEquals("DELETED", tree.get("eventType").asString())
         assertNotNull(tree.get("todoId"))
         assertEquals(true, tree.get("todo").isNull)
     }

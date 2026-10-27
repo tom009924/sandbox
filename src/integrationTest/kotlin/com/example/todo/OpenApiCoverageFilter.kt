@@ -1,7 +1,7 @@
 package com.example.todo
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import io.restassured.filter.Filter
 import io.restassured.filter.FilterContext
 import io.restassured.response.Response
@@ -184,7 +184,7 @@ class OpenApiCoverageFilter(
                 !body.has(property.name) || body.get(property.name).isNull
             is OpenApiConstraint.Pattern -> {
                 val node = body.get(property.name)
-                node != null && node.isTextual && !Regex(pattern).containsMatchIn(node.asText())
+                node != null && node.isTextual && !Regex(pattern).containsMatchIn(node.asString())
             }
             is OpenApiConstraint.EnumValue,
             is OpenApiConstraint.MinimumBoundary -> false
@@ -196,7 +196,7 @@ class OpenApiCoverageFilter(
 
     private fun OpenApiConstraint.isSatisfiedBy(body: JsonNode): Boolean =
         when (this) {
-            is OpenApiConstraint.EnumValue -> body.path(property.name).asText() == value
+            is OpenApiConstraint.EnumValue -> body.get(property.name)?.asString() == value
             is OpenApiConstraint.MinimumBoundary -> {
                 val node = body.get(property.name)
                 node != null && node.isNumber && node.decimalValue().compareTo(minimum) == 0
