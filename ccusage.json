@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ryoppippi/ccusage/main/config-schema.json",
+  "defaults": {
+    "offline": true,
+    "compact": true
+  }
+}
