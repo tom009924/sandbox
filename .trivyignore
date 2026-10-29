@@ -1,8 +1,11 @@
 # .trivyignore
-# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-27.
+# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-28.
 # These represent upstream library CVEs without backward-compatible fixes available in Spring Boot 4.0 baseline,
 # or components not utilized/exploitable in this REST API service (e.g. XsltView, SSE views, archive extraction).
 # Any NEW vulnerability beyond these triaged CVEs will fail the build (exit-code: 1).
+
+# [HIGH] guava:33.4.0-jre - Denial of Service via unthrottled memory allocation during deserialization (transitive via Google Cloud SDK, application does not perform Java native deserialization of untrusted Guava objects)
+CVE-2026-102554
 
 # [CRITICAL] spring-boot:4.0.0 - Security bypass due to ineffective default web security (application defines custom SecurityFilterChain)
 CVE-2026-40976
