@@ -61,7 +61,8 @@ class AdminControllerTest @Autowired constructor(
 
     @Test
     fun `admin get users returns registered users list`() {
-        userRepository.save(User(username = "admin_test_user", passwordHash = "hash"))
+        val uniqueUsername = "admin_test_user_${java.util.UUID.randomUUID()}"
+        userRepository.save(User(username = uniqueUsername, passwordHash = "hash"))
 
         mockMvc.perform(
             get("/api/admin/users")
