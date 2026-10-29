@@ -98,3 +98,5 @@ CVE-2026-47890
 CVE-2026-41842
 # [HIGH] spring-webmvc:6.2.6 - Spring Framework Cross-site scripting (XSS) via incorrect JavaScript escaping
 CVE-2026-41845
+# [HIGH] guava:33.4.0-jre - Denial of Service via upstream library in Cloud Spanner / PubSub SDK
+CVE-2026-102554
