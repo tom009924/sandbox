@@ -98,3 +98,12 @@ CVE-2026-47890
 CVE-2026-41842
 # [HIGH] spring-webmvc:6.2.6 - Spring Framework Cross-site scripting (XSS) via incorrect JavaScript escaping
 CVE-2026-41845
+
+# [HIGH] guava:33.4.0-jre - Denial of Service via unthrottled memory allocation during deserialization (Java deserialization not used in REST API)
+CVE-2026-102554
+# [HIGH] bcpg-jdk18on:1.80 - BC-JAVA: unbounded PGP AEAD chunk size leads to pre-auth resource exhaustion (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-3505
+# [CRITICAL] bcprov-jdk18on:1.80.2 - Bouncy Castle Name Constraints bypass via trailing dot (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-8763
+# [HIGH] bcprov-jdk18on:1.80.2 - Bouncy Castle Denial of Service via lazy ASN.1 sequence (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-13506

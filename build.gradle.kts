@@ -73,6 +73,8 @@ dependencies {
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.flyway)
+    runtimeOnly(libs.flyway.gcp.spanner)
     implementation(libs.jjwt.api)
     runtimeOnly(libs.jjwt.impl)
     runtimeOnly(libs.jjwt.jackson)
@@ -105,6 +107,7 @@ dependencyAnalysis {
                     "org.springframework.boot:spring-boot-starter-security",
                     "org.springframework.boot:spring-boot-starter-validation",
                     "org.springframework.boot:spring-boot-starter-web",
+                    "org.springframework.boot:spring-boot-starter-flyway",
                     "org.springframework.boot:spring-boot-starter-test",
                     "org.springframework.boot:spring-boot-starter-webmvc-test",
                     "com.tngtech.archunit:archunit-junit5",
