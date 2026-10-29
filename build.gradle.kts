@@ -129,6 +129,13 @@ tasks.withType<Test>().configureEach {
     maxParallelForks = 1
     environment("SPANNER_EMULATOR_HOST", System.getenv("SPANNER_EMULATOR_HOST") ?: "localhost:9010")
     environment("PUBSUB_EMULATOR_HOST", System.getenv("PUBSUB_EMULATOR_HOST") ?: "localhost:8085")
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {
@@ -268,6 +275,8 @@ fun Exec.setupNodeEnvironment() {
         val currentPath = System.getenv("PATH").orEmpty()
         environment("PATH", if (currentPath.isEmpty()) nvmBinDir else "$nvmBinDir:$currentPath")
     }
+    environment("REDOCLY_SUPPRESS_UPDATE_NOTICE", "true")
+    environment("REDOCLY_TELEMETRY", "off")
 }
 
 val npmInstall = tasks.register<Exec>("npmInstall") {
