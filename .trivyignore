@@ -1,8 +1,11 @@
 # .trivyignore
-# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-27.
+# Known upstream dependency vulnerabilities managed and triaged as of 2026-10-28.
 # These represent upstream library CVEs without backward-compatible fixes available in Spring Boot 4.0 baseline,
 # or components not utilized/exploitable in this REST API service (e.g. XsltView, SSE views, archive extraction).
 # Any NEW vulnerability beyond these triaged CVEs will fail the build (exit-code: 1).
+
+# [HIGH] guava:33.4.0-jre - Denial of Service via unthrottled memory allocation during deserialization (transitive via Google Cloud SDK, application does not perform Java native deserialization of untrusted Guava objects)
+CVE-2026-102554
 
 # [CRITICAL] spring-boot:4.0.0 - Security bypass due to ineffective default web security (application defines custom SecurityFilterChain)
 CVE-2026-40976
@@ -95,3 +98,12 @@ CVE-2026-47890
 CVE-2026-41842
 # [HIGH] spring-webmvc:6.2.6 - Spring Framework Cross-site scripting (XSS) via incorrect JavaScript escaping
 CVE-2026-41845
+
+# [HIGH] guava:33.4.0-jre - Denial of Service via unthrottled memory allocation during deserialization (Java deserialization not used in REST API)
+CVE-2026-102554
+# [HIGH] bcpg-jdk18on:1.80 - BC-JAVA: unbounded PGP AEAD chunk size leads to pre-auth resource exhaustion (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-3505
+# [CRITICAL] bcprov-jdk18on:1.80.2 - Bouncy Castle Name Constraints bypass via trailing dot (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-8763
+# [HIGH] bcprov-jdk18on:1.80.2 - Bouncy Castle Denial of Service via lazy ASN.1 sequence (build-time kotlinBouncyCastleConfiguration only)
+CVE-2026-13506

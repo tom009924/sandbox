@@ -37,11 +37,21 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 - **ユニットテストのみ (MockMvc)**:
   ```bash
   ./gradlew --offline test
+  # 特定のテストクラスに絞って高速実行（トークン・実行時間節約）:
+  ./gradlew --offline test --tests "com.example.todo.application.TodoServiceTest"
   ```
 - **結合テストのみ (REST Assured + OpenAPI Validator)**:
   ```bash
   ./gradlew --offline integrationTest
   ```
+- **トークン・セッション使用量・コストの計測 (ccusage)**:
+  ```bash
+  npm run usage
+  # または日別・セッション別詳細:
+  npm run usage:daily
+  npm run usage:session
+  ```
+  ※ オフラインモード（`-O`）で即座に実行され、エージェント環境下でもネットワーク待機なしでトークン消費量やコストを確認できます。
 - **Arazzo ワークフローテスト（E2E / スモーク・ローカルまたは実環境）**:
   ```bash
   # 起動中のアプリケーション（localhost:8080）に対して実行（一意のユーザー名で自己完結）

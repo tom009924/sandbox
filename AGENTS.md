@@ -13,6 +13,12 @@
 - **全検証**: コミット前に必ず `./gradlew check` を実行すること
 - **テスト戦略・テスト環境検証**: 全体テスト方針は [docs/testing/test-strategy.md](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) を参照すること
 
+## トークン消費・コンテキスト効率化 (ccusage 連携 & ベストプラクティス)
+AI コーディングエージェントのコンテキスト窓圧迫・トークン浪費・レイテンシ増大を防ぐため、以下の運用を徹底してください:
+- **段階的検証 (Phased Verification)**: 実装途中の都度の全検証（`./gradlew check`）は避け、変更対象の静的解析（`./gradlew --offline detekt`）や対象テスト（`./gradlew --offline test --tests "<クラス名>"`）をピンポイントで実行する。全検証はコミット直前に 1 度のみ実施する。
+- **ターミナル出力の抑制**: 大量のログを出力するコマンドは `--quiet` やパイプ (`head` / `grep`) を適宜利用する。テスト失敗時は Gradle の `testLogging` により失敗原因が直接コンソールに出力されるため、余計なレポートファイル探索を省略する。
+- **トークン・セッション使用量の把握**: `npm run usage`（または `ccusage -O`）を実行することで、セッションや日別のトークン使用量・コストを即座に確認可能。
+
 ## 利用可能なスキル (Workflows & Runbooks)
 タスクに応じて、[.github/skills/](.github/skills/) 配下の各スキルを参照・実行してください:
 - [run-tests](.github/skills/run-tests/SKILL.md): 単体・統合テスト、Detekt 静的解析の実行とエラー対処

@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "bundle:openapi:public": "redocly bundle docs/openapi.yaml --output docs/dist/openapi.yaml",
-    "bundle:openapi:admin": "redocly bundle docs/openapi.yaml --overlay docs/overlays/admin.yaml --output docs/dist/openapi.admin.yaml",
-    "bundle:openapi:ja": "redocly bundle docs/openapi.yaml --overlay docs/overlays/ja.yaml --output docs/dist/openapi.ja.yaml",
+    "bundle:openapi:public": "REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly bundle docs/openapi.yaml --output docs/dist/openapi.yaml",
+    "bundle:openapi:admin": "REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly bundle docs/openapi.yaml --overlay docs/overlays/admin.yaml --output docs/dist/openapi.admin.yaml",
+    "bundle:openapi:ja": "REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly bundle docs/openapi.yaml --overlay docs/overlays/ja.yaml --output docs/dist/openapi.ja.yaml",
     "bundle:openapi": "npm run bundle:openapi:public && npm run bundle:openapi:admin && npm run bundle:openapi:ja",
     "generate:diagrams": "node scripts/generate-workflow-diagrams.mjs",
     "check:diagrams": "node scripts/generate-workflow-diagrams.mjs --check",
@@ -13,7 +13,10 @@
     "lint:openapi": "npm run bundle:openapi && spectral lint docs/openapi.yaml docs/dist/openapi.yaml docs/dist/openapi.admin.yaml docs/dist/openapi.ja.yaml --ruleset .spectral.yaml --fail-severity=warn && npm run lint:arazzo",
     "test:arazzo": "scripts/run-arazzo.sh",
     "trivy:scan": "scripts/trivy-scan.sh",
-    "trivy:suppressed": "scripts/trivy-scan.sh --show-suppressed"
+    "trivy:suppressed": "scripts/trivy-scan.sh --show-suppressed",
+    "usage": "ccusage -O",
+    "usage:daily": "ccusage daily -O",
+    "usage:session": "ccusage session -O"
   },
   "devDependencies": {
     "@redocly/cli": "^2.71.0",
