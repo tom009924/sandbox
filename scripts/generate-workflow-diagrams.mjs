@@ -13,33 +13,13 @@ const outputFile = path.join(workflowsDir, 'README.md');
 
 const isCheckMode = process.argv.includes('--check');
 
-function extractStatusCode(successCriteria) {
-  if (!Array.isArray(successCriteria)) return '200 OK';
+function extractExpectedStatus(successCriteria) {
+  if (!Array.isArray(successCriteria)) return '200';
   for (const item of successCriteria) {
-    if (item.condition) {
-      const match = item.condition.match(/\$statusCode\s*==\s*(\d+)/);
-      if (match) {
-        const code = match[1];
-        const statusText = {
-          '200': '200 OK',
-          '201': '201 Created',
-          '204': '204 No Content',
-          '400': '400 Bad Request',
-          '401': '401 Unauthorized',
-          '403': '403 Forbidden',
-          '404': '404 Not Found',
-          '409': '409 Conflict',
-        }[code] || code;
-        return statusText;
-      }
-    }
+    const match = item?.condition?.match(/\$statusCode\s*==\s*(\d+)/);
+    if (match) return match[1];
   }
-  return '200 OK';
-}
-
-function cleanOperationId(opId) {
-  if (!opId) return '';
-  return opId.replace(/^\$sourceDescriptions\.[^.]+\./, '');
+  return '200';
 }
 
 function generateSequenceDiagram(workflow) {
@@ -52,34 +32,16 @@ function generateSequenceDiagram(workflow) {
   ];
 
   for (const step of workflow.steps || []) {
-    const op = cleanOperationId(step.operationId);
     const desc = step.description ? `: ${step.description}` : '';
-    lines.push(`    Client->>API: ${step.stepId} (${op})${desc}`);
+    lines.push(`    Client->>API: ${step.stepId}${desc}`);
 
-    const status = extractStatusCode(step.successCriteria);
+    const status = extractExpectedStatus(step.successCriteria);
     const outputs = step.outputs ? Object.keys(step.outputs).join(', ') : '';
-    const resText = outputs ? `${status} [outputs: ${outputs}]` : status;
+    const resText = outputs ? `${status} (outputs: ${outputs})` : status;
     lines.push(`    API-->>Client: ${resText}`);
   }
 
   lines.push('```');
-  return lines.join('\n');
-}
-
-function generateStepsTable(workflow) {
-  const lines = [
-    '| # | Step ID | Operation | 概要 | 期待ステータス | 出力 (Outputs) |',
-    '| :-: | :--- | :--- | :--- | :---: | :--- |',
-  ];
-
-  (workflow.steps || []).forEach((step, index) => {
-    const op = `\`${cleanOperationId(step.operationId)}\``;
-    const desc = step.description || '-';
-    const status = `\`${extractStatusCode(step.successCriteria)}\``;
-    const outputs = step.outputs ? Object.keys(step.outputs).map(k => `\`${k}\``).join(', ') : '-';
-    lines.push(`| ${index + 1} | \`${step.stepId}\` | ${op} | ${desc} | ${status} | ${outputs} |`);
-  });
-
   return lines.join('\n');
 }
 
@@ -109,12 +71,7 @@ function generateMarkdown(arazzoFiles) {
       if (wf.summary) sections.push(`**${wf.summary}**\n`);
       if (wf.description) sections.push(`${wf.description.trim()}\n`);
 
-      sections.push('#### シーケンス図 (Sequence Diagram)');
       sections.push(generateSequenceDiagram(wf));
-      sections.push('');
-
-      sections.push('#### ステップ詳細一覧');
-      sections.push(generateStepsTable(wf));
       sections.push('');
       sections.push('---');
       sections.push('');
