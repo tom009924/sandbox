@@ -514,9 +514,10 @@ class TodoApiIntegrationTest @Autowired constructor(
         val expectedCount = if (tc.needsExistingTodo) 1 else 0
 
         val request = when {
-            tc.operationId == "createTodo" -> validatedPostRequest()
-            tc.operationId in listOf("registerUser", "loginUser") -> validatedRequest(token = null)
-            else -> validatedRequest()
+            tc.operationId == "createTodo" -> validatedPostRequest(validateRequest = false)
+            tc.operationId in listOf("registerUser", "loginUser") ->
+                validatedRequest(token = null, validateRequest = false)
+            else -> validatedRequest(validateRequest = false)
         }
 
         request
@@ -1037,20 +1038,25 @@ class TodoApiIntegrationTest @Autowired constructor(
     private fun validatedRequest(
         token: String? = defaultToken,
         adminKey: String? = null,
+        validateRequest: Boolean = true,
     ) = given()
         .port(port)
         .let { if (token != null) it.header("Authorization", "Bearer $token") else it }
         .let { if (adminKey != null) it.header("X-Admin-Key", adminKey) else it }
         .filter(openApiCoverageFilter)
-        .filter(openApiValidationFilter)
+        .filter(if (validateRequest) openApiValidationFilter else openApiResponseOnlyFilter)
 
-    private fun validatedAdminRequest(adminKey: String? = VALID_ADMIN_KEY) =
-        validatedRequest(token = null, adminKey = adminKey)
+    private fun validatedAdminRequest(
+        adminKey: String? = VALID_ADMIN_KEY,
+        validateRequest: Boolean = true,
+    ) =
+        validatedRequest(token = null, adminKey = adminKey, validateRequest = validateRequest)
 
     private fun validatedPostRequest(
         idempotencyKey: String = UUID.randomUUID().toString(),
         token: String? = defaultToken,
-    ) = validatedRequest(token)
+        validateRequest: Boolean = true,
+    ) = validatedRequest(token = token, validateRequest = validateRequest)
         .header("Idempotency-Key", idempotencyKey)
 
     private companion object {
@@ -1080,7 +1086,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         val coverageDefinition = OpenApiCoverageDefinition.from(openAPI)
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
 
-        val openApiValidationFilter = OpenApiValidationFilter(openAPI)
+        val openApiValidationFilter = OpenApiValidationFilter(openAPI, validateRequest = true, validateResponse = true)
+        val openApiResponseOnlyFilter =
+            OpenApiValidationFilter(openAPI, validateRequest = false, validateResponse = true)
 
         @JvmStatic
         @AfterAll
