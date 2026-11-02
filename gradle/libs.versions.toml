@@ -5,7 +5,7 @@ springDependencyManagement = "1.1.7"
 detekt = "1.23.8"
 dependencyAnalysis = "3.19.2"
 openapiGenerator = "7.10.0"
-jacoco = "0.8.12"
+jacoco = "0.8.16"
 
 spannerJdbc = "2.29.1"
 googleCloudPubsub = "1.137.1"
