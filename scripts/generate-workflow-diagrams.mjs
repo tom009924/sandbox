@@ -66,31 +66,6 @@ function generateSequenceDiagram(workflow) {
   return lines.join('\n');
 }
 
-function generateFlowchart(workflow) {
-  const lines = [
-    '```mermaid',
-    'flowchart TD',
-    `    Start(["開始: ${workflow.workflowId}"])`,
-  ];
-
-  let prevNode = 'Start';
-  (workflow.steps || []).forEach((step, index) => {
-    const nodeId = `Step${index + 1}`;
-    const op = cleanOperationId(step.operationId);
-    const desc = step.description ? `<br/><i>${step.description}</i>` : '';
-    const status = extractStatusCode(step.successCriteria);
-    const label = `<b>${step.stepId}</b> (${op})${desc}<br/><code>${status}</code>`;
-    lines.push(`    ${nodeId}["${label}"]`);
-    lines.push(`    ${prevNode} --> ${nodeId}`);
-    prevNode = nodeId;
-  });
-
-  lines.push(`    End(["完了: ${workflow.workflowId}"])`);
-  lines.push(`    ${prevNode} --> End`);
-  lines.push('```');
-  return lines.join('\n');
-}
-
 function generateStepsTable(workflow) {
   const lines = [
     '| # | Step ID | Operation | 概要 | 期待ステータス | 出力 (Outputs) |',
@@ -136,10 +111,6 @@ function generateMarkdown(arazzoFiles) {
 
       sections.push('#### シーケンス図 (Sequence Diagram)');
       sections.push(generateSequenceDiagram(wf));
-      sections.push('');
-
-      sections.push('#### フローチャート (Execution Flowchart)');
-      sections.push(generateFlowchart(wf));
       sections.push('');
 
       sections.push('#### ステップ詳細一覧');

@@ -41,34 +41,6 @@ sequenceDiagram
     API-->>Client: 204 No Content
 ```
 
-#### フローチャート (Execution Flowchart)
-```mermaid
-flowchart TD
-    Start(["開始: user-todo-lifecycle"])
-    Step1["<b>registerUser</b> (registerUser)<br/><i>Register a new end-user account</i><br/><code>201 Created</code>"]
-    Start --> Step1
-    Step2["<b>loginUser</b> (loginUser)<br/><i>Authenticate user credentials and acquire JWT token</i><br/><code>200 OK</code>"]
-    Step1 --> Step2
-    Step3["<b>getUserSettings</b> (getUserSettings)<br/><i>Fetch initial default user settings</i><br/><code>200 OK</code>"]
-    Step2 --> Step3
-    Step4["<b>updateUserSettings</b> (updateUserSettings)<br/><i>Customize user settings for default priority and duration</i><br/><code>200 OK</code>"]
-    Step3 --> Step4
-    Step5["<b>createTodo</b> (createTodo)<br/><i>Create a new Todo item with an idempotency key</i><br/><code>201 Created</code>"]
-    Step4 --> Step5
-    Step6["<b>getTodo</b> (getTodo)<br/><i>Fetch the created Todo item by ID</i><br/><code>200 OK</code>"]
-    Step5 --> Step6
-    Step7["<b>updateTodo</b> (updateTodo)<br/><i>Mark the Todo item as completed</i><br/><code>200 OK</code>"]
-    Step6 --> Step7
-    Step8["<b>listTodos</b> (listTodos)<br/><i>List all Todos for the authenticated user</i><br/><code>200 OK</code>"]
-    Step7 --> Step8
-    Step9["<b>patchTodo</b> (patchTodo)<br/><i>Partially update the Todo priority</i><br/><code>200 OK</code>"]
-    Step8 --> Step9
-    Step10["<b>deleteTodo</b> (deleteTodo)<br/><i>Delete the completed Todo item</i><br/><code>204 No Content</code>"]
-    Step9 --> Step10
-    End(["完了: user-todo-lifecycle"])
-    Step10 --> End
-```
-
 #### ステップ詳細一覧
 | # | Step ID | Operation | 概要 | 期待ステータス | 出力 (Outputs) |
 | :-: | :--- | :--- | :--- | :---: | :--- |
@@ -100,18 +72,6 @@ sequenceDiagram
     API-->>Client: 200 OK
     Client->>API: getAdminUsers (getAdminUsers): Fetch registered users directory
     API-->>Client: 200 OK
-```
-
-#### フローチャート (Execution Flowchart)
-```mermaid
-flowchart TD
-    Start(["開始: admin-audit-lifecycle"])
-    Step1["<b>getAdminStats</b> (getAdminStats)<br/><i>Fetch system-wide usage statistics</i><br/><code>200 OK</code>"]
-    Start --> Step1
-    Step2["<b>getAdminUsers</b> (getAdminUsers)<br/><i>Fetch registered users directory</i><br/><code>200 OK</code>"]
-    Step1 --> Step2
-    End(["完了: admin-audit-lifecycle"])
-    Step2 --> End
 ```
 
 #### ステップ詳細一覧
