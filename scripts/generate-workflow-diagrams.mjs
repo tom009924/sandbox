@@ -114,6 +114,8 @@ function generateMarkdown(arazzoFiles) {
     '',
     '> **自動生成ドキュメント**: 本ドキュメントは `docs/workflows/*.arazzo.yaml` からスクリプト（`npm run generate:diagrams`）により自動生成されています。手動編集は行わず、Arazzo ファイルを直接更新してください。',
     '',
+    '> **Arazzo UI でのインタラクティブ閲覧**: `npm run arazzo:ui` を実行すると、ブラウザ上でステップ詳細やデータフローをインタラクティブに確認できます。',
+    '',
   ];
 
   for (const file of arazzoFiles) {
