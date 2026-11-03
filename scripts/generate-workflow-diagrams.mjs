@@ -8,7 +8,7 @@ const outputFile = path.join(workflowsDir, 'README.md');
 
 const isCheckMode = process.argv.includes('--check');
 
-function extractExpectedStatus(successCriteria) {
+export function extractExpectedStatus(successCriteria) {
   if (!Array.isArray(successCriteria)) return '200';
   for (const item of successCriteria) {
     const match = item?.condition?.match(/\$statusCode\s*==\s*(\d+)/);
@@ -17,7 +17,7 @@ function extractExpectedStatus(successCriteria) {
   return '200';
 }
 
-function generateSequenceDiagram(workflow) {
+export function generateSequenceDiagram(workflow) {
   const lines = [
     '```mermaid',
     'sequenceDiagram',
@@ -40,7 +40,7 @@ function generateSequenceDiagram(workflow) {
   return lines.join('\n');
 }
 
-function generateMarkdown(arazzoFiles) {
+export function generateMarkdown(arazzoFiles) {
   const sections = [
     '# E2E ワークフロー仕様・可視化ダイアグラム (Arazzo Workflows)',
     '',
@@ -76,7 +76,7 @@ function generateMarkdown(arazzoFiles) {
   return sections.join('\n');
 }
 
-function main() {
+export function main() {
   const files = fs.readdirSync(workflowsDir)
     .filter(f => f.endsWith('.arazzo.yaml') || f.endsWith('.arazzo.yml'))
     .map(f => path.join(workflowsDir, f));
@@ -105,4 +105,6 @@ function main() {
   }
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === import.meta.filename) {
+  main();
+}
