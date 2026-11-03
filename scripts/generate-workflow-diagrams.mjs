@@ -1,13 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import yamlModule from '@stoplight/yaml';
+import YAML from 'yaml';
 
-const { parse } = yamlModule;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(import.meta.dirname, '..');
 const workflowsDir = path.join(rootDir, 'docs', 'workflows');
 const outputFile = path.join(workflowsDir, 'README.md');
 
@@ -57,7 +52,7 @@ function generateMarkdown(arazzoFiles) {
 
   for (const file of arazzoFiles) {
     const content = fs.readFileSync(file, 'utf8');
-    const doc = parse(content);
+    const doc = YAML.parse(content);
 
     sections.push(`## ${doc.info?.title || 'API Workflows'}`);
     if (doc.info?.description) {
