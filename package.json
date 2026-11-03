@@ -22,6 +22,7 @@
   "devDependencies": {
     "@jentic/arazzo-ui": "^1.0.0-alpha.32",
     "@redocly/cli": "^2.71.0",
-    "@stoplight/spectral-cli": "^6.17.0"
+    "@stoplight/spectral-cli": "^6.17.0",
+    "yaml": "^2.9.1"
   }
 }
