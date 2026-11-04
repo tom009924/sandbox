@@ -50,7 +50,7 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   # または Gradle 直接実行:
   ./gradlew --offline integrationTest --tests "com.example.todo.TodoApiIntegrationTest"
   ```
-  ※ 一時ファイル作成を行わず、OpenAPI 仕様に対するエンドポイント、レスポンスステータスコード、バリデーション制約の網羅率をインメモリで集計してターミナル（標準出力）に直接出力します。
+  ※ 一時ファイル作成を行わず、OpenAPI 仕様に対するエンドポイント、レスポンスステータスコード、リクエストパラメータ、バリデーション制約の網羅率をインメモリで集計してターミナル（標準出力）に直接出力します。
 - **トークン・セッション使用量・コストの計測 (ccusage)**:
   ```bash
   npm run usage
