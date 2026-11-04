@@ -28,6 +28,17 @@ data class OpenApiProperty(
     val name: String,
 )
 
+data class OpenApiParameter(
+    val operationId: String,
+    val method: HttpMethod,
+    val path: String,
+    val name: String,
+    val location: String,
+    val isRequired: Boolean,
+) {
+    override fun toString(): String = "$operationId ($method $path -> $location:$name)"
+}
+
 sealed class OpenApiConstraint(val property: OpenApiProperty) {
     data class Required(val target: OpenApiProperty) : OpenApiConstraint(target)
 
@@ -51,6 +62,7 @@ sealed class OpenApiConstraint(val property: OpenApiProperty) {
 data class OpenApiCoverageDefinition(
     val responses: Set<OpenApiResponse>,
     val constraints: Set<OpenApiConstraint>,
+    val parameters: Set<OpenApiParameter> = emptySet(),
 ) {
     val operationResponses: Set<Pair<String, Int>>
         get() = responses.map { it.operationId to it.statusCode }.toSet()
@@ -59,24 +71,47 @@ data class OpenApiCoverageDefinition(
         fun from(openApi: OpenAPI): OpenApiCoverageDefinition {
             val schemas = openApi.components?.schemas.orEmpty()
             val operations = openApi.paths.orEmpty().flatMap { (path, pathItem) ->
+                val pathParameters = pathItem.parameters.orEmpty()
                 pathItem.readOperationsMap().map { (method, operation) ->
-                    Triple(path, method, operation)
+                    val operationId = operation.operationId ?: "${method.name.lowercase()}${path.replace("/", "_")}"
+                    val allParameters = (pathParameters + operation.parameters.orEmpty())
+                        .distinctBy { (it.name ?: "") to (it.`in` ?: "") }
+                    OperationInfo(path, method, operation, operationId, allParameters)
                 }
             }
-            val responses = operations.flatMap { (path, method, operation) ->
-                val operationId = operation.operationId ?: "${method.name.lowercase()}${path.replace("/", "_")}"
-                operation.responses.keys.mapNotNull { it.toIntOrNull() }
-                    .map { statusCode -> OpenApiResponse(operationId, method, path, statusCode) }
+            val responses = operations.flatMap { info ->
+                info.operation.responses.keys.mapNotNull { it.toIntOrNull() }
+                    .map { statusCode -> OpenApiResponse(info.operationId, info.method, info.path, statusCode) }
             }.toSet()
-            val constraints = operations.flatMap { (path, method, operation) ->
-                val requestSchema = operation.requestBody?.content?.get("application/json")?.schema
+            val constraints = operations.flatMap { info ->
+                val requestSchema = info.operation.requestBody?.content?.get("application/json")?.schema
                 val schema = requestSchema?.`$ref`?.let { schemas[it.substringAfterLast("/")] } ?: requestSchema
-                schema?.toConstraints(method, path, schemas).orEmpty()
+                schema?.toConstraints(info.method, info.path, schemas).orEmpty()
             }.toSet()
-            return OpenApiCoverageDefinition(responses, constraints)
+            val parameters = operations.flatMap { info ->
+                info.parameters.map { p ->
+                    OpenApiParameter(
+                        operationId = info.operationId,
+                        method = info.method,
+                        path = info.path,
+                        name = p.name ?: "",
+                        location = p.`in` ?: "",
+                        isRequired = p.required == true,
+                    )
+                }
+            }.toSet()
+            return OpenApiCoverageDefinition(responses, constraints, parameters)
         }
     }
 }
+
+private data class OperationInfo(
+    val path: String,
+    val method: HttpMethod,
+    val operation: io.swagger.v3.oas.models.Operation,
+    val operationId: String,
+    val parameters: List<io.swagger.v3.oas.models.parameters.Parameter>,
+)
 
 private fun Schema<*>.toConstraints(
     method: HttpMethod,
@@ -115,12 +150,16 @@ class OpenApiCoverageFilter(
 ) : Filter {
     private val coveredResponsesInternal: MutableSet<OpenApiResponse> = ConcurrentHashMap.newKeySet()
     private val coveredConstraintsInternal: MutableSet<OpenApiConstraint> = ConcurrentHashMap.newKeySet()
+    private val coveredParametersInternal: MutableSet<OpenApiParameter> = ConcurrentHashMap.newKeySet()
 
     val coveredResponses: Set<OpenApiResponse>
         get() = coveredResponsesInternal
 
     val coveredConstraints: Set<OpenApiConstraint>
         get() = coveredConstraintsInternal
+
+    val coveredParameters: Set<OpenApiParameter>
+        get() = coveredParametersInternal
 
     override fun filter(
         requestSpec: FilterableRequestSpecification,
@@ -134,12 +173,31 @@ class OpenApiCoverageFilter(
         val statusCode = response.statusCode
 
         recordResponse(method, actualPath, statusCode)
+        recordParameters(requestSpec, method, actualPath)
         if (requestBody != null) {
             val body = objectMapper.readTree(requestBody)
             recordViolatedConstraints(method, actualPath, statusCode, body)
             recordSatisfiedConstraints(method, actualPath, statusCode, body)
         }
         return response
+    }
+
+    private fun recordParameters(
+        requestSpec: FilterableRequestSpecification,
+        method: HttpMethod,
+        actualPath: String,
+    ) {
+        definition.parameters.asSequence()
+            .filter { it.method == method && matchesPath(actualPath, it.path) }
+            .filter { param ->
+                when (param.location.lowercase()) {
+                    "query" -> requestSpec.queryParams.containsKey(param.name)
+                    "header" -> requestSpec.headers.hasHeaderWithName(param.name)
+                    "path" -> true
+                    else -> false
+                }
+            }
+            .forEach(coveredParametersInternal::add)
     }
 
     private fun recordResponse(method: HttpMethod, actualPath: String, statusCode: Int) {

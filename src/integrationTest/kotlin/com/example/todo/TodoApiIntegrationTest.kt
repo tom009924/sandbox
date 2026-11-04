@@ -1089,6 +1089,7 @@ class TodoApiIntegrationTest @Autowired constructor(
                 coverageDefinition,
                 openApiCoverageFilter.coveredResponses,
                 openApiCoverageFilter.coveredConstraints,
+                openApiCoverageFilter.coveredParameters,
             )
             println(OpenApiCoverageReporter.formatConsoleSummary(report))
 
@@ -1097,6 +1098,13 @@ class TodoApiIntegrationTest @Autowired constructor(
                 missingResponses.isEmpty(),
                 "The following OpenAPI responses were not exercised in integration tests: " +
                     missingResponses.joinToString { it.toString() },
+            )
+
+            val missingParameters = coverageDefinition.parameters - openApiCoverageFilter.coveredParameters
+            assertTrue(
+                missingParameters.isEmpty(),
+                "The following OpenAPI parameters were not exercised in integration tests: " +
+                    missingParameters.joinToString { it.toString() },
             )
 
             val missingConstraints = coverageDefinition.constraints - openApiCoverageFilter.coveredConstraints
