@@ -1084,18 +1084,21 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         @JvmStatic
         @AfterAll
-        fun verifyAllOpenApiResponsesCovered() {
+        fun reportAndVerifyOpenApiCoverage() {
+            val report = OpenApiCoverageReporter.buildReport(
+                coverageDefinition,
+                openApiCoverageFilter.coveredResponses,
+                openApiCoverageFilter.coveredConstraints,
+            )
+            println(OpenApiCoverageReporter.formatConsoleSummary(report))
+
             val missingResponses = coverageDefinition.responses - openApiCoverageFilter.coveredResponses
             assertTrue(
                 missingResponses.isEmpty(),
                 "The following OpenAPI responses were not exercised in integration tests: " +
                     missingResponses.joinToString { it.toString() },
             )
-        }
 
-        @JvmStatic
-        @AfterAll
-        fun verifyAllOpenApiConstraintsCovered() {
             val missingConstraints = coverageDefinition.constraints - openApiCoverageFilter.coveredConstraints
             assertTrue(
                 missingConstraints.isEmpty(),
