@@ -44,6 +44,13 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ```bash
   ./gradlew --offline integrationTest
   ```
+- **OpenAPI スペックカバレッジの計測と標準出力**:
+  ```bash
+  npm run coverage:spec
+  # または Gradle 直接実行:
+  ./gradlew --offline integrationTest --tests "com.example.todo.TodoApiIntegrationTest"
+  ```
+  ※ 一時ファイル作成を行わず、OpenAPI 仕様に対するエンドポイント、レスポンスステータスコード、バリデーション制約の網羅率をインメモリで集計してターミナル（標準出力）に直接出力します。
 - **トークン・セッション使用量・コストの計測 (ccusage)**:
   ```bash
   npm run usage
@@ -89,8 +96,8 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
    - 自動修正されない命名規則や複雑度警告（`LongMethod`: 60行超過、`LongParameterList`: 6引数超過、`MagicNumber`、`ReturnCount`）は、コードやテストをリファクタリングして解消してください。
 
 2. **統合テストで OpenAPI 検証エラーが発生した場合**:
-   - Kotest (`matchOpenApiSchema` / `OpenApiValidationFilter`) のスキーマ検証エラーメッセージを確認してください。
-   - レスポンスのフィールド欠落、余分なフィールド、型不整合、ステータスコード不一致などが原因です。
+   - `OpenApiValidationFilter` のリクエスト/レスポンススキーマ検証エラーメッセージを確認してください。
+   - リクエスト/レスポンスのフィールド欠落、余分なフィールド、型不整合、ステータスコード不一致などが原因です。
    - `verifyAllOpenApiConstraintsCovered()` で失敗した場合は、OpenAPI 仕様に追加された `pattern` や `enum`、`minimum` 等の制約に対する異常系（400）テストが `TodoApiTestCases.kt` に不足しています。対応するテストケースを追加してください。
 
 3. **Cloud Spanner Emulator のスキーマエラー (`Cannot add NOT NULL column`)**:

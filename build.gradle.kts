@@ -149,6 +149,9 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     dependsOn(tasks.test)
     shouldRunAfter(tasks.test)
     useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
