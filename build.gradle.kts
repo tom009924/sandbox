@@ -87,6 +87,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.archunit.junit5)
+    testImplementation(libs.wiremock)
     testRuntimeOnly(libs.jackson.module.kotlin)
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
