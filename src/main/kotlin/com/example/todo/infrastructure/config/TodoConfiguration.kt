@@ -7,11 +7,14 @@ import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
 import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.event.TodoEventPublisher
+import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
+import com.example.todo.infrastructure.notification.EmailNotificationProperties
+import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
 import tools.jackson.databind.ObjectMapper
@@ -21,8 +24,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(PubSubProperties::class)
+@EnableConfigurationProperties(PubSubProperties::class, EmailNotificationProperties::class)
 class TodoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(EmailNotificationSender::class)
+    fun emailNotificationSender(
+        properties: EmailNotificationProperties,
+    ): EmailNotificationSender = HttpEmailNotificationSender(properties)
 
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(TodoEventPublisher::class)
