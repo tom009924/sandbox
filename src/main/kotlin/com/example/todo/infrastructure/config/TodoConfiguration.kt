@@ -73,5 +73,6 @@ class TodoConfiguration {
         userRepository: UserRepository,
         passwordEncoder: PasswordEncoder,
         tokenIssuer: TokenIssuer,
-    ) = AuthService(userRepository, passwordEncoder, tokenIssuer)
+        emailNotificationSender: EmailNotificationSender,
+    ) = AuthService(userRepository, passwordEncoder, tokenIssuer, emailNotificationSender)
 }
