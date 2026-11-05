@@ -93,6 +93,7 @@ dependencies {
     testRuntimeOnly(libs.jackson.module.kotlin)
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock)
 }
 
 dependencyAnalysis {
