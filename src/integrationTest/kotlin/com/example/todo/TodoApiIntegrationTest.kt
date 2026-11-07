@@ -35,12 +35,13 @@ import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Suppress("TooManyFunctions", "LargeClass")
@@ -62,7 +63,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         todoRepository.findAll().forEach(todoRepository::delete)
         userRepository.deleteAll()
         springDataUserSettingsRepository.deleteAll()
-        wireMockServer.resetRequests()
+        emailServer.reset()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -108,12 +109,10 @@ class TodoApiIntegrationTest @Autowired constructor(
         val stored = userRepository.findById(userId)
         assertTrue(stored != null)
 
-        wireMockServer.verify(
-            WireMock.postRequestedFor(WireMock.urlEqualTo("/api/v1/emails"))
-                .withHeader("Authorization", WireMock.equalTo("Bearer test-api-key"))
-                .withRequestBody(WireMock.matchingJsonPath("$.to", WireMock.equalTo("newuser@example.com")))
-                .withRequestBody(WireMock.matchingJsonPath("$.subject", WireMock.equalTo("Welcome to Todo App"))),
-        )
+        val emailRequest = emailServer.requests.find { it.body.contains("newuser@example.com") }
+        requireNotNull(emailRequest) { "Expected email notification request for newuser@example.com" }
+        assertEquals("Bearer test-api-key", emailRequest.authHeader)
+        assertTrue(emailRequest.body.contains("Welcome to Todo App"))
     }
 
     @Test
@@ -1095,30 +1094,54 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         val openApiValidationFilter = OpenApiValidationFilter(openAPI)
 
-        private val wireMockServer = WireMockServer(wireMockConfig().dynamicPort()).apply {
-            start()
-            stubFor(
-                WireMock.post(WireMock.urlEqualTo("/api/v1/emails"))
-                    .willReturn(
-                        WireMock.aResponse()
-                            .withStatus(202)
-                            .withHeader("Content-Type", "application/json")
-                            .withBody("""{"id":"msg-integration-test","status":"QUEUED"}"""),
-                    ),
+        private class TestEmailServer : AutoCloseable {
+            val server: HttpServer = HttpServer.create(InetSocketAddress("localhost", 0), 0)
+            val port: Int get() = server.address.port
+            val baseUrl: String get() = "http://localhost:$port"
+
+            data class ReceivedEmailRequest(
+                val authHeader: String?,
+                val body: String,
             )
+
+            val requests = CopyOnWriteArrayList<ReceivedEmailRequest>()
+
+            init {
+                server.createContext("/api/v1/emails") { exchange ->
+                    val authHeader = exchange.requestHeaders.getFirst("Authorization")
+                    val body = exchange.requestBody.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+                    requests.add(ReceivedEmailRequest(authHeader, body))
+                    val responseBytes =
+                        """{"id":"msg-integration-test","status":"QUEUED"}""".toByteArray(StandardCharsets.UTF_8)
+                    exchange.responseHeaders.set("Content-Type", "application/json")
+                    exchange.sendResponseHeaders(HttpStatus.ACCEPTED.value(), responseBytes.size.toLong())
+                    exchange.responseBody.use { it.write(responseBytes) }
+                }
+                server.start()
+            }
+
+            fun reset() {
+                requests.clear()
+            }
+
+            override fun close() {
+                server.stop(0)
+            }
         }
+
+        private val emailServer = TestEmailServer()
 
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("notification.email.base-url") { wireMockServer.baseUrl() }
+            registry.add("notification.email.base-url") { emailServer.baseUrl }
             registry.add("notification.email.api-key") { "test-api-key" }
         }
 
         @JvmStatic
         @AfterAll
-        fun stopWireMock() {
-            wireMockServer.stop()
+        fun stopEmailServer() {
+            emailServer.close()
         }
 
         @JvmStatic
