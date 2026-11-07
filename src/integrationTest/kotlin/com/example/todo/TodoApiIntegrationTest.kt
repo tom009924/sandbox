@@ -33,6 +33,11 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
@@ -57,6 +62,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         todoRepository.findAll().forEach(todoRepository::delete)
         userRepository.deleteAll()
         springDataUserSettingsRepository.deleteAll()
+        wireMockServer.resetRequests()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -101,6 +107,13 @@ class TodoApiIntegrationTest @Autowired constructor(
         val userId = UUID.fromString(response.path("id"))
         val stored = userRepository.findById(userId)
         assertTrue(stored != null)
+
+        wireMockServer.verify(
+            WireMock.postRequestedFor(WireMock.urlEqualTo("/api/v1/emails"))
+                .withHeader("Authorization", WireMock.equalTo("Bearer test-api-key"))
+                .withRequestBody(WireMock.matchingJsonPath("$.to", WireMock.equalTo("newuser@example.com")))
+                .withRequestBody(WireMock.matchingJsonPath("$.subject", WireMock.equalTo("Welcome to Todo App"))),
+        )
     }
 
     @Test
@@ -1081,6 +1094,32 @@ class TodoApiIntegrationTest @Autowired constructor(
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
 
         val openApiValidationFilter = OpenApiValidationFilter(openAPI)
+
+        private val wireMockServer = WireMockServer(wireMockConfig().dynamicPort()).apply {
+            start()
+            stubFor(
+                WireMock.post(WireMock.urlEqualTo("/api/v1/emails"))
+                    .willReturn(
+                        WireMock.aResponse()
+                            .withStatus(202)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("""{"id":"msg-integration-test","status":"QUEUED"}"""),
+                    ),
+            )
+        }
+
+        @JvmStatic
+        @DynamicPropertySource
+        fun configureProperties(registry: DynamicPropertyRegistry) {
+            registry.add("notification.email.base-url") { wireMockServer.baseUrl() }
+            registry.add("notification.email.api-key") { "test-api-key" }
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun stopWireMock() {
+            wireMockServer.stop()
+        }
 
         @JvmStatic
         @AfterAll

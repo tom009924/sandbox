@@ -107,3 +107,26 @@ CVE-2026-3505
 CVE-2026-8763
 # [HIGH] bcprov-jdk18on:1.80.2 - Bouncy Castle Denial of Service via lazy ASN.1 sequence (build-time kotlinBouncyCastleConfiguration only)
 CVE-2026-13506
+
+# [HIGH] handlebars:4.3.1 - FileTemplateLoader Path Traversal (transitive via WireMock test dependency, templates not loaded from untrusted input)
+CVE-2026-55760
+
+# [HIGH] commons-fileupload:1.5 - Denial of Service via part headers (transitive via WireMock test dependency, production uses Spring standard multipart)
+CVE-2025-48976
+
+# [HIGH] httpcore5:5.3.6 - Denial of Service via excessive HTTP headers (transitive via WireMock client, test-only usage)
+CVE-2026-54399
+# [HIGH] httpcore5-h2:5.3.6 - Denial of Service via oversized HTTP/2 HPACK header (transitive via WireMock client, test-only usage)
+CVE-2026-54428
+
+# [CRITICAL] tomcat-embed-core:11.0.14 - Misleading security logs due to incorrect control flow (Spring Boot 4.0 upstream dependency, application uses standard SecurityFilterChain)
+CVE-2026-55276
+# [HIGH] tomcat-embed-core:11.0.14 - Incorrect control flow in rewrite valve (application does not use Tomcat rewrite valve)
+CVE-2026-53404
+
+# [HIGH] jetty-http:12.1.4 - HTTP request smuggling via chunked extension quoted-string parsing (transitive via WireMock-Jetty12 test dependency, local test server only)
+CVE-2026-2332
+# [HIGH] jetty-security:12.1.4 - Authentication bypass via Digest authentication encoding collision (transitive via WireMock-Jetty12 test dependency, Digest auth not used in WireMock stubs)
+CVE-2026-10050
+# [HIGH] jetty-server:12.1.4 - Denial of Service due to unreleased JDK Inflater (transitive via WireMock-Jetty12 test dependency, local test server only)
+CVE-2026-1605

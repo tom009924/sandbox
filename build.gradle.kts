@@ -48,6 +48,18 @@ configurations.matching { it.name.startsWith("integrationTest") }.configureEach 
     }
 }
 
+configurations.matching { it.name.contains("test") || it.name.contains("Test") }.configureEach {
+    exclude(group = "org.eclipse.jetty", module = "jetty-servlet")
+    exclude(group = "org.eclipse.jetty", module = "jetty-servlets")
+    exclude(group = "org.eclipse.jetty", module = "jetty-webapp")
+    exclude(group = "org.eclipse.jetty.http2", module = "http2-server")
+    resolutionStrategy.eachDependency {
+        if (requested.group.startsWith("org.eclipse.jetty")) {
+            useVersion("12.1.4")
+        }
+    }
+}
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
@@ -87,9 +99,13 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.archunit.junit5)
+    testImplementation(libs.wiremock.core)
+    testRuntimeOnly(libs.wiremock)
     testRuntimeOnly(libs.jackson.module.kotlin)
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
+    add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
 }
 
 dependencyAnalysis {
