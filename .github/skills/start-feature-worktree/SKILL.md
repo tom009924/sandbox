@@ -30,6 +30,12 @@ Use this skill at the start of any repository task that will change files. Estab
 
    *Note for container environments (Dev Container / Sandbox)*: If creating a directory in the workspace parent (`/workspaces`) fails with permission denied, use a writable path such as `/tmp/<worktree-name>`.
 
+   *Speed optimization for worktree validation*: Link shared `node_modules` from the primary workspace root so that `npm ci` overhead and disk space are avoided during validation:
+
+   ```bash
+   [ -d /workspaces/kotlin-devcontainer/node_modules ] && ln -sf /workspaces/kotlin-devcontainer/node_modules <sibling-worktree-path>/node_modules
+   ```
+
 6. Verify that the worktree is on the new branch, based on the latest fetched default branch, and clean. Report the branch and worktree path, then perform all task edits and validation there.
 7. When the task is complete, follow `commit-push-pr` from that worktree. Do not return to the default-branch worktree to finish or deliver the changes.
 

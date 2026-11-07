@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Cache directory for Trivy database
-CACHE_DIR="${TRIVY_CACHE_DIR:-/tmp/trivy-cache}"
+CACHE_DIR="${TRIVY_CACHE_DIR:-${HOME}/.cache/trivy}"
 mkdir -p "${CACHE_DIR}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
