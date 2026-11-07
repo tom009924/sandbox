@@ -40,7 +40,8 @@ archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref
 rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "restAssured" }
 swagger-parser = { module = "io.swagger.parser.v3:swagger-parser-v3", version.ref = "swaggerParser" }
 flyway-gcp-spanner = { module = "org.flywaydb:flyway-gcp-spanner" }
-wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+wiremock = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" }
+wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
