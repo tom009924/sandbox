@@ -10,6 +10,8 @@ plugins {
     jacoco
 }
 
+import java.nio.file.Files
+
 group = "com.example"
 version = "1.0.0"
 
@@ -293,7 +295,33 @@ val npmInstall = tasks.register<Exec>("npmInstall") {
     inputs.file("package.json")
     inputs.file("package-lock.json")
     outputs.dir("node_modules")
-    onlyIf { !file("node_modules").exists() }
+    onlyIf {
+        val nodeModulesDir = file("node_modules")
+        if (nodeModulesDir.exists()) {
+            false
+        } else {
+            // In a feature worktree, automatically link shared node_modules from primary workspace if available
+            val candidateRoots = listOf(
+                file("/workspaces/kotlin-devcontainer/node_modules"),
+            )
+            val sharedNodeModules = candidateRoots.firstOrNull { it.exists() && it.isDirectory }
+            if (sharedNodeModules != null) {
+                try {
+                    Files.createSymbolicLink(
+                        nodeModulesDir.toPath(),
+                        sharedNodeModules.toPath(),
+                    )
+                    logger.lifecycle("Linked shared node_modules from ${sharedNodeModules.absolutePath}")
+                    false
+                } catch (e: Exception) {
+                    logger.warn("Could not symlink shared node_modules: ${e.message}")
+                    true
+                }
+            } else {
+                true
+            }
+        }
+    }
 }
 
 val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
