@@ -350,7 +350,7 @@ val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     group = "verification"
     dependsOn(npmInstall, bundleOpenApi)
     setupNodeEnvironment()
-    commandLine(npmExecutable, "run", "lint:openapi")
+    commandLine(npmExecutable, "run", "lint:spectral")
     inputs.file("docs/openapi.yaml")
     inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")

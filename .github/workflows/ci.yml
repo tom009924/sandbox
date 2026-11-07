@@ -50,14 +50,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run checks
+      - name: Run checks and build application JAR
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
-        run: ./gradlew check --no-daemon
-
-      - name: Build application JAR
-        run: ./gradlew bootJar --no-daemon
+        run: ./gradlew check bootJar --no-daemon
 
       - name: Run Arazzo E2E workflow tests
         env:
