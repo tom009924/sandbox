@@ -2,15 +2,17 @@ package com.example.todo.infrastructure.persistence
 
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.UserRepository
+import com.google.cloud.spring.data.spanner.core.SpannerTemplate
 import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
 class UserRepositoryAdapter(
     private val springDataUserRepository: SpringDataUserRepository,
+    private val spannerTemplate: SpannerTemplate,
 ) : UserRepository {
     override fun findById(id: UUID): User? =
-        springDataUserRepository.findById(id).map { it.toDomain() }.orElse(null)
+        springDataUserRepository.findById(id.toString()).map { it.toDomain() }.orElse(null)
 
     override fun findAll(): List<User> =
         springDataUserRepository.findAll().map { it.toDomain() }
@@ -22,9 +24,15 @@ class UserRepositoryAdapter(
         springDataUserRepository.existsByUsername(username)
 
     override fun save(user: User): User {
-        val entity = user.toEntity()
-        val saved = springDataUserRepository.save(entity)
-        return saved.toDomain()
+        val isNew = user.id == null
+        val id = user.id ?: UUID.randomUUID()
+        val entity = user.copy(id = id).toEntity()
+        if (isNew) {
+            spannerTemplate.insert(entity)
+        } else {
+            spannerTemplate.update(entity)
+        }
+        return entity.toDomain()
     }
 
     override fun count(): Long = springDataUserRepository.count()
@@ -33,16 +41,16 @@ class UserRepositoryAdapter(
         springDataUserRepository.deleteAll()
     }
 
-    private fun UserJpaEntity.toDomain(): User =
+    private fun UserSpannerEntity.toDomain(): User =
         User(
-            id = id,
+            id = UUID.fromString(id),
             username = username,
             passwordHash = passwordHash,
         )
 
-    private fun User.toEntity(): UserJpaEntity =
-        UserJpaEntity(
-            id = id,
+    private fun User.toEntity(): UserSpannerEntity =
+        UserSpannerEntity(
+            id = (id ?: UUID.randomUUID()).toString(),
             username = username,
             passwordHash = passwordHash,
         )

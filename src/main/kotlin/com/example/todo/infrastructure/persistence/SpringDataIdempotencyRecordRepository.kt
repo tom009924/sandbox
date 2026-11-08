@@ -1,8 +1,7 @@
 package com.example.todo.infrastructure.persistence
 
-import org.springframework.data.jpa.repository.JpaRepository
-import java.time.Instant
+import com.google.cloud.spring.data.spanner.repository.SpannerRepository
+import org.springframework.stereotype.Repository
 
-interface SpringDataIdempotencyRecordRepository : JpaRepository<IdempotencyRecordJpaEntity, String> {
-    fun deleteByExpiresAtBefore(instant: Instant)
-}
+@Repository
+interface SpringDataIdempotencyRecordRepository : SpannerRepository<IdempotencyRecordSpannerEntity, String>

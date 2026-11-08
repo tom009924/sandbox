@@ -43,7 +43,6 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.http.RequestMethod
-import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
@@ -1105,12 +1104,6 @@ class TodoApiIntegrationTest @Autowired constructor(
                 emulatorHost = pubSubProperties.emulatorHost,
                 objectMapper = objectMapper,
             )
-
-        @Bean
-        fun hibernatePropertiesCustomizer(): HibernatePropertiesCustomizer =
-            HibernatePropertiesCustomizer { properties ->
-                properties["hibernate.session_factory.statement_inspector"] = DatabaseSideEffectInspector
-            }
     }
 
     private fun validatedRequest(

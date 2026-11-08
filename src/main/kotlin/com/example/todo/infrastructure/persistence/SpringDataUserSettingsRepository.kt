@@ -1,7 +1,7 @@
 package com.example.todo.infrastructure.persistence
 
-import org.springframework.data.jpa.repository.JpaRepository
-import java.util.UUID
+import com.google.cloud.spring.data.spanner.repository.SpannerRepository
+import org.springframework.stereotype.Repository
 
-interface SpringDataUserSettingsRepository : JpaRepository<UserSettingsJpaEntity, UUID>
-
+@Repository
+interface SpringDataUserSettingsRepository : SpannerRepository<UserSettingsSpannerEntity, String>
