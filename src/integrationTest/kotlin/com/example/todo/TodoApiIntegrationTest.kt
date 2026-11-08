@@ -20,6 +20,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -35,9 +36,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import com.example.todo.sideeffect.DatabaseSideEffectInspector
+import com.example.todo.sideeffect.DbOperation
+import com.example.todo.sideeffect.ExternalSideEffectVerifier
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import com.github.tomakehurst.wiremock.http.RequestMethod
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
@@ -56,9 +62,11 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     private lateinit var defaultUserId: UUID
     private lateinit var defaultToken: String
+    private lateinit var sideEffectVerifier: ExternalSideEffectVerifier
 
     @BeforeEach
     fun cleanDatabase() {
+        DatabaseSideEffectInspector.stopTracking()
         todoRepository.findAll().forEach(todoRepository::delete)
         userRepository.deleteAll()
         springDataUserSettingsRepository.deleteAll()
@@ -69,6 +77,18 @@ class TodoApiIntegrationTest @Autowired constructor(
         val user = userRepository.save(User(username = "default_user", passwordHash = "hash"))
         defaultUserId = requireNotNull(user.id)
         defaultToken = jwtTokenProvider.generateToken(AuthenticatedUser(defaultUserId, user.username))
+
+        sideEffectVerifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = pubSubReceiver,
+            initialAllowedDatabaseTables = setOf("idempotency_records"),
+        )
+        sideEffectVerifier.startTracking()
+    }
+
+    @AfterEach
+    fun verifySideEffects() {
+        sideEffectVerifier.assertNoUnverifiedSideEffects()
     }
 
     @Suppress("LongParameterList")
@@ -92,6 +112,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         estimatedMinutes = estimatedMinutes,
     )
 
+    private fun saveTodo(todo: Todo): Todo =
+        sideEffectVerifier.withoutDatabaseTracking { todoRepository.save(todo) }
+
     @Test
     fun registerUserReturnsCreatedUser() {
         val response = validatedRequest(token = null)
@@ -114,6 +137,8 @@ class TodoApiIntegrationTest @Autowired constructor(
                 .withRequestBody(WireMock.matchingJsonPath("$.to", WireMock.equalTo("newuser@example.com")))
                 .withRequestBody(WireMock.matchingJsonPath("$.subject", WireMock.equalTo("Welcome to Todo App"))),
         )
+        sideEffectVerifier.verifyDatabase(DbOperation.INSERT, "users")
+        sideEffectVerifier.verifyHttpRequest(RequestMethod.POST, "/api/v1/emails")
     }
 
     @Test
@@ -125,6 +150,9 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/auth/register")
             .then()
             .statusCode(HttpStatus.CREATED.value())
+
+        sideEffectVerifier.verifyDatabase(DbOperation.INSERT, "users")
+        sideEffectVerifier.verifyHttpRequest(RequestMethod.POST, "/api/v1/emails")
 
         validatedRequest(token = null)
             .contentType(ContentType.JSON)
@@ -144,6 +172,9 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/auth/register")
             .then()
             .statusCode(HttpStatus.CREATED.value())
+
+        sideEffectVerifier.verifyDatabase(DbOperation.INSERT, "users")
+        sideEffectVerifier.verifyHttpRequest(RequestMethod.POST, "/api/v1/emails")
 
         validatedRequest(token = null)
             .contentType(ContentType.JSON)
@@ -298,6 +329,11 @@ class TodoApiIntegrationTest @Autowired constructor(
             .delete("/api/todos/$todoId")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+
+        sideEffectVerifier.verifyDatabase(DbOperation.INSERT, "todos")
+        sideEffectVerifier.verifyDatabase(DbOperation.INSERT, "users")
+        sideEffectVerifier.verifyHttpRequest(RequestMethod.POST, "/api/v1/emails")
+        assertPublishedEvent(TodoEventType.CREATED, todoId)
     }
 
     @Test
@@ -357,7 +393,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         val createdTodo = requireNotNull(todoRepository.findById(todoId))
         val modifiedTodo = createdTodo.copy(title = "Changed after creation")
-        todoRepository.save(modifiedTodo)
+        saveTodo(modifiedTodo)
 
         validatedPostRequest(idempotencyKey = idempotencyKey)
             .contentType(ContentType.JSON)
@@ -393,6 +429,12 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/todos")
             .then()
             .statusCode(HttpStatus.CREATED.value())
+            .extract()
+            .let { UUID.fromString(it.path<String>("id")) }
+            .also { createdId ->
+                sideEffectVerifier.verifyDatabaseTable("todos")
+                assertPublishedEvent(TodoEventType.CREATED, createdId)
+            }
 
         validatedPostRequest(idempotencyKey = idempotencyKey)
             .contentType(ContentType.JSON)
@@ -519,7 +561,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @MethodSource("com.example.todo.TodoApiTestCases#validationErrorTestCases")
     fun validationErrorsReturnBadRequest(tc: ValidationErrorTestCase) {
         val targetId = if (tc.needsExistingTodo) {
-            val todo = todoRepository.save(testTodo(title = "Buy milk"))
+            val todo = saveTodo(testTodo(title = "Buy milk"))
             requireNotNull(todo.id)
         } else {
             null
@@ -555,7 +597,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun listTodosReturnsStoredTodos() {
-        val todo = todoRepository.save(testTodo(title = "Buy milk"))
+        val todo = saveTodo(testTodo(title = "Buy milk"))
 
         validatedRequest()
             .`when`()
@@ -568,7 +610,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @Test
     fun getTodoReturnsMatchingTodo() {
         val dueDate = LocalDate.parse("2025-04-18")
-        val todo = todoRepository.save(
+        val todo = saveTodo(
             testTodo(
                 title = "Buy milk",
                 completed = true,
@@ -623,7 +665,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun updateTodoChangesStoredTodo() {
-        val todo = todoRepository.save(testTodo(title = "Buy milk"))
+        val todo = saveTodo(testTodo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -684,9 +726,9 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun listTodosFiltersByCompletedAndPriority() {
-        todoRepository.save(testTodo(title = "Task 1", completed = false, priority = TodoPriority.LOW))
-        todoRepository.save(testTodo(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
-        todoRepository.save(testTodo(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
+        saveTodo(testTodo(title = "Task 1", completed = false, priority = TodoPriority.LOW))
+        saveTodo(testTodo(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
+        saveTodo(testTodo(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
 
         validatedRequest()
             .`when`()
@@ -713,7 +755,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun patchTodoChangesStoredTodo() {
-        val todo = todoRepository.save(testTodo(title = "Buy milk", completed = false, priority = TodoPriority.LOW))
+        val todo = saveTodo(testTodo(title = "Buy milk", completed = false, priority = TodoPriority.LOW))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -735,7 +777,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     @ParameterizedTest(name = "Priority: {0}")
     @EnumSource(TodoPriority::class)
     fun patchTodoAcceptsEveryPriorityValue(priority: TodoPriority) {
-        val todo = todoRepository.save(testTodo(title = "Buy milk", priority = TodoPriority.LOW))
+        val todo = saveTodo(testTodo(title = "Buy milk", priority = TodoPriority.LOW))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -754,7 +796,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun patchTodoAcceptsEstimatedMinutesMinimum() {
-        val todo = todoRepository.save(testTodo(title = "Buy milk", estimatedMinutes = 30))
+        val todo = saveTodo(testTodo(title = "Buy milk", estimatedMinutes = 30))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -773,7 +815,7 @@ class TodoApiIntegrationTest @Autowired constructor(
 
     @Test
     fun deleteTodoRemovesStoredTodo() {
-        val todo = todoRepository.save(testTodo(title = "Buy milk"))
+        val todo = saveTodo(testTodo(title = "Buy milk"))
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
@@ -783,6 +825,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.NO_CONTENT.value())
 
         assertEquals(null, todoRepository.findById(todoId))
+        sideEffectVerifier.verifyDatabase(DbOperation.DELETE, "todos")
 
         assertPublishedEvent(TodoEventType.DELETED, todoId) {
             assertEquals(null, it.event.todo)
@@ -813,6 +856,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("defaultPriority", equalTo(priority.name))
+
+        sideEffectVerifier.verifyDatabaseTable("user_settings")
     }
 
     @Test
@@ -826,6 +871,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .statusCode(HttpStatus.OK.value())
             .body("defaultEstimatedMinutes", equalTo(0))
             .body("maxActiveTodos", equalTo(1))
+
+        sideEffectVerifier.verifyDatabaseTable("user_settings")
     }
 
     @Test
@@ -854,6 +901,10 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertTrue(stored != null)
         assertEquals(TodoPriority.HIGH, stored?.priority)
         assertEquals(UPDATED_ESTIMATED_MINUTES, stored?.estimatedMinutes)
+
+        sideEffectVerifier.verifyDatabaseTable("user_settings")
+        sideEffectVerifier.verifyDatabaseTable("todos")
+        assertPublishedEvent(TodoEventType.CREATED, todoId)
     }
 
     @Test
@@ -918,6 +969,13 @@ class TodoApiIntegrationTest @Autowired constructor(
             .put("/api/todos/$firstId")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        sideEffectVerifier.verifyDatabaseTable("user_settings")
+        sideEffectVerifier.verifyDatabaseTable("todos")
+        if (pubSubReceiver.isAvailable) {
+            val events = pubSubReceiver.pullEvents(maxMessages = 10)
+            events.forEach { sideEffectVerifier.markPubSubEventVerified(it) }
+        }
     }
 
     @Test
@@ -950,14 +1008,14 @@ class TodoApiIntegrationTest @Autowired constructor(
     @Test
     fun getAdminStatsReturnsAggregateMetrics() {
         // Create an uncompleted todo and a completed todo
-        todoRepository.save(
+        saveTodo(
             Todo(
                 userId = defaultUserId,
                 title = "Uncompleted task",
                 completed = false,
             ),
         )
-        todoRepository.save(
+        saveTodo(
             Todo(
                 userId = defaultUserId,
                 title = "Completed task",
@@ -999,6 +1057,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertEquals(expected.dueDate, stored.dueDate)
         assertEquals(expected.priority, stored.priority)
         assertEquals(expected.estimatedMinutes, stored.estimatedMinutes)
+        sideEffectVerifier.verifyDatabaseTable("todos")
     }
 
     private fun assertEventTodo(expected: Todo, actual: Todo?) {
@@ -1030,6 +1089,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             assertEventTodo(expectedTodo, received.event.todo)
         }
         assertDetails?.invoke(received)
+        sideEffectVerifier.markPubSubEventVerified(received)
     }
 
     @TestConfiguration
@@ -1045,6 +1105,12 @@ class TodoApiIntegrationTest @Autowired constructor(
                 emulatorHost = pubSubProperties.emulatorHost,
                 objectMapper = objectMapper,
             )
+
+        @Bean
+        fun hibernatePropertiesCustomizer(): HibernatePropertiesCustomizer =
+            HibernatePropertiesCustomizer { properties ->
+                properties["hibernate.session_factory.statement_inspector"] = DatabaseSideEffectInspector
+            }
     }
 
     private fun validatedRequest(
