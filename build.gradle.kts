@@ -82,6 +82,12 @@ configurations[integrationTestSourceSet.runtimeOnlyConfigurationName]
     .extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
+    constraints {
+        implementation(libs.bouncycastle.bcprov) {
+            because("CVE-2025-14813 and CVE-2026-5598 fixed in 1.80.2")
+        }
+    }
+
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.cloud.gcp.starter.data.spanner)
     implementation(libs.spring.boot.starter.validation)

@@ -15,6 +15,7 @@ swaggerParser = "2.1.25"
 jjwt = "0.12.6"
 restAssured = "5.5.1"
 wiremock = "3.12.1"
+bouncycastle = "1.80.2"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
@@ -44,6 +45,7 @@ swagger-parser = { module = "io.swagger.parser.v3:swagger-parser-v3", version.re
 flyway-gcp-spanner = { module = "org.flywaydb:flyway-gcp-spanner" }
 wiremock = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" }
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
