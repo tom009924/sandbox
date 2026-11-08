@@ -57,7 +57,12 @@ internal class ExternalSideEffectVerifier(
     ) {
         val targetTable = table.lowercase()
         val unverified = DatabaseSideEffectInspector.getMutations().filter { it !in verifiedDatabaseMutations }
-        val matching = unverified.filter { it.operation == operation && it.table == targetTable }
+        val matching = unverified.filter { mutation ->
+            val matchesOp = mutation.operation == operation ||
+                (mutation.operation == DbOperation.UPSERT &&
+                    (operation == DbOperation.INSERT || operation == DbOperation.UPDATE))
+            matchesOp && mutation.table == targetTable
+        }
 
         assertEquals(
             count,

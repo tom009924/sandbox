@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
-    alias(libs.plugins.kotlin.jpa)
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.detekt)
@@ -83,8 +82,14 @@ configurations[integrationTestSourceSet.runtimeOnlyConfigurationName]
     .extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
+    constraints {
+        implementation(libs.bouncycastle.bcprov) {
+            because("CVE-2025-14813 and CVE-2026-5598 fixed in 1.80.2")
+        }
+    }
+
     implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.cloud.gcp.starter.data.spanner)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.flyway)
@@ -121,7 +126,7 @@ dependencyAnalysis {
             }
             onUnusedDependencies {
                 exclude(
-                    "org.springframework.boot:spring-boot-starter-data-jpa",
+                    "com.google.cloud:spring-cloud-gcp-starter-data-spanner",
                     "org.springframework.boot:spring-boot-starter-security",
                     "org.springframework.boot:spring-boot-starter-validation",
                     "org.springframework.boot:spring-boot-starter-web",

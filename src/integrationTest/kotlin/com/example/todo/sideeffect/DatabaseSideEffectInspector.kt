@@ -1,15 +1,20 @@
 package com.example.todo.sideeffect
 
-import org.hibernate.resource.jdbc.spi.StatementInspector
+import com.google.cloud.spanner.Mutation
+import com.google.cloud.spring.data.spanner.core.mapping.event.AfterDeleteEvent
+import com.google.cloud.spring.data.spanner.core.mapping.event.AfterExecuteDmlEvent
+import com.google.cloud.spring.data.spanner.core.mapping.event.AfterSaveEvent
+import org.springframework.context.event.EventListener
+import org.springframework.stereotype.Component
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
- * Hibernate の StatementInspector を利用して、アプリケーションが発行した
- * データベースへの副作用（INSERT / UPDATE / DELETE）のみを記録するインスペクター。
+ * Spring Data Cloud Spanner のライフサイクルイベントを利用して、アプリケーションが発行した
+ * データベースへの副作用（INSERT / UPDATE / DELETE / UPSERT）のみを記録するインスペクター。
  *
- * SELECT などの読み取り操作は副作用がないため完全に無視されます。
+ * SELECT などの読み取り操作は副作用がないため記録されません。
  */
-internal object DatabaseSideEffectInspector : StatementInspector {
+internal object DatabaseSideEffectInspector {
     private val recordedMutations = ConcurrentLinkedQueue<DatabaseMutation>()
 
     @Volatile
@@ -42,7 +47,13 @@ internal object DatabaseSideEffectInspector : StatementInspector {
 
     fun getMutations(): List<DatabaseMutation> = recordedMutations.toList()
 
-    override fun inspect(sql: String?): String? {
+    fun recordMutation(mutation: DatabaseMutation) {
+        if (tracking) {
+            recordedMutations.add(mutation)
+        }
+    }
+
+    fun inspect(sql: String?): String? {
         if (!tracking || sql == null) return sql
 
         val cleanSql = stripComments(sql.trim())
@@ -57,7 +68,7 @@ internal object DatabaseSideEffectInspector : StatementInspector {
 
         if (operation != null) {
             val table = extractTable(operation, cleanSql)
-            recordedMutations.add(DatabaseMutation(operation, table, cleanSql))
+            recordMutation(DatabaseMutation(operation, table, cleanSql))
         }
 
         return sql
@@ -83,7 +94,7 @@ internal object DatabaseSideEffectInspector : StatementInspector {
                 val intoIndex = tokens.indexOfFirst { it.equals("into", ignoreCase = true) }
                 if (intoIndex != -1 && intoIndex + 1 < tokens.size) tokens[intoIndex + 1] else "unknown"
             }
-            DbOperation.UPDATE -> {
+            DbOperation.UPDATE, DbOperation.UPSERT -> {
                 val updateIndex = tokens.indexOfFirst { it.equals("update", ignoreCase = true) }
                 if (updateIndex != -1 && updateIndex + 1 < tokens.size) tokens[updateIndex + 1] else "unknown"
             }
@@ -93,5 +104,56 @@ internal object DatabaseSideEffectInspector : StatementInspector {
             }
         }
         return target.lowercase()
+    }
+}
+
+/**
+ * Spring Data Spanner のイベントを捕捉して DatabaseSideEffectInspector に記録するリスナー。
+ */
+@Component
+internal class SpannerDatabaseSideEffectListener {
+
+    @EventListener
+    fun onAfterSave(event: AfterSaveEvent) {
+        if (!DatabaseSideEffectInspector.isTracking()) return
+        event.mutations.forEach { mutation ->
+            val op = when (mutation.operation) {
+                Mutation.Op.INSERT -> DbOperation.INSERT
+                Mutation.Op.UPDATE -> DbOperation.UPDATE
+                Mutation.Op.INSERT_OR_UPDATE -> DbOperation.UPSERT
+                Mutation.Op.REPLACE -> DbOperation.UPDATE
+                Mutation.Op.DELETE -> DbOperation.DELETE
+                else -> null
+            }
+            if (op != null) {
+                DatabaseSideEffectInspector.recordMutation(
+                    DatabaseMutation(
+                        operation = op,
+                        table = mutation.table.lowercase(),
+                        sql = "Mutation: ${mutation.operation} on ${mutation.table}",
+                    ),
+                )
+            }
+        }
+    }
+
+    @EventListener
+    fun onAfterDelete(event: AfterDeleteEvent) {
+        if (!DatabaseSideEffectInspector.isTracking()) return
+        event.mutations.forEach { mutation ->
+            DatabaseSideEffectInspector.recordMutation(
+                DatabaseMutation(
+                    operation = DbOperation.DELETE,
+                    table = mutation.table.lowercase(),
+                    sql = "Mutation: DELETE on ${mutation.table}",
+                ),
+            )
+        }
+    }
+
+    @EventListener
+    fun onAfterExecuteDml(event: AfterExecuteDmlEvent) {
+        if (!DatabaseSideEffectInspector.isTracking()) return
+        DatabaseSideEffectInspector.inspect(event.statement.sql)
     }
 }

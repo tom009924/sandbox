@@ -1,25 +1,28 @@
 package com.example.todo.infrastructure.persistence
 
-import com.example.todo.domain.model.TodoPriority
-import org.springframework.data.jpa.repository.JpaRepository
-import java.util.UUID
+import com.google.cloud.spring.data.spanner.repository.SpannerRepository
+import com.google.cloud.spring.data.spanner.repository.query.Query
+import org.springframework.data.repository.query.Param
+import org.springframework.stereotype.Repository
 
-interface SpringDataTodoRepository : JpaRepository<TodoJpaEntity, UUID> {
-    fun findAllByUserId(userId: UUID): List<TodoJpaEntity>
+@Repository
+interface SpringDataTodoRepository : SpannerRepository<TodoSpannerEntity, String> {
+    fun findAllByUserId(userId: String): List<TodoSpannerEntity>
 
-    fun findAllByUserIdAndCompleted(userId: UUID, completed: Boolean): List<TodoJpaEntity>
+    fun findAllByUserIdAndCompleted(userId: String, completed: Boolean): List<TodoSpannerEntity>
 
-    fun findAllByUserIdAndPriority(userId: UUID, priority: TodoPriority): List<TodoJpaEntity>
+    fun findAllByUserIdAndPriority(userId: String, priority: String): List<TodoSpannerEntity>
 
     fun findAllByUserIdAndCompletedAndPriority(
-        userId: UUID,
+        userId: String,
         completed: Boolean,
-        priority: TodoPriority,
-    ): List<TodoJpaEntity>
+        priority: String,
+    ): List<TodoSpannerEntity>
 
-    fun findByIdAndUserId(id: UUID, userId: UUID): TodoJpaEntity?
+    fun findByIdAndUserId(id: String, userId: String): TodoSpannerEntity?
 
-    fun countByUserIdAndCompletedFalse(userId: UUID): Long
+    @Query("SELECT COUNT(1) FROM todos WHERE user_id = @userId AND completed = FALSE")
+    fun countByUserIdAndCompletedFalse(@Param("userId") userId: String): Long
 
     fun countByCompleted(completed: Boolean): Long
 }

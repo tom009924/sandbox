@@ -7,6 +7,7 @@ internal enum class DbOperation {
     INSERT,
     UPDATE,
     DELETE,
+    UPSERT,
 }
 
 /**
