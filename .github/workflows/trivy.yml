@@ -1,4 +1,4 @@
-name: Trivy Security & License Scan
+name: Trivy Security, License & SBOM Scan
 
 on:
   push:
@@ -49,6 +49,23 @@ jobs:
             cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Generate CycloneDX SBOM
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "cyclonedx"
+          output: "bom.cyclonedx.json"
+
+      - name: Upload CycloneDX SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyclonedx-sbom
+          path: bom.cyclonedx.json
+          retention-days: 14
 
       - name: Run Trivy vulnerability scanner (SARIF output)
         if: always()
