@@ -56,7 +56,7 @@ configurations.matching { it.name.contains("test") || it.name.contains("Test") }
     exclude(group = "org.eclipse.jetty.http2", module = "http2-server")
     resolutionStrategy.eachDependency {
         if (requested.group.startsWith("org.eclipse.jetty")) {
-            useVersion("12.1.4")
+            useVersion("12.1.10")
         }
     }
 }
@@ -84,7 +84,13 @@ configurations[integrationTestSourceSet.runtimeOnlyConfigurationName]
 dependencies {
     constraints {
         implementation(libs.bouncycastle.bcprov) {
-            because("CVE-2025-14813 and CVE-2026-5598 fixed in 1.80.2")
+            because("CVE-2025-14813, CVE-2026-5598 and GHSA-9pwp-9qqc-pr26 fixed in 1.85")
+        }
+        implementation("com.google.guava:guava:33.7.2-jre") {
+            because("fix GHSA-xxph-c9ww-hj94")
+        }
+        implementation("com.github.jknack:handlebars:4.5.2") {
+            because("fix GHSA-r4gv-qr8j-p3pg")
         }
     }
 
