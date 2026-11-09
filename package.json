@@ -16,6 +16,7 @@
     "test:arazzo": "scripts/run-arazzo.sh",
     "arazzo:ui": "arazzo-ui docs/workflows/todo-workflows.arazzo.yaml",
     "coverage:spec": "./gradlew --offline integrationTest --tests 'com.example.todo.TodoApiIntegrationTest'",
+    "check:oss-health": "node scripts/check-oss-health.mjs",
     "trivy:scan": "scripts/trivy-scan.sh",
     "trivy:suppressed": "scripts/trivy-scan.sh --show-suppressed",
     "usage": "ccusage -O",
