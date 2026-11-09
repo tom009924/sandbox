@@ -4,7 +4,7 @@ springBoot = "4.0.9"
 springDependencyManagement = "1.1.7"
 detekt = "1.23.8"
 dependencyAnalysis = "3.19.2"
-openapiGenerator = "7.10.0"
+openapiGenerator = "7.27.0"
 jacoco = "0.8.12"
 
 spannerJdbc = "2.29.1"
