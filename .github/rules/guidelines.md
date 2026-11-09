@@ -6,7 +6,7 @@
 - **言語**: Kotlin 2.2 (Java 21)
 - **フレームワーク**: Spring Boot 4.0 (Web, Data JPA, Validation)
 - **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
-- **静的解析・セキュリティ**: Detekt 1.23, JetBrains Qodana (Community JVM), Aqua Security Trivy (脆弱性・ライセンス・CycloneDX SBOM生成), OpenSSF Scorecard (依存OSS健全性・持続性評価), Socket Security, Gradle Dependency Verification (チェックサム改ざん検証)
+- **静的解析・セキュリティ**: Detekt 1.23, JetBrains Qodana (Community JVM), Aqua Security Trivy (脆弱性・ライセンス・CycloneDX SBOM生成), OpenSSF Scorecard (依存OSS健全性・持続性・サプライチェーン評価・JSON保管), Socket Security, Gradle Dependency Verification (チェックサム改ざん検証)
 - **テスト**: JUnit 5, MockMvc, REST Assured, Kotest, swagger-parser
 - **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), OpenAPI Arazzo 1.0.1 ([docs/workflows/todo-workflows.arazzo.yaml](docs/workflows/todo-workflows.arazzo.yaml)), Stoplight Spectral 6.16, Redocly CLI, OpenAPI Generator Validate
 
