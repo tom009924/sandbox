@@ -8,7 +8,7 @@
 - **Java/Kotlin**: Java 21, Kotlin 2.2, Spring Boot 4.0
 - **スタイル/検証**: `./gradlew detekt`（Detekt 静的解析をパスすること）
 - **コード品質 (Qodana)**: CI で JetBrains Qodana（[qodana.yaml](qodana.yaml)）による静的コード解析が実行されます
-- **セキュリティ・OSS健全性・SBOM (Trivy, OpenSSF Scorecard)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・ライセンススキャンおよび CycloneDX SBOM の自動生成・保管、ならびに OpenSSF Scorecard（[.github/workflows/oss-health.yml](.github/workflows/oss-health.yml)）による依存OSSの持続可能性・活動性・放置リスク評価が実行されます。また Gradle Dependency Verification（`gradle/verification-metadata.xml`）により依存関係のチェックサム改ざんが防止されます
+- **セキュリティ・OSS健全性・SBOM (Trivy, OpenSSF Scorecard)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・ライセンススキャンおよび CycloneDX SBOM の自動生成・保管、ならびに OpenSSF Scorecard（[.github/workflows/oss-health.yml](.github/workflows/oss-health.yml)）による依存OSSの持続可能性・活動性・放置リスク・サプライチェーンセキュリティ評価（JSONレポート保管）が実行されます。また Gradle Dependency Verification（`gradle/verification-metadata.xml`）により依存関係のチェックサム改ざんが防止されます
 - **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期し、`./gradlew lintOpenApi` (Spectral) をパスすること
 - **全検証**: コミット前に必ず `./gradlew check` を実行すること
 - **テスト戦略・テスト環境検証**: 全体テスト方針は [docs/testing/test-strategy.md](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) を参照すること
