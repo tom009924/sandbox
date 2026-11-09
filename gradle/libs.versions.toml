@@ -15,7 +15,7 @@ swaggerParser = "2.1.25"
 jjwt = "0.12.6"
 restAssured = "5.5.1"
 wiremock = "3.12.1"
-bouncycastle = "1.80.2"
+bouncycastle = "1.85"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
