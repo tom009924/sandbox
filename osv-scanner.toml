@@ -1,0 +1,10 @@
+# OSV-Scanner configuration
+# https://google.github.io/osv-scanner/configuration/
+
+[[IgnoredVulns]]
+id = "GHSA-ccrj-gw8r-854m"
+reason = "Transitive dependency of Google Cloud PubSub client (io.opentelemetry:opentelemetry-api:1.55.0); W3C tracestate parsing not exposed"
+
+[[IgnoredVulns]]
+id = "GHSA-rcgg-9c38-7xpx"
+reason = "Transitive dependency of Google Cloud PubSub client (io.opentelemetry:opentelemetry-api:1.55.0); OpenTelemetry tracing not exposed"
