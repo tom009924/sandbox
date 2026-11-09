@@ -1,0 +1,71 @@
+name: OSV-Scanner OSS Health Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-scanner-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan-pr:
+    if: github.event_name == 'pull_request'
+    name: OSV-Scanner PR Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v1.9.3
+        with:
+          scan-args: |-
+            --fail-on=high
+            ./
+
+  scan-scheduled:
+    if: github.event_name != 'pull_request'
+    name: OSV-Scanner Scheduled / Push Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner (SARIF output)
+        uses: google/osv-scanner-action/osv-scanner-action@v1.9.3
+        with:
+          results-file: osv-results.sarif
+          results-format: sarif
+          scan-args: |-
+            ./
+
+      - name: Upload SARIF report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-scanner-sarif-report
+          path: osv-results.sarif
+          retention-days: 7
+
+      - name: Upload OSV-Scanner results to GitHub Security tab
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv-results.sarif

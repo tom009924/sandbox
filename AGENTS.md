@@ -8,7 +8,7 @@
 - **Java/Kotlin**: Java 21, Kotlin 2.2, Spring Boot 4.0
 - **スタイル/検証**: `./gradlew detekt`（Detekt 静的解析をパスすること）
 - **コード品質 (Qodana)**: CI で JetBrains Qodana（[qodana.yaml](qodana.yaml)）による静的コード解析が実行されます
-- **セキュリティスキャン (Trivy)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・設定ミススキャンが実行され、未トリアージの重大脆弱性検出時は失敗します
+- **セキュリティスキャン (Trivy, OSV-Scanner)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・ライセンス・設定ミススキャン、および Google OSV-Scanner によるOSS健全性・脆弱性スキャンが実行されます。また Gradle Dependency Verification（`gradle/verification-metadata.xml`）により依存関係のチェックサム改ざんが防止されます
 - **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期し、`./gradlew lintOpenApi` (Spectral) をパスすること
 - **全検証**: コミット前に必ず `./gradlew check` を実行すること
 - **テスト戦略・テスト環境検証**: 全体テスト方針は [docs/testing/test-strategy.md](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) を参照すること

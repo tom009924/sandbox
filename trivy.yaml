@@ -10,11 +10,30 @@ scan:
     - vuln
     - secret
     - misconfig
+    - license
   skip-dirs:
     - .gradle
     - build
     - node_modules
     - .idea
+
+license:
+  forbidden:
+    - AGPL-1.0
+    - AGPL-3.0
+    - AGPL-1.0-only
+    - AGPL-1.0-or-later
+    - AGPL-3.0-only
+    - AGPL-3.0-or-later
+    - GPL-1.0
+    - GPL-2.0
+    - GPL-3.0
+    - GPL-1.0-only
+    - GPL-1.0-or-later
+    - GPL-2.0-only
+    - GPL-2.0-or-later
+    - GPL-3.0-only
+    - GPL-3.0-or-later
 
 pkg:
   types:
