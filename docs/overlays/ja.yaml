@@ -173,4 +173,10 @@ actions:
     update: TODO作成時に未指定の場合に適用されるデフォルト所要時間（分）
   - target: $.components.schemas.UpdateUserSettingsRequest.properties.maxActiveTodos.description
     update: 同時に保持できる未完了TODOタスクの最大件数
+  - target: $.components.schemas.ErrorResponse.properties.message.description
+    update: エラー内容の説明
+  - target: $.components.schemas.ErrorResponse.properties.status.description
+    update: HTTPステータスコード
+  - target: $.components.schemas.ErrorResponse.properties.error.description
+    update: HTTPステータス理由句
 

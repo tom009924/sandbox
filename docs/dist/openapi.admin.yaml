@@ -637,7 +637,23 @@ components:
           example: 30
     ErrorResponse:
       type: object
-      additionalProperties: true
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message describing the cause of the failure.
+          example: Invalid request parameters
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code.
+          example: 401
+        error:
+          type: string
+          description: HTTP status reason phrase.
+          example: Unauthorized
+      additionalProperties: false
     CreateTodoRequest:
       type: object
       required:
