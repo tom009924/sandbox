@@ -108,24 +108,28 @@ actions:
             type: integer
             format: int64
             minimum: 0
+            maximum: 10000000
             description: Total registered users count.
             example: 10
           totalTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 10000000
             description: Total todos count across all users.
             example: 45
           completedTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 10000000
             description: Total completed todos count.
             example: 20
           activeTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 10000000
             description: Total active todos count.
             example: 25
       AdminUserResponse:
@@ -137,9 +141,12 @@ actions:
           id:
             type: string
             format: uuid
+            maxLength: 36
             description: Unique user identifier.
             example: 550e8400-e29b-41d4-a716-446655440000
           username:
             type: string
+            pattern: '.*\S.*'
+            maxLength: 50
             description: Registered username.
             example: alice
