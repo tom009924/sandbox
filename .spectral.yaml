@@ -61,6 +61,7 @@ rules:
   owasp:api2:2023-jwt-best-practices: error      # JWT セキュリティ標準 (RFC8725 準拠宣言)
   owasp:api4:2023-array-limit: warn              # 配列リソースの枯渇防止 (maxItems)
   owasp:api4:2023-string-limit: error            # 文字列リソース枯渇防止 (maxLength / enum / const)
+  owasp:api4:2023-string-restricted: error       # 文字列フォーマット制限 (format / pattern / enum / const)
   owasp:api4:2023-integer-limit: error           # 数値リソース枯渇防止 (minimum / maximum)
   owasp:api4:2023-integer-limit-legacy: error    # 数値リソース枯渇防止 (OAS3.0 legacy)
   owasp:api9:2023-inventory-access: error        # サーバー環境 (x-internal) の明示
@@ -86,4 +87,3 @@ rules:
 
   # スキーマの厳密制約（未対応ルール）
   owasp:api3:2023-no-additionalProperties: off
-  owasp:api4:2023-string-restricted: off

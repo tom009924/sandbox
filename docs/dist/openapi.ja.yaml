@@ -474,11 +474,13 @@ components:
       properties:
         username:
           type: string
+          pattern: .*\S.*
           maxLength: 50
           description: 登録済みアカウントのユーザー名
           example: alice
         password:
           type: string
+          pattern: .*\S.*
           maxLength: 100
           description: アカウントのパスワード
           example: password123
@@ -491,11 +493,13 @@ components:
       properties:
         token:
           type: string
+          pattern: ^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$
           maxLength: 2048
           description: 署名済みJWTアクセストークン
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U
         tokenType:
           type: string
+          pattern: ^Bearer$
           maxLength: 20
           description: Authorizationヘッダーで使用するトークンタイププレフィックス (Bearer)
           example: Bearer
@@ -520,6 +524,7 @@ components:
           example: 550e8400-e29b-41d4-a716-446655440000
         username:
           type: string
+          pattern: .*\S.*
           maxLength: 50
           description: 登録されたユーザー名
           example: alice
@@ -547,6 +552,7 @@ components:
           example: 550e8400-e29b-41d4-a716-446655440000
         title:
           type: string
+          pattern: .*\S.*
           minLength: 1
           maxLength: 100
           example: Buy milk
@@ -555,6 +561,7 @@ components:
           example: false
         description:
           type: string
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
           maxLength: 500
           nullable: true
           example: Buy before the weekend
@@ -590,6 +597,7 @@ components:
           example: Buy milk
         description:
           type: string
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
           maxLength: 500
           nullable: true
           example: Buy before the weekend
@@ -625,6 +633,7 @@ components:
           example: true
         description:
           type: string
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
           maxLength: 500
           nullable: true
           example: Purchased
@@ -659,6 +668,7 @@ components:
           example: true
         description:
           type: string
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
           maxLength: 500
           nullable: true
           example: Purchased
