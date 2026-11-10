@@ -9,6 +9,7 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local development server
+    x-internal: true
 security:
   - bearerAuth: []
 tags:
@@ -130,6 +131,7 @@ paths:
             application/json:
               schema:
                 type: array
+                maxItems: 1000
                 items:
                   $ref: '#/components/schemas/Todo'
         '401':
@@ -444,7 +446,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT Bearer token obtained from /api/auth/login
+      description: JWT Bearer token obtained from /api/auth/login. JWTs should comply with RFC8725.
   schemas:
     RegisterRequest:
       type: object
