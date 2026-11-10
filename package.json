@@ -2,6 +2,9 @@
   "name": "todo-api",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "bundle:openapi:public": "REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly bundle docs/openapi.yaml --output docs/dist/openapi.yaml",
     "bundle:openapi:admin": "REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly bundle docs/openapi.yaml --overlay docs/overlays/admin.yaml --output docs/dist/openapi.admin.yaml",

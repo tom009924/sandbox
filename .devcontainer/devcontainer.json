@@ -12,7 +12,9 @@
       "moby": true,
       "dockerDashComposeVersion": "v2"
     },
-    "ghcr.io/devcontainers/features/node:1": {}
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
   },
   "customizations": {
     "vscode": {

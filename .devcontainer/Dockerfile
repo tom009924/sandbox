@@ -10,7 +10,7 @@ RUN bash -c "source /usr/local/sdkman/bin/sdkman-init.sh \
     && sdk flush temp \
     && rm -rf /usr/local/sdkman/tmp/*" \
     && bash -c "source /usr/local/share/nvm/nvm.sh \
-    && nvm install 20 \
-    && nvm alias default 20"
+    && nvm install 22 \
+    && nvm alias default 22"
 
 ENV PATH="/usr/local/sdkman/candidates/kotlin/current/bin:${PATH}"
