@@ -140,7 +140,7 @@ actions:
 
   # Components
   - target: $.components.securitySchemes.bearerAuth.description
-    update: /api/auth/login より取得したJWT Bearerトークン
+    update: /api/auth/login より取得したJWT Bearerトークン。RFC8725に準拠。
   - target: $.components.schemas.RegisterRequest.properties.username.description
     update: アカウントの一意なユーザー名
   - target: $.components.schemas.RegisterRequest.properties.password.description

@@ -9,6 +9,7 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local development server
+    x-internal: true
 security:
   - bearerAuth: []
 tags:
@@ -130,6 +131,7 @@ paths:
             application/json:
               schema:
                 type: array
+                maxItems: 1000
                 items:
                   $ref: '#/components/schemas/Todo'
         '401':
@@ -441,7 +443,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: /api/auth/login より取得したJWT Bearerトークン
+      description: /api/auth/login より取得したJWT Bearerトークン。RFC8725に準拠。
   schemas:
     RegisterRequest:
       type: object
