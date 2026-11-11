@@ -71,7 +71,27 @@ flowchart TD
 
 ---
 
-## 4. テストデータ管理方針
+## 4. スライステスト強制機構 (Enforced Slice Testing)
+
+本リポジトリでは、API の入口（Controller）および永続化の出口（Repository / Adapter）において、クラスやクエリメソッドが増加した場合でもテスト漏れが発生しないよう、以下の**二重の強制機構**を導入しています。
+
+### 1. 静的強制 (ArchUnit: `SliceTestConventionsTest`)
+- **Controller スライステスト強制**:
+  すべての `@RestController` 実装クラスに対して、対応する `*ControllerTest` が存在することを静的検証。
+- **RepositoryAdapter スライステスト強制**:
+  すべての `*RepositoryAdapter` 実装クラスに対して、対応する `*RepositoryAdapterTest` が存在することを静的検証。
+- **SpringDataRepository 整合性強制**:
+  すべての `SpringData*Repository` インターフェースに対して、対応する `*RepositoryAdapter` が存在することを静的検証。
+- 新規クラスの追加時にテストクラスの作成を忘れた場合、`./gradlew test` の段階でビルドが即座に失敗します。
+
+### 2. 動的クエリ実行保証 (Dynamic Smoke Test: `AllRepositoriesDynamicSmokeTest`)
+- `ApplicationContext` から `SpannerRepository` を継承する全 Bean を動的に自動検出。
+- 定義されたすべてのクエリメソッド（`declaredMethods`）を抽出し、JUnit 5 の `@TestFactory` で動的テストを生成して Spanner Emulator 上で実実行。
+- 新しいクエリメソッドやリポジトリクラスが増加した際、テストコードにクラス名を書き足さなくても、自動的に実クエリが発行され、SQL構文エラー・Spanner方言エラー・スキーマ不整合が 100% 確実に防がれます。
+
+---
+
+## 5. テストデータ管理方針
 
 テストの信頼性と再現性を維持するため、環境ごとに以下のデータライフサイクルを適用します。
 
@@ -84,7 +104,7 @@ flowchart TD
 
 ---
 
-## 5. CI/CD 品質ゲート (Quality Gates)
+## 6. CI/CD 品質ゲート (Quality Gates)
 
 各パイプラインで自動判定される品質基準です。1 つでも未達の場合は後続フェーズへの進行をブロックします。
 
@@ -115,7 +135,7 @@ flowchart LR
 
 ---
 
-## 6. 不具合再発防止のフィードバックループ
+## 7. 不具合再発防止のフィードバックループ
 
 テスト環境や本番環境でバグ・障害が検出された場合、以下のルールを義務付けます。
 
@@ -129,7 +149,7 @@ flowchart LR
 
 ---
 
-## 7. 関連仕様書・リンク
+## 8. 関連仕様書・リンク
 - [テスト環境テスト仕様書・管理台帳](test-environment-specification.md)
 - [Arazzo E2E ワークフロー仕様](../workflows/todo-workflows.arazzo.yaml)
 - [OpenAPI 仕様書](../openapi.yaml)
