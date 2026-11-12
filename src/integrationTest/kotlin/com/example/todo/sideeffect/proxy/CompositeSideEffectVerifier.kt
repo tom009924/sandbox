@@ -14,12 +14,12 @@ import java.time.Duration
 import java.util.UUID
 
 /**
- * サービスごとに分離された検証機構（Spanner専用プロキシ、WireMock、Pub/Sub）を
- * 統合し、テストコードに対して統一的なアサーション・残余検知インターフェースを提供する Facade。
+ * サービスごとに分離された検証機構（Spanner専用プロキシ、WireMock、Pub/Sub）を統合し、
+ * 統合テストコードに対して統一的なアサーション・残余検知インターフェースを提供する Facade。
  */
 @Suppress("TooManyFunctions")
 internal class CompositeSideEffectVerifier(
-    private val spannerProxyClient: SpannerProxyClient,
+    private val spannerProxy: SpannerSideEffectProxy,
     private val wireMockServer: WireMockServer,
     private val pubSubReceiver: PubSubTestReceiver,
 ) {
@@ -30,7 +30,7 @@ internal class CompositeSideEffectVerifier(
      * テストケース開始時に呼び出し、Spanner プロキシおよび各クライアントの追跡を開始します。
      */
     fun startTracking() {
-        spannerProxyClient.startTracking()
+        spannerProxy.startTracking()
         verifiedHttpRequests.clear()
         verifiedPubSubEvents.clear()
     }
@@ -39,14 +39,14 @@ internal class CompositeSideEffectVerifier(
      * Spanner への更新操作（INSERT / UPDATE / DELETE / UPSERT）を検証・承認します。
      */
     fun verifyDatabase(operation: DbOperation, table: String, count: Int = 1) {
-        spannerProxyClient.verifyDatabase(operation, table, count)
+        spannerProxy.verifyDatabase(operation, table, count)
     }
 
     /**
      * Spanner の内部管理テーブル（例: idempotency_records）の更新を明示的に許容します。
      */
     fun allowDatabaseTable(table: String) {
-        spannerProxyClient.allowTable(table)
+        spannerProxy.allowTable(table)
     }
 
     /**
@@ -57,7 +57,12 @@ internal class CompositeSideEffectVerifier(
         urlPattern: String,
         count: Int = 1,
     ): List<LoggedRequest> {
-        val mutatingMethods = setOf(RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE)
+        val mutatingMethods = setOf(
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.PATCH,
+            RequestMethod.DELETE,
+        )
         require(method in mutatingMethods) {
             "Method $method is not a mutating HTTP request. Only ${mutatingMethods.joinToString()} are tracked."
         }
@@ -106,8 +111,8 @@ internal class CompositeSideEffectVerifier(
      * 未検証の副作用が残っていないかを一括検証します。
      */
     fun assertNoUnverifiedSideEffects() {
-        // 1. Spanner プロキシの未アサーション検出
-        spannerProxyClient.assertNoUnverifiedMutations()
+        // 1. Spanner プロキシの未アサーション検出（INSERT / UPDATE / DELETE 漏れを検出）
+        spannerProxy.assertNoUnverifiedMutations()
 
         // 2. WireMock の未マッチ・未検証リクエスト検出
         wireMockServer.checkForUnmatchedRequests()
