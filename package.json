@@ -19,6 +19,7 @@
     "test:arazzo": "scripts/run-arazzo.sh",
     "arazzo:ui": "arazzo-ui docs/workflows/todo-workflows.arazzo.yaml",
     "coverage:spec": "./gradlew --offline integrationTest --tests 'com.example.todo.TodoApiIntegrationTest'",
+    "deploy:apigee": "scripts/deploy-apigee-proxy.sh",
     "check:oss-health": "node scripts/check-oss-health.mjs",
     "sbom:generate": "scripts/generate-sbom.sh",
     "trivy:scan": "scripts/trivy-scan.sh",
