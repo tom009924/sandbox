@@ -17,6 +17,10 @@ import com.example.todo.infrastructure.notification.EmailNotificationProperties
 import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
+import com.example.todo.domain.crypto.CryptoService
+import com.example.todo.domain.crypto.TodoCryptoHandler
+import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
+import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
 import tools.jackson.databind.ObjectMapper
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -24,8 +28,22 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(PubSubProperties::class, EmailNotificationProperties::class)
+@EnableConfigurationProperties(
+    PubSubProperties::class,
+    EmailNotificationProperties::class,
+    GrpcKeyManagementProperties::class,
+)
 class TodoConfiguration {
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean(CryptoService::class)
+    fun cryptoService(
+        kmsProperties: GrpcKeyManagementProperties,
+    ): CryptoService? = if (kmsProperties.enabled) {
+        GrpcKeyManagementClient(kmsProperties)
+    } else {
+        null
+    }
 
     @Bean
     @ConditionalOnMissingBean(EmailNotificationSender::class)
@@ -41,16 +59,24 @@ class TodoConfiguration {
     ): TodoEventPublisher = PubSubTodoEventPublisher(pubSubProperties, objectMapper)
 
     @Bean
+    fun todoCryptoHandler(
+        cryptoService: CryptoService?,
+        kmsProperties: GrpcKeyManagementProperties,
+    ): TodoCryptoHandler = TodoCryptoHandler(cryptoService, kmsProperties.keyName)
+
+    @Bean
     fun todoService(
         todoRepository: TodoRepository,
         idempotencyRecordRepository: IdempotencyRecordRepository,
         todoEventPublisher: TodoEventPublisher,
         userSettingsRepository: UserSettingsRepository,
+        cryptoHandler: TodoCryptoHandler,
     ) = TodoService(
         todoRepository = todoRepository,
         idempotencyRecordRepository = idempotencyRecordRepository,
         todoEventPublisher = todoEventPublisher,
         userSettingsRepository = userSettingsRepository,
+        cryptoHandler = cryptoHandler,
     )
 
     @Bean
