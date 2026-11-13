@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Spring Boot アプリケーションをCloud Spanner Emulatorとともにローカル起動し、REST APIを確認する手順
+description: Spring Boot アプリケーションをCloud Spanner EmulatorやApigee Emulatorとともにローカル起動し、REST APIを確認する手順
 ---
 
 # アプリケーション起動と動作確認手順 (Run App)
@@ -9,11 +9,19 @@ description: Spring Boot アプリケーションをCloud Spanner Emulatorとと
 
 ## 1. アプリケーションの起動
 ```bash
-docker compose up -d spanner-emulator
+docker compose up -d spanner-emulator pubsub-emulator
 export SPANNER_EMULATOR_HOST=localhost:9010
+export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew bootRun
 ```
 ※ アプリケーションはポート `8080` で起動します。
+
+### Apigee API プロキシ検証（オプション）
+Apigee APIプロキシをローカルで開発・検証する場合は、Apigee Emulatorを起動します。
+```bash
+docker compose up -d apigee-emulator
+```
+※ ホスト側ポート `8088` (Control/Management API / Proxy)、`8998` (Traffic) で待機します。VS Codeの Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）からプロキシをデプロイして検証可能です。
 
 ## 2. API動作確認 (cURL コマンド例)
 
