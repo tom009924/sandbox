@@ -26,6 +26,12 @@
         <Request/>
         <Response/>
     </PostFlow>
+    <DefaultFaultRule name="DefaultFaultRule">
+        <Step>
+            <Name>AM-Add-Cors-Headers</Name>
+        </Step>
+        <AlwaysEnforce>true</AlwaysEnforce>
+    </DefaultFaultRule>
     <HTTPProxyConnection>
         <BasePath>/v1</BasePath>
         <VirtualHost>default</VirtualHost>

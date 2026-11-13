@@ -10,7 +10,7 @@ services:
     ports:
       - "8085:8085"
   apigee-emulator:
-    image: gcr.io/apigee-release/hybrid/apigee-emulator:latest
+    image: gcr.io/apigee-release/hybrid/apigee-emulator:public-image-2.0.2
     ports:
       - "8088:8080"
       - "8998:8998"

@@ -28,6 +28,15 @@ jobs:
         command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
         ports:
           - 8085:8085
+      apigee-emulator:
+        image: gcr.io/apigee-release/hybrid/apigee-emulator:public-image-2.0.2
+        ports:
+          - 8088:8080
+          - 8998:8998
+        env:
+          APIGEE_ORG: hybrid
+          APIGEE_ENV: test
+          LISTEN_ADDRESS: 0.0.0.0
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
