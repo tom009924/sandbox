@@ -1,6 +1,6 @@
 # Kotlin Spring Boot CRUD API
 
-Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。ローカル開発とテストではCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを使用します。
+Kotlin + Spring Bootで作成した、Todo管理用のREST APIです。ローカル開発とテストではCloud Spanner Emulator、Cloud Pub/Sub Emulator、およびApigee Emulatorを使用できます。
 
 ## 起動
 
@@ -12,6 +12,12 @@ export SPANNER_EMULATOR_HOST=localhost:9010
 export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew bootRun
 ```
+
+Apigee APIプロキシのローカル検証を行う場合は、Apigee Emulatorを起動できます。
+```bash
+docker compose up -d apigee-emulator
+```
+Apigee Emulatorはホスト側ポート `8088`（Control/Management API / Proxy）および `8998`（Traffic）で起動します。VS Code環境では Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）を通じてプロキシのデプロイやローカルテストが可能です。
 
 Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
