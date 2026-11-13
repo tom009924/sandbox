@@ -410,6 +410,76 @@ class TodoServiceTest {
         }
     }
 
+    @Test
+    fun `create with cryptoService encrypts description in repository and returns plaintext`() {
+        val fakeCrypto = FakeCryptoService()
+        val handler = com.example.todo.domain.crypto.TodoCryptoHandler(fakeCrypto, "projects/todo/keys/test-key")
+        val encryptedService = TodoService(
+            todoRepository = repository,
+            idempotencyRecordRepository = idempotencyRepository,
+            todoEventPublisher = eventPublisher,
+            cryptoHandler = handler,
+        )
+
+        val created = encryptedService.create(
+            userId,
+            TodoCommand(title = "Secret Task", description = "Confidential Details"),
+        )
+
+        // API 戻り値は復号化された平文
+        assertEquals("Confidential Details", created.description)
+
+        // リポジトリに保存された実データは暗号化されている
+        val stored = repository.findByIdAndUserId(requireNotNull(created.id), userId)
+        assertTrue(requireNotNull(stored?.description).startsWith("enc:"))
+
+        // get も平文で返る
+        val fetched = encryptedService.get(requireNotNull(created.id), userId)
+        assertEquals("Confidential Details", fetched.description)
+    }
+
+    @Test
+    fun `update and patch with cryptoService re-encrypts description in repository`() {
+        val fakeCrypto = FakeCryptoService()
+        val handler = com.example.todo.domain.crypto.TodoCryptoHandler(fakeCrypto, "projects/todo/keys/test-key")
+        val encryptedService = TodoService(
+            todoRepository = repository,
+            idempotencyRecordRepository = idempotencyRepository,
+            todoEventPublisher = eventPublisher,
+            cryptoHandler = handler,
+        )
+
+        val created = encryptedService.create(
+            userId,
+            TodoCommand(title = "Task", description = "Original Secret"),
+        )
+        val id = requireNotNull(created.id)
+
+        val updated = encryptedService.update(
+            id,
+            userId,
+            TodoCommand(title = "Task", description = "Updated Secret"),
+        )
+        assertEquals("Updated Secret", updated.description)
+
+        val patched = encryptedService.patch(
+            id,
+            userId,
+            PatchTodoCommand(description = "Patched Secret"),
+        )
+        assertEquals("Patched Secret", patched.description)
+    }
+
+    private class FakeCryptoService : com.example.todo.domain.crypto.CryptoService {
+        override fun encrypt(keyName: String, plaintext: ByteArray): ByteArray =
+            "ENCRYPTED_${String(plaintext, java.nio.charset.StandardCharsets.UTF_8)}".toByteArray()
+
+        override fun decrypt(keyName: String, ciphertext: ByteArray): ByteArray {
+            val str = String(ciphertext, java.nio.charset.StandardCharsets.UTF_8)
+            return str.removePrefix("ENCRYPTED_").toByteArray()
+        }
+    }
+
     private class InMemoryUserSettingsRepository : UserSettingsRepository {
         private val storage = mutableMapOf<UUID, UserSettings>()
 

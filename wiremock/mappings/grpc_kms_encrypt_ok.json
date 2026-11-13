@@ -1,0 +1,21 @@
+{
+  "request": {
+    "customMatcher": {
+      "name": "grpc",
+      "parameters": {
+        "service": "com.example.crypto.v1.KeyManagementService",
+        "method": "Encrypt",
+        "jsonEquals": {
+          "keyName": "projects/todo/keys/task-key"
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "OK"
+    },
+    "bodyFileName": "grpc/kms_encrypt_response.json"
+  }
+}
