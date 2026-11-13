@@ -1,0 +1,21 @@
+{
+  "request": {
+    "customMatcher": {
+      "name": "grpc",
+      "parameters": {
+        "service": "com.example.crypto.v1.KeyManagementService",
+        "method": "Encrypt",
+        "jsonEquals": {
+          "keyName": "projects/todo/keys/invalid-key"
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "grpc-status-name": "NOT_FOUND",
+      "grpc-message": "KMS Key not found: projects/todo/keys/invalid-key"
+    }
+  }
+}
