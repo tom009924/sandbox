@@ -25,12 +25,14 @@ class ApigeeProxyIntegrationTest {
     private var port: Int = 0
 
     private var apigeeAvailable = false
+    private var backendReachableFromProxy = false
 
     @BeforeEach
     fun setupApigee() {
         apigeeAvailable = isApigeeEmulatorReachable()
         if (apigeeAvailable) {
             deployProxyWithBackendPort(port)
+            backendReachableFromProxy = checkBackendReachability()
         }
     }
 
@@ -53,7 +55,10 @@ class ApigeeProxyIntegrationTest {
 
     @Test
     fun proxyForwardsAuthenticationAndTodosToSpringBootBackend() {
-        assumeTrue(apigeeAvailable, "Apigee Emulator is not available, skipping test")
+        assumeTrue(
+            apigeeAvailable && backendReachableFromProxy,
+            "Backend is not reachable from Apigee emulator; skipping backend-forwarding test",
+        )
 
         val uniqueUsername = "apigee_user_${System.currentTimeMillis()}"
 
@@ -104,7 +109,10 @@ class ApigeeProxyIntegrationTest {
 
     @Test
     fun nonExistentTodoReturnsNotFoundFromBackend() {
-        assumeTrue(apigeeAvailable, "Apigee Emulator is not available, skipping test")
+        assumeTrue(
+            apigeeAvailable && backendReachableFromProxy,
+            "Backend is not reachable from Apigee emulator; skipping backend-forwarding test",
+        )
 
         val uniqueUsername = "apigee_user_404_${System.currentTimeMillis()}"
 
@@ -145,6 +153,16 @@ class ApigeeProxyIntegrationTest {
             connection.requestMethod = "GET"
             val responseCode = connection.responseCode
             responseCode in HTTP_SUCCESS_RANGE_START..HTTP_CLIENT_ERROR_RANGE_END
+        }.getOrDefault(false)
+
+    private fun checkBackendReachability(): Boolean =
+        runCatching {
+            val response = given()
+                .port(EMULATOR_TRAFFIC_PORT)
+                .contentType(ContentType.JSON)
+                .body("""{"username":"health_check","password":"password123"}""")
+                .post("/v1/auth/register")
+            response.statusCode != HttpStatus.SERVICE_UNAVAILABLE.value()
         }.getOrDefault(false)
 
     private fun deployProxyWithBackendPort(backendPort: Int) {

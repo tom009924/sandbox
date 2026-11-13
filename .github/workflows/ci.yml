@@ -37,6 +37,7 @@ jobs:
           APIGEE_ORG: hybrid
           APIGEE_ENV: test
           LISTEN_ADDRESS: 0.0.0.0
+        options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
