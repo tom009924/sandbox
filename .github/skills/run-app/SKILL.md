@@ -17,11 +17,12 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 ※ アプリケーションはポート `8080` で起動します。
 
 ### Apigee API プロキシ検証（オプション）
-Apigee APIプロキシをローカルで開発・検証する場合は、Apigee Emulatorを起動します。
+Apigee APIプロキシをローカルで開発・検証する場合は、Apigee Emulatorを起動してプロキシバンドルをデプロイします。
 ```bash
 docker compose up -d apigee-emulator
+npm run deploy:apigee
 ```
-※ ホスト側ポート `8088` (Control/Management API / Proxy)、`8998` (Traffic) で待機します。VS Codeの Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）からプロキシをデプロイして検証可能です。
+※ ホスト側ポート `8088` (Control/Management API / Proxy)、`8998` (Traffic) で待機します。`todo-v1` プロキシ経由（`http://localhost:8088/v1/...`）で Spring Boot バックエンド（`/api/...`）へルーティングされます。VS Code の Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）からのプロキシ管理やトレースも可能です。
 
 ## 2. API動作確認 (cURL コマンド例)
 

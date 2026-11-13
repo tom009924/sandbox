@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxyEndpoint name="default">
+    <Description>Default Proxy Endpoint for Todo API</Description>
+    <PreFlow name="PreFlow">
+        <Request>
+            <Step>
+                <Condition>request.verb == "OPTIONS"</Condition>
+                <Name>AM-Add-Cors-Headers</Name>
+            </Step>
+        </Request>
+        <Response>
+            <Step>
+                <Name>AM-Add-Cors-Headers</Name>
+            </Step>
+        </Response>
+    </PreFlow>
+    <Flows>
+        <Flow name="OptionsPreFlight">
+            <Description>Options pre-flight for CORS</Description>
+            <Request/>
+            <Response/>
+            <Condition>request.verb == "OPTIONS"</Condition>
+        </Flow>
+    </Flows>
+    <PostFlow name="PostFlow">
+        <Request/>
+        <Response/>
+    </PostFlow>
+    <HTTPProxyConnection>
+        <BasePath>/v1</BasePath>
+        <VirtualHost>default</VirtualHost>
+    </HTTPProxyConnection>
+    <RouteRule name="NoRoute">
+        <Condition>request.verb == "OPTIONS"</Condition>
+    </RouteRule>
+    <RouteRule name="default">
+        <TargetEndpoint>default</TargetEndpoint>
+    </RouteRule>
+</ProxyEndpoint>

@@ -18,3 +18,5 @@ services:
       - APIGEE_ORG=hybrid
       - APIGEE_ENV=test
       - LISTEN_ADDRESS=0.0.0.0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
