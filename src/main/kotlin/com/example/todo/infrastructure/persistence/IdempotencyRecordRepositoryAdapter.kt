@@ -9,6 +9,7 @@ import com.google.cloud.spring.data.spanner.core.SpannerTemplate
 import org.springframework.stereotype.Repository
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
+import java.util.UUID
 
 @Repository
 class IdempotencyRecordRepositoryAdapter(
@@ -16,8 +17,8 @@ class IdempotencyRecordRepositoryAdapter(
     private val spannerTemplate: SpannerTemplate,
     private val objectMapper: ObjectMapper,
 ) : IdempotencyRecordRepository {
-    override fun findByKey(key: String): IdempotencyRecord? =
-        springDataRepository.findById(key).orElse(null)?.toDomain()
+    override fun findByUserIdAndKey(userId: UUID, key: String): IdempotencyRecord? =
+        springDataRepository.findByUserIdAndKey(userId.toString(), key)?.toDomain()
 
     override fun save(record: IdempotencyRecord) {
         spannerTemplate.upsert(record.toEntity())
@@ -32,6 +33,7 @@ class IdempotencyRecordRepositoryAdapter(
     }
 
     private fun IdempotencyRecordSpannerEntity.toDomain() = IdempotencyRecord(
+        userId = UUID.fromString(userId),
         key = key,
         requestFingerprint = requestFingerprint,
         response = objectMapper.readValue(responseSnapshot, Todo::class.java),
@@ -39,6 +41,7 @@ class IdempotencyRecordRepositoryAdapter(
     )
 
     private fun IdempotencyRecord.toEntity() = IdempotencyRecordSpannerEntity(
+        userId = userId.toString(),
         key = key,
         requestFingerprint = requestFingerprint,
         responseSnapshot = objectMapper.writeValueAsString(response),

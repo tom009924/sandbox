@@ -100,7 +100,7 @@ class TodoService(
         val now = clock.instant()
         idempotencyRecordRepository.deleteExpiredBefore(now)
         val fingerprint = command.fingerprint()
-        val existing = idempotencyRecordRepository.findByKey(key)
+        val existing = idempotencyRecordRepository.findByUserIdAndKey(userId, key)
         if (existing != null) {
             if (existing.requestFingerprint != fingerprint) {
                 throw IdempotencyConflictException(key)
@@ -111,6 +111,7 @@ class TodoService(
         val todo = create(userId, command)
         idempotencyRecordRepository.save(
             IdempotencyRecord(
+                userId = userId,
                 key = key,
                 requestFingerprint = fingerprint,
                 response = todo,

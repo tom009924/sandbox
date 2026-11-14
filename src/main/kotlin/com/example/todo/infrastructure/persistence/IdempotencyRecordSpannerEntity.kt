@@ -7,7 +7,11 @@ import java.time.Instant
 
 @Table(name = "idempotency_records")
 class IdempotencyRecordSpannerEntity(
-    @PrimaryKey
+    @PrimaryKey(keyOrder = 1)
+    @Column(name = "user_id")
+    var userId: String,
+
+    @PrimaryKey(keyOrder = 2)
     @Column(name = "key")
     var key: String,
 
