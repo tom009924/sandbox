@@ -14,6 +14,7 @@ import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -370,16 +371,52 @@ class TodoServiceTest {
     }
 
     private class InMemoryIdempotencyRecordRepository : IdempotencyRecordRepository {
-        private val records = mutableMapOf<String, IdempotencyRecord>()
+        private val records = mutableMapOf<Pair<UUID, String>, IdempotencyRecord>()
 
-        override fun findByKey(key: String): IdempotencyRecord? = records[key]
+        override fun findByUserIdAndKey(userId: UUID, key: String): IdempotencyRecord? =
+            records[userId to key]
 
         override fun save(record: IdempotencyRecord) {
-            records[record.key] = record
+            records[record.userId to record.key] = record
         }
 
         override fun deleteExpiredBefore(instant: Instant) {
             records.entries.removeIf { (_, record) -> record.expiresAt <= instant }
+        }
+    }
+
+    @Test
+    fun `createIdempotent isolates same key across different users`() {
+        val otherUserId = UUID.randomUUID()
+        val command = TodoCommand(title = "Buy milk")
+
+        val firstTodo = service.createIdempotent(userId, "shared-key", command)
+        val secondTodo = service.createIdempotent(otherUserId, "shared-key", command)
+
+        assertEquals(userId, firstTodo.userId)
+        assertEquals(otherUserId, secondTodo.userId)
+        assertNotEquals(firstTodo.id, secondTodo.id)
+    }
+
+    @Test
+    fun `createIdempotent serializes concurrent requests with same key without duplicate creation`() {
+        val command = TodoCommand(title = "Concurrent milk")
+        val threadCount = 8
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(threadCount)
+        try {
+            val futures = (1..threadCount).map {
+                pool.submit<Todo> {
+                    latch.await()
+                    service.createIdempotent(userId, "concurrent-key", command)
+                }
+            }
+            latch.countDown()
+            val results = futures.map { it.get() }
+            assertEquals(1, results.map { it.id }.toSet().size)
+            assertEquals(1, repository.findAll().size)
+        } finally {
+            pool.shutdownNow()
         }
     }
 

@@ -16,6 +16,10 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
+        if (SecurityContextHolder.getContext().authentication != null) {
+            filterChain.doFilter(request, response)
+            return
+        }
         val authHeader = request.getHeader("Authorization")
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX, ignoreCase = true)) {
             val token = authHeader.substring(BEARER_PREFIX.length).trim()

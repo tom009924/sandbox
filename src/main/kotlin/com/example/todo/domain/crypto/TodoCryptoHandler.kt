@@ -24,7 +24,7 @@ class TodoCryptoHandler(
             String(cryptoService.decrypt(kmsKeyName, cipherBytes), StandardCharsets.UTF_8)
         } catch (ex: CryptoException) {
             logger.warn("Failed to decrypt todo description with key {}", kmsKeyName, ex)
-            description
+            throw ex
         } catch (ex: IllegalArgumentException) {
             logger.warn("Invalid base64 ciphertext while decrypting todo description", ex)
             description
