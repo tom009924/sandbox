@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package com.example.crypto.v1;
+
+option java_multiple_files = true;
+option java_package = "com.example.crypto.v1";
+
+// Todo サービスから機密情報（メモや個人データ）の保護のために呼び出す KMS サービス
+service KeyManagementService {
+  // データの暗号化
+  rpc Encrypt (EncryptRequest) returns (EncryptResponse);
+
+  // データの復号
+  rpc Decrypt (DecryptRequest) returns (DecryptResponse);
+}
+
+message EncryptRequest {
+  // 暗号化に使用するキー名 (例: "projects/todo/keys/task-key")
+  string key_name = 1;
+  // 暗号化対象の平文データ (Base64)
+  bytes plaintext = 2;
+}
+
+message EncryptResponse {
+  string key_name = 1;
+  // 暗号化されたデータ (Base64)
+  bytes ciphertext = 2;
+}
+
+message DecryptRequest {
+  string key_name = 1;
+  // 復号対象の暗号文データ (Base64)
+  bytes ciphertext = 2;
+}
+
+message DecryptResponse {
+  string key_name = 1;
+  // 復号された平文データ (Base64)
+  bytes plaintext = 2;
+}

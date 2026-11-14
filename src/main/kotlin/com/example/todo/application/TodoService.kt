@@ -1,5 +1,6 @@
 package com.example.todo.application
 
+import com.example.todo.domain.crypto.TodoCryptoHandler
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.event.TodoEventPublisher
@@ -47,15 +48,16 @@ class TodoService(
     private val todoEventPublisher: TodoEventPublisher,
     private val clock: Clock = Clock.systemUTC(),
     private val userSettingsRepository: UserSettingsRepository? = null,
+    private val cryptoHandler: TodoCryptoHandler = TodoCryptoHandler(),
 ) {
     fun list(
         userId: UUID,
         completed: Boolean? = null,
         priority: TodoPriority? = null,
         tag: String? = null,
-    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority, tag)
+    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority, tag).map(cryptoHandler::decryptTodo)
 
-    fun get(id: UUID, userId: UUID): Todo = findTodo(id, userId)
+    fun get(id: UUID, userId: UUID): Todo = cryptoHandler.decryptTodo(findTodo(id, userId))
 
     fun create(userId: UUID, command: TodoCommand): Todo {
         val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
@@ -75,22 +77,23 @@ class TodoService(
                 userId = userId,
                 title = command.title.trim(),
                 completed = command.completed,
-                description = command.description,
+                description = cryptoHandler.encrypt(command.description),
                 dueDate = command.dueDate,
                 priority = effectivePriority,
                 estimatedMinutes = effectiveEstimatedMinutes,
                 tags = command.tags,
             ),
         )
+        val decrypted = cryptoHandler.decryptTodo(saved)
         todoEventPublisher.publish(
             TodoEvent(
                 eventType = TodoEventType.CREATED,
                 timestamp = clock.instant(),
-                todoId = requireNotNull(saved.id),
-                todo = saved,
+                todoId = requireNotNull(decrypted.id),
+                todo = decrypted,
             ),
         )
-        return saved
+        return decrypted
     }
 
     fun createIdempotent(userId: UUID, key: String, command: TodoCommand): Todo {
@@ -124,48 +127,51 @@ class TodoService(
             todo.copy(
                 title = command.title.trim(),
                 completed = command.completed,
-                description = command.description,
+                description = cryptoHandler.encrypt(command.description),
                 dueDate = command.dueDate,
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes,
                 tags = command.tags,
             ),
         )
+        val decrypted = cryptoHandler.decryptTodo(updated)
         todoEventPublisher.publish(
             TodoEvent(
                 eventType = TodoEventType.UPDATED,
                 timestamp = clock.instant(),
-                todoId = requireNotNull(updated.id),
-                todo = updated,
+                todoId = requireNotNull(decrypted.id),
+                todo = decrypted,
             ),
         )
-        return updated
+        return decrypted
     }
 
     fun patch(id: UUID, userId: UUID, command: PatchTodoCommand): Todo {
         val todo = findTodo(id, userId)
         val newCompleted = command.completed ?: todo.completed
         checkActiveLimitOnReopen(userId, wasCompleted = todo.completed, nowCompleted = newCompleted)
+        val newDescription = command.description?.let { cryptoHandler.encrypt(it) } ?: todo.description
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title?.trim() ?: todo.title,
                 completed = newCompleted,
-                description = command.description ?: todo.description,
+                description = newDescription,
                 dueDate = command.dueDate ?: todo.dueDate,
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes ?: todo.estimatedMinutes,
                 tags = command.tags ?: todo.tags,
             ),
         )
+        val decrypted = cryptoHandler.decryptTodo(updated)
         todoEventPublisher.publish(
             TodoEvent(
                 eventType = TodoEventType.UPDATED,
                 timestamp = clock.instant(),
-                todoId = requireNotNull(updated.id),
-                todo = updated,
+                todoId = requireNotNull(decrypted.id),
+                todo = decrypted,
             ),
         )
-        return updated
+        return decrypted
     }
 
     private fun checkActiveLimitOnReopen(userId: UUID, wasCompleted: Boolean, nowCompleted: Boolean) {
