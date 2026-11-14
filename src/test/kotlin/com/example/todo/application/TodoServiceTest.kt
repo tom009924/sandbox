@@ -56,6 +56,7 @@ class TodoServiceTest {
                 dueDate = dueDate,
                 priority = TodoPriority.HIGH,
                 estimatedMinutes = 30,
+                tags = listOf("shopping", "dairy"),
             ),
         )
 
@@ -65,6 +66,7 @@ class TodoServiceTest {
         assertEquals(dueDate, todo.dueDate)
         assertEquals(TodoPriority.HIGH, todo.priority)
         assertEquals(30, todo.estimatedMinutes)
+        assertEquals(listOf("shopping", "dairy"), todo.tags)
         assertEquals(userId, todo.userId)
         assertTrue(todo.id != null)
     }
@@ -152,10 +154,19 @@ class TodoServiceTest {
     }
 
     @Test
-    fun `list with completed and priority filters`() {
-        service.create(userId, TodoCommand(title = "Task 1", completed = false, priority = TodoPriority.LOW))
-        service.create(userId, TodoCommand(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
-        service.create(userId, TodoCommand(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
+    fun `list with completed and priority and tag filters`() {
+        service.create(
+            userId,
+            TodoCommand(title = "Task 1", completed = false, priority = TodoPriority.LOW, tags = listOf("work")),
+        )
+        service.create(
+            userId,
+            TodoCommand(title = "Task 2", completed = true, priority = TodoPriority.HIGH, tags = listOf("home")),
+        )
+        service.create(
+            userId,
+            TodoCommand(title = "Task 3", completed = false, priority = TodoPriority.HIGH, tags = listOf("work")),
+        )
 
         val completedHigh = service.list(userId, completed = true, priority = TodoPriority.HIGH)
         assertEquals(1, completedHigh.size)
@@ -166,6 +177,16 @@ class TodoServiceTest {
 
         val highOnly = service.list(userId, priority = TodoPriority.HIGH)
         assertEquals(2, highOnly.size)
+
+        val workOnly = service.list(userId, tag = "work")
+        assertEquals(2, workOnly.size)
+
+        val workUncompleted = service.list(userId, completed = false, tag = "work")
+        assertEquals(2, workUncompleted.size)
+
+        val homeCompletedHigh = service.list(userId, completed = true, priority = TodoPriority.HIGH, tag = "home")
+        assertEquals(1, homeCompletedHigh.size)
+        assertEquals("Task 2", homeCompletedHigh.first().title)
     }
 
     @Test
@@ -315,11 +336,13 @@ class TodoServiceTest {
             userId: UUID,
             completed: Boolean?,
             priority: TodoPriority?,
+            tag: String?,
         ): List<Todo> =
             todos.values.filter {
                 it.userId == userId &&
                     (completed == null || it.completed == completed) &&
-                    (priority == null || it.priority == priority)
+                    (priority == null || it.priority == priority) &&
+                    (tag == null || it.tags.contains(tag))
             }
 
         override fun findById(id: UUID): Todo? = todos[id]

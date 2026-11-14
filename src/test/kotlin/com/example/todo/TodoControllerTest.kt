@@ -58,7 +58,8 @@ class TodoControllerTest @Autowired constructor(
                       "description":"Buy before the weekend",
                       "dueDate":"2025-04-18",
                       "priority":"HIGH",
-                      "estimatedMinutes":30
+                      "estimatedMinutes":30,
+                      "tags":["groceries", "dairy"]
                     }
                     """.trimIndent(),
             ),
@@ -70,6 +71,8 @@ class TodoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.dueDate").value("2025-04-18"))
             .andExpect(jsonPath("$.priority").value("HIGH"))
             .andExpect(jsonPath("$.estimatedMinutes").value(30))
+            .andExpect(jsonPath("$.tags[0]").value("groceries"))
+            .andExpect(jsonPath("$.tags[1]").value("dairy"))
             .andExpect(jsonPath("$.userId").value(testUserId.toString()))
             .andReturn()
             .response
@@ -176,6 +179,25 @@ class TodoControllerTest @Autowired constructor(
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].title").value("Task 1"))
+    }
+
+    @Test
+    fun `filter todos by tag`() {
+        mockMvc.perform(createRequest("""{"title":"Work Task","priority":"HIGH","tags":["work"]}"""))
+            .andExpect(status().isCreated)
+        mockMvc.perform(createRequest("""{"title":"Home Task","priority":"LOW","tags":["home"]}"""))
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(get("/api/todos?tag=work").header("Authorization", "Bearer $token"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].title").value("Work Task"))
+            .andExpect(jsonPath("$[0].tags[0]").value("work"))
+
+        mockMvc.perform(get("/api/todos?tag=home").header("Authorization", "Bearer $token"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].title").value("Home Task"))
     }
 
     @Test

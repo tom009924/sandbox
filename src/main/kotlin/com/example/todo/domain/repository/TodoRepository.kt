@@ -11,6 +11,7 @@ interface TodoRepository {
         userId: UUID,
         completed: Boolean? = null,
         priority: TodoPriority? = null,
+        tag: String? = null,
     ): List<Todo>
 
     fun findById(id: UUID): Todo?
