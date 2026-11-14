@@ -399,6 +399,28 @@ class TodoServiceTest {
     }
 
     @Test
+    fun `createIdempotent serializes concurrent requests with same key without duplicate creation`() {
+        val command = TodoCommand(title = "Concurrent milk")
+        val threadCount = 8
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(threadCount)
+        try {
+            val futures = (1..threadCount).map {
+                pool.submit<Todo> {
+                    latch.await()
+                    service.createIdempotent(userId, "concurrent-key", command)
+                }
+            }
+            latch.countDown()
+            val results = futures.map { it.get() }
+            assertEquals(1, results.map { it.id }.toSet().size)
+            assertEquals(1, repository.findAll().size)
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
     fun `create applies user settings defaults when priority and estimatedMinutes are omitted`() {
         userSettingsRepository.save(
             UserSettings(
