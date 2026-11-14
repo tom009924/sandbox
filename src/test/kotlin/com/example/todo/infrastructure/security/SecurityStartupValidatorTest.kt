@@ -65,4 +65,33 @@ class SecurityStartupValidatorTest {
             validator.validateSecretsOnStartup()
         }
     }
+
+    @Test
+    fun `fail fast in staging profile when default secrets are used`() {
+        val env = MockEnvironment().apply { setActiveProfiles("staging") }
+        val validator = SecurityStartupValidator(
+            environment = env,
+            jwtSecret = SecurityStartupValidator.DEFAULT_JWT_SECRET,
+            adminApiKey = "custom-secure-admin-api-key",
+        )
+
+        val exception = assertThrows<IllegalStateException> {
+            validator.validateSecretsOnStartup()
+        }
+        assertTrue(requireNotNull(exception.message).contains("jwt.secret"))
+    }
+
+    @Test
+    fun `permit default secrets in local and test profiles`() {
+        val env = MockEnvironment().apply { setActiveProfiles("local", "test") }
+        val validator = SecurityStartupValidator(
+            environment = env,
+            jwtSecret = SecurityStartupValidator.DEFAULT_JWT_SECRET,
+            adminApiKey = SecurityStartupValidator.DEFAULT_ADMIN_API_KEY,
+        )
+
+        assertDoesNotThrow {
+            validator.validateSecretsOnStartup()
+        }
+    }
 }
