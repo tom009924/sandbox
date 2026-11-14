@@ -1,6 +1,8 @@
 package com.example.todo.infrastructure.security
 
 import tools.jackson.databind.ObjectMapper
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -26,7 +28,7 @@ class AdminApiKeyFilter(
         val apiKey = request.getHeader(ADMIN_API_KEY_HEADER)
         if (apiKey.isNullOrBlank()) {
             sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "Missing or invalid $ADMIN_API_KEY_HEADER header")
-        } else if (apiKey != expectedApiKey) {
+        } else if (!constantTimeEquals(apiKey, expectedApiKey)) {
             sendErrorResponse(response, HttpStatus.FORBIDDEN, "Access denied. Invalid $ADMIN_API_KEY_HEADER.")
         } else {
             val authorities = listOf(SimpleGrantedAuthority("ROLE_ADMIN"))
@@ -38,6 +40,12 @@ class AdminApiKeyFilter(
             filterChain.doFilter(request, response)
         }
     }
+
+    private fun constantTimeEquals(actual: String, expected: String): Boolean =
+        MessageDigest.isEqual(
+            actual.toByteArray(StandardCharsets.UTF_8),
+            expected.toByteArray(StandardCharsets.UTF_8),
+        )
 
     private fun sendErrorResponse(response: HttpServletResponse, status: HttpStatus, message: String) {
         response.status = status.value()
