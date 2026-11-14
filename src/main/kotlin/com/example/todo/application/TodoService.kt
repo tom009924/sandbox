@@ -43,6 +43,47 @@ data class PatchTodoCommand(
     val tags: List<String>? = null,
 )
 
+enum class TodoSortField {
+    DUE_DATE,
+    PRIORITY,
+    TITLE,
+    ;
+
+    fun comparator(sortOrder: SortOrder): Comparator<Todo> = when (this) {
+        DUE_DATE -> if (sortOrder == SortOrder.ASC) {
+            compareBy(nullsLast()) { it.dueDate }
+        } else {
+            compareBy(nullsLast(reverseOrder())) { it.dueDate }
+        }
+        PRIORITY -> if (sortOrder == SortOrder.ASC) {
+            compareBy { it.priority.ordinal }
+        } else {
+            compareByDescending { it.priority.ordinal }
+        }
+        TITLE -> if (sortOrder == SortOrder.ASC) {
+            compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        } else {
+            compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.title }
+        }
+    }
+}
+
+enum class SortOrder {
+    ASC,
+    DESC,
+}
+
+data class TodoListQuery(
+    val completed: Boolean? = null,
+    val priority: TodoPriority? = null,
+    val tag: String? = null,
+    val keyword: String? = null,
+    val dueBefore: LocalDate? = null,
+    val dueAfter: LocalDate? = null,
+    val sortBy: TodoSortField? = null,
+    val sortOrder: SortOrder = SortOrder.ASC,
+)
+
 class TodoService(
     private val todoRepository: TodoRepository,
     private val idempotencyRecordRepository: IdempotencyRecordRepository,
@@ -53,12 +94,19 @@ class TodoService(
 ) {
     private val idempotencyLocks = Array(IDEMPOTENCY_LOCK_STRIPES) { ReentrantLock() }
 
-    fun list(
-        userId: UUID,
-        completed: Boolean? = null,
-        priority: TodoPriority? = null,
-        tag: String? = null,
-    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority, tag).map(cryptoHandler::decryptTodo)
+    fun list(userId: UUID, query: TodoListQuery = TodoListQuery()): List<Todo> {
+        val keyword = query.keyword?.trim()?.takeIf { it.isNotEmpty() }
+        val filtered = todoRepository
+            .findAllByUserId(userId, query.completed, query.priority, query.tag)
+            .map(cryptoHandler::decryptTodo)
+            .filter { todo ->
+                (keyword == null || todo.title.contains(keyword, ignoreCase = true)) &&
+                    (query.dueAfter == null || (todo.dueDate != null && !todo.dueDate.isBefore(query.dueAfter))) &&
+                    (query.dueBefore == null || (todo.dueDate != null && !todo.dueDate.isAfter(query.dueBefore)))
+            }
+        val sortBy = query.sortBy ?: return filtered
+        return filtered.sortedWith(sortBy.comparator(query.sortOrder))
+    }
 
     fun get(id: UUID, userId: UUID): Todo = cryptoHandler.decryptTodo(findTodo(id, userId))
 

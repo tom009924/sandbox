@@ -48,6 +48,16 @@ actions:
     update: 優先度でTODOタスクを絞り込みます。
   - target: $.paths['/api/todos'].get.parameters[?(@.name=='tag')].description
     update: タグでTODOタスクを絞り込みます。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='q')].description
+    update: タイトルの部分一致（大文字・小文字を区別しない）でTODOタスクを検索します。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='dueBefore')].description
+    update: 指定日以前の期限（YYYY-MM-DD）を持つTODOタスクに絞り込みます。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='dueAfter')].description
+    update: 指定日以降の期限（YYYY-MM-DD）を持つTODOタスクに絞り込みます。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='sortBy')].description
+    update: TODOタスクのソート項目を指定します。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='sortOrder')].description
+    update: ソート順を指定します（sortBy指定時のデフォルトはASC）。
   - target: $.paths['/api/todos'].get.responses['200'].description
     update: TODOタスク一覧
   - target: $.paths['/api/todos'].get.responses['401'].description

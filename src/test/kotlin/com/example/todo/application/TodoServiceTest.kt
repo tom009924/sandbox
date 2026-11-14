@@ -169,25 +169,74 @@ class TodoServiceTest {
             TodoCommand(title = "Task 3", completed = false, priority = TodoPriority.HIGH, tags = listOf("work")),
         )
 
-        val completedHigh = service.list(userId, completed = true, priority = TodoPriority.HIGH)
+        val completedHigh = service.list(userId, TodoListQuery(completed = true, priority = TodoPriority.HIGH))
         assertEquals(1, completedHigh.size)
         assertEquals("Task 2", completedHigh.first().title)
 
-        val uncompleted = service.list(userId, completed = false)
+        val uncompleted = service.list(userId, TodoListQuery(completed = false))
         assertEquals(2, uncompleted.size)
 
-        val highOnly = service.list(userId, priority = TodoPriority.HIGH)
+        val highOnly = service.list(userId, TodoListQuery(priority = TodoPriority.HIGH))
         assertEquals(2, highOnly.size)
 
-        val workOnly = service.list(userId, tag = "work")
+        val workOnly = service.list(userId, TodoListQuery(tag = "work"))
         assertEquals(2, workOnly.size)
 
-        val workUncompleted = service.list(userId, completed = false, tag = "work")
+        val workUncompleted = service.list(userId, TodoListQuery(completed = false, tag = "work"))
         assertEquals(2, workUncompleted.size)
 
-        val homeCompletedHigh = service.list(userId, completed = true, priority = TodoPriority.HIGH, tag = "home")
+        val homeCompletedHigh = service.list(
+            userId,
+            TodoListQuery(completed = true, priority = TodoPriority.HIGH, tag = "home"),
+        )
         assertEquals(1, homeCompletedHigh.size)
         assertEquals("Task 2", homeCompletedHigh.first().title)
+    }
+
+    @Test
+    fun `list filters by keyword and due date range and sorts results`() {
+        service.create(
+            userId,
+            TodoCommand(title = "Buy milk", priority = TodoPriority.LOW, dueDate = LocalDate.parse("2025-05-10")),
+        )
+        service.create(
+            userId,
+            TodoCommand(title = "Buy bread", priority = TodoPriority.HIGH, dueDate = LocalDate.parse("2025-05-05")),
+        )
+        service.create(
+            userId,
+            TodoCommand(title = "Clean room", priority = TodoPriority.MEDIUM, dueDate = null),
+        )
+
+        val keywordResults = service.list(userId, TodoListQuery(keyword = "  BUY "))
+        assertEquals(listOf("Buy milk", "Buy bread"), keywordResults.map { it.title })
+
+        val dueRangeResults = service.list(
+            userId,
+            TodoListQuery(
+                dueAfter = LocalDate.parse("2025-05-01"),
+                dueBefore = LocalDate.parse("2025-05-08"),
+            ),
+        )
+        assertEquals(listOf("Buy bread"), dueRangeResults.map { it.title })
+
+        val sortedByDueAsc = service.list(
+            userId,
+            TodoListQuery(sortBy = TodoSortField.DUE_DATE, sortOrder = SortOrder.ASC),
+        )
+        assertEquals(listOf("Buy bread", "Buy milk", "Clean room"), sortedByDueAsc.map { it.title })
+
+        val sortedByPriorityDesc = service.list(
+            userId,
+            TodoListQuery(sortBy = TodoSortField.PRIORITY, sortOrder = SortOrder.DESC),
+        )
+        assertEquals(listOf("Buy bread", "Clean room", "Buy milk"), sortedByPriorityDesc.map { it.title })
+
+        val sortedByTitleAsc = service.list(
+            userId,
+            TodoListQuery(sortBy = TodoSortField.TITLE, sortOrder = SortOrder.ASC),
+        )
+        assertEquals(listOf("Buy bread", "Buy milk", "Clean room"), sortedByTitleAsc.map { it.title })
     }
 
     @Test
