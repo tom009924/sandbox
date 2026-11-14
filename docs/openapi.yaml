@@ -124,6 +124,13 @@ paths:
           description: Filter todos by priority.
           schema:
             $ref: '#/components/schemas/TodoPriority'
+        - name: tag
+          in: query
+          required: false
+          description: Filter todos by tag.
+          schema:
+            type: string
+            maxLength: 32
       responses:
         '200':
           description: Todo list
@@ -528,6 +535,7 @@ components:
         - dueDate
         - priority
         - estimatedMinutes
+        - tags
       properties:
         id:
           type: string
@@ -560,6 +568,16 @@ components:
           nullable: true
           minimum: 0
           example: 30
+        tags:
+          type: array
+          description: List of tags associated with the todo.
+          items:
+            type: string
+            maxLength: 32
+          maxItems: 10
+          example:
+            - shopping
+            - groceries
     ErrorResponse:
       type: object
       required:
@@ -605,6 +623,16 @@ components:
           format: int32
           minimum: 0
           example: 30
+        tags:
+          type: array
+          description: List of tags associated with the todo.
+          items:
+            type: string
+            maxLength: 32
+          maxItems: 10
+          example:
+            - shopping
+            - groceries
     UpdateTodoRequest:
       type: object
       required:
@@ -637,6 +665,16 @@ components:
           format: int32
           minimum: 0
           example: 30
+        tags:
+          type: array
+          description: List of tags associated with the todo.
+          items:
+            type: string
+            maxLength: 32
+          maxItems: 10
+          example:
+            - shopping
+            - groceries
     PatchTodoRequest:
       type: object
       properties:
@@ -665,6 +703,17 @@ components:
           minimum: 0
           nullable: true
           example: 30
+        tags:
+          type: array
+          description: List of tags associated with the todo.
+          items:
+            type: string
+            maxLength: 32
+          maxItems: 10
+          nullable: true
+          example:
+            - shopping
+            - groceries
     TodoPriority:
       type: string
       enum:

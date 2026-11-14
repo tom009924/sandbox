@@ -35,14 +35,16 @@ class TodoRepositoryAdapterTest @Autowired constructor(
             estimatedMinutes = 45,
         )
 
-        val inserted = adapter.save(newTodo)
+        val inserted = adapter.save(newTodo.copy(tags = listOf("work", "urgent")))
         assertNotNull(inserted.id)
         assertEquals("Test Todo", inserted.title)
+        assertEquals(listOf("work", "urgent"), inserted.tags)
 
-        val updated = adapter.save(inserted.copy(title = "Updated Title", completed = true))
+        val updated = adapter.save(inserted.copy(title = "Updated Title", completed = true, tags = listOf("work")))
         assertEquals(inserted.id, updated.id)
         assertEquals("Updated Title", updated.title)
         assertTrue(updated.completed)
+        assertEquals(listOf("work"), updated.tags)
     }
 
     @Test
@@ -68,14 +70,32 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     fun `findAllByUserId and count queries execute properly`() {
         val userId = UUID.randomUUID()
         val todo1 = adapter.save(
-            Todo(id = null, userId = userId, title = "Active High", priority = TodoPriority.HIGH, completed = false),
+            Todo(
+                id = null,
+                userId = userId,
+                title = "Active High",
+                priority = TodoPriority.HIGH,
+                completed = false,
+                tags = listOf("work", "urgent"),
+            ),
         )
         val todo2 = adapter.save(
-            Todo(id = null, userId = userId, title = "Done High", priority = TodoPriority.HIGH, completed = true),
+            Todo(
+                id = null,
+                userId = userId,
+                title = "Done High",
+                priority = TodoPriority.HIGH,
+                completed = true,
+                tags = listOf("home"),
+            ),
         )
 
         val allForUser = adapter.findAllByUserId(userId, null, null)
         assertEquals(2, allForUser.size)
+
+        val workTodos = adapter.findAllByUserId(userId, null, null, tag = "work")
+        assertEquals(1, workTodos.size)
+        assertEquals(todo1.id, workTodos.first().id)
 
         val activeHigh = adapter.findAllByUserId(userId, completed = false, priority = TodoPriority.HIGH)
         assertEquals(1, activeHigh.size)

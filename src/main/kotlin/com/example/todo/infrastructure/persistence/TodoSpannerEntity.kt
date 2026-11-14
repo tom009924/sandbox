@@ -32,4 +32,7 @@ class TodoSpannerEntity(
 
     @Column(name = "estimated_minutes")
     var estimatedMinutes: Int? = null,
+
+    @Column(name = "tags")
+    var tags: List<String>? = null,
 )

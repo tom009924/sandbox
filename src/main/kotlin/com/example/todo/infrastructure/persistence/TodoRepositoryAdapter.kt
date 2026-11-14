@@ -19,9 +19,23 @@ class TodoRepositoryAdapter(
         userId: UUID,
         completed: Boolean?,
         priority: TodoPriority?,
+        tag: String?,
     ): List<Todo> {
         val uid = userId.toString()
         val entities = when {
+            tag != null && completed != null && priority != null ->
+                springDataTodoRepository.findAllByUserIdAndCompletedAndPriorityAndTag(
+                    uid,
+                    completed,
+                    priority.name,
+                    tag,
+                )
+            tag != null && completed != null ->
+                springDataTodoRepository.findAllByUserIdAndCompletedAndTag(uid, completed, tag)
+            tag != null && priority != null ->
+                springDataTodoRepository.findAllByUserIdAndPriorityAndTag(uid, priority.name, tag)
+            tag != null ->
+                springDataTodoRepository.findAllByUserIdAndTag(uid, tag)
             completed != null && priority != null ->
                 springDataTodoRepository.findAllByUserIdAndCompletedAndPriority(uid, completed, priority.name)
             completed != null ->
@@ -74,6 +88,7 @@ private fun TodoSpannerEntity.toDomain() = Todo(
     dueDate = dueDate,
     priority = TodoPriority.valueOf(priority),
     estimatedMinutes = estimatedMinutes,
+    tags = tags.orEmpty(),
 )
 
 private fun Todo.toEntity() = TodoSpannerEntity(
@@ -85,4 +100,5 @@ private fun Todo.toEntity() = TodoSpannerEntity(
     dueDate = dueDate,
     priority = priority.name,
     estimatedMinutes = estimatedMinutes,
+    tags = tags,
 )

@@ -27,9 +27,10 @@ class TodoController(
     override fun listTodos(
         completed: Boolean?,
         priority: ApiTodoPriority?,
+        tag: String?,
     ): ResponseEntity<List<TodoResponse>> {
         val userId = userContext.currentUserId()
-        val todos = todoService.list(userId, completed, priority?.toDomain())
+        val todos = todoService.list(userId, completed, priority?.toDomain(), tag)
         return ResponseEntity.ok(todos.map { it.toResponse() })
     }
 
@@ -54,6 +55,7 @@ class TodoController(
                 dueDate = createTodoRequest.dueDate,
                 priority = createTodoRequest.priority?.toDomain(),
                 estimatedMinutes = createTodoRequest.estimatedMinutes,
+                tags = createTodoRequest.tags.orEmpty(),
             ),
         )
         return ResponseEntity.status(HttpStatus.CREATED).body(created.toResponse())
@@ -75,6 +77,7 @@ class TodoController(
                 dueDate = updateTodoRequest.dueDate,
                 priority = updateTodoRequest.priority?.toDomain() ?: TodoPriority.MEDIUM,
                 estimatedMinutes = updateTodoRequest.estimatedMinutes,
+                tags = updateTodoRequest.tags.orEmpty(),
             ),
         )
         return ResponseEntity.ok(updated.toResponse())
@@ -96,6 +99,7 @@ class TodoController(
                 dueDate = patchTodoRequest.dueDate,
                 priority = patchTodoRequest.priority?.toDomain(),
                 estimatedMinutes = patchTodoRequest.estimatedMinutes,
+                tags = patchTodoRequest.tags,
             ),
         )
         return ResponseEntity.ok(updated.toResponse())
@@ -117,6 +121,7 @@ class TodoController(
         dueDate = dueDate,
         priority = ApiTodoPriority.valueOf(priority.name),
         estimatedMinutes = estimatedMinutes,
+        tags = tags,
     )
 
     private fun ApiTodoPriority.toDomain(): TodoPriority =

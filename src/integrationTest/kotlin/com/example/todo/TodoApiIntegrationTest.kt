@@ -100,6 +100,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         dueDate: LocalDate? = null,
         priority: TodoPriority = TodoPriority.MEDIUM,
         estimatedMinutes: Int? = null,
+        tags: List<String> = emptyList(),
     ) = Todo(
         id = id,
         userId = userId,
@@ -109,6 +110,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         dueDate = dueDate,
         priority = priority,
         estimatedMinutes = estimatedMinutes,
+        tags = tags,
     )
 
     private fun saveTodo(todo: Todo): Todo =
@@ -458,7 +460,8 @@ class TodoApiIntegrationTest @Autowired constructor(
                   "description":"Buy before the weekend",
                   "dueDate":"2025-04-18",
                   "priority":"HIGH",
-                  "estimatedMinutes":30
+                  "estimatedMinutes":30,
+                  "tags":["shopping", "groceries"]
                 }
                 """.trimIndent(),
             )
@@ -470,6 +473,8 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo("2025-04-18"))
             .body("priority", equalTo("HIGH"))
             .body("estimatedMinutes", equalTo(ESTIMATED_MINUTES))
+            .body("tags[0]", equalTo("shopping"))
+            .body("tags[1]", equalTo("groceries"))
             .extract()
 
         val createdId = UUID.fromString(response.path("id"))
@@ -480,6 +485,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             dueDate = LocalDate.parse("2025-04-18"),
             priority = TodoPriority.HIGH,
             estimatedMinutes = ESTIMATED_MINUTES,
+            tags = listOf("shopping", "groceries"),
         )
         assertStoredTodo(createdId, expected)
         assertPublishedEvent(TodoEventType.CREATED, createdId, expected)
@@ -677,7 +683,8 @@ class TodoApiIntegrationTest @Autowired constructor(
                   "description":"Purchased",
                   "dueDate":"2025-04-19",
                   "priority":"LOW",
-                  "estimatedMinutes":45
+                  "estimatedMinutes":45,
+                  "tags":["updated", "urgent"]
                 }
                 """.trimIndent(),
             )
@@ -691,20 +698,32 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo("2025-04-19"))
             .body("priority", equalTo("LOW"))
             .body("estimatedMinutes", equalTo(UPDATED_ESTIMATED_MINUTES))
+            .body("tags[0]", equalTo("updated"))
+            .body("tags[1]", equalTo("urgent"))
 
-        val expectedFirst = testTodo(
+        val expected = testTodo(
             title = "Milk bought",
             completed = true,
             description = "Purchased",
             dueDate = LocalDate.parse("2025-04-19"),
             priority = TodoPriority.LOW,
             estimatedMinutes = UPDATED_ESTIMATED_MINUTES,
+            tags = listOf("updated", "urgent"),
         )
-        assertStoredTodo(todoId, expectedFirst)
-        assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedFirst)
-        if (pubSubReceiver.isAvailable) {
-            pubSubReceiver.drain()
-        }
+        assertStoredTodo(todoId, expected)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
+    }
+
+    @Test
+    fun updateTodoClearsOptionalMetadataWhenOmitted() {
+        val todo = saveTodo(
+            testTodo(
+                title = "Initial Title",
+                description = "Initial Description",
+                tags = listOf("initial"),
+            ),
+        )
+        val todoId = requireNotNull(todo.id)
 
         validatedRequest()
             .contentType(ContentType.JSON)
@@ -717,17 +736,44 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("dueDate", equalTo(null))
             .body("priority", equalTo("MEDIUM"))
             .body("estimatedMinutes", equalTo(null))
+            .body("tags", hasSize<Any>(0))
 
-        val expectedSecond = testTodo(title = "Milk bought", completed = true, priority = TodoPriority.MEDIUM)
-        assertStoredTodo(todoId, expectedSecond)
-        assertPublishedEvent(TodoEventType.UPDATED, todoId, expectedSecond)
+        val expected = testTodo(
+            title = "Milk bought",
+            completed = true,
+            priority = TodoPriority.MEDIUM,
+            tags = emptyList(),
+        )
+        assertStoredTodo(todoId, expected)
+        assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
     }
 
     @Test
     fun listTodosFiltersByCompletedAndPriority() {
-        saveTodo(testTodo(title = "Task 1", completed = false, priority = TodoPriority.LOW))
-        saveTodo(testTodo(title = "Task 2", completed = true, priority = TodoPriority.HIGH))
-        saveTodo(testTodo(title = "Task 3", completed = false, priority = TodoPriority.HIGH))
+        saveTodo(
+            testTodo(
+                title = "Task 1",
+                completed = false,
+                priority = TodoPriority.LOW,
+                tags = listOf("work"),
+            ),
+        )
+        saveTodo(
+            testTodo(
+                title = "Task 2",
+                completed = true,
+                priority = TodoPriority.HIGH,
+                tags = listOf("home"),
+            ),
+        )
+        saveTodo(
+            testTodo(
+                title = "Task 3",
+                completed = false,
+                priority = TodoPriority.HIGH,
+                tags = listOf("work", "urgent"),
+            ),
+        )
 
         validatedRequest()
             .`when`()
@@ -750,16 +796,31 @@ class TodoApiIntegrationTest @Autowired constructor(
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("$", hasSize<Any>(2))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?tag=urgent")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(1))
+            .body("[0].title", equalTo("Task 3"))
     }
 
     @Test
     fun patchTodoChangesStoredTodo() {
-        val todo = saveTodo(testTodo(title = "Buy milk", completed = false, priority = TodoPriority.LOW))
+        val todo = saveTodo(
+            testTodo(
+                title = "Buy milk",
+                completed = false,
+                priority = TodoPriority.LOW,
+                tags = listOf("original"),
+            ),
+        )
         val todoId = requireNotNull(todo.id)
 
         validatedRequest()
             .contentType(ContentType.JSON)
-            .body("""{"completed":true,"priority":"HIGH"}""")
+            .body("""{"completed":true,"priority":"HIGH","tags":["patched"]}""")
             .`when`()
             .patch("/api/todos/$todoId")
             .then()
@@ -767,8 +828,14 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("title", equalTo("Buy milk"))
             .body("completed", equalTo(true))
             .body("priority", equalTo("HIGH"))
+            .body("tags[0]", equalTo("patched"))
 
-        val expected = testTodo(title = "Buy milk", completed = true, priority = TodoPriority.HIGH)
+        val expected = testTodo(
+            title = "Buy milk",
+            completed = true,
+            priority = TodoPriority.HIGH,
+            tags = listOf("patched"),
+        )
         assertStoredTodo(todoId, expected)
         assertPublishedEvent(TodoEventType.UPDATED, todoId, expected)
     }
@@ -1056,6 +1123,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertEquals(expected.dueDate, stored.dueDate)
         assertEquals(expected.priority, stored.priority)
         assertEquals(expected.estimatedMinutes, stored.estimatedMinutes)
+        assertEquals(expected.tags, stored.tags)
         sideEffectVerifier.verifyDatabaseTable("todos")
     }
 
@@ -1068,6 +1136,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertEquals(expected.dueDate, todo.dueDate)
         assertEquals(expected.priority, todo.priority)
         assertEquals(expected.estimatedMinutes, todo.estimatedMinutes)
+        assertEquals(expected.tags, todo.tags)
     }
 
     private fun assertPublishedEvent(

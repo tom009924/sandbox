@@ -29,6 +29,7 @@ data class TodoCommand(
     val dueDate: LocalDate? = null,
     val priority: TodoPriority? = null,
     val estimatedMinutes: Int? = null,
+    val tags: List<String> = emptyList(),
 )
 
 data class PatchTodoCommand(
@@ -38,6 +39,7 @@ data class PatchTodoCommand(
     val dueDate: LocalDate? = null,
     val priority: TodoPriority? = null,
     val estimatedMinutes: Int? = null,
+    val tags: List<String>? = null,
 )
 
 class TodoService(
@@ -52,7 +54,8 @@ class TodoService(
         userId: UUID,
         completed: Boolean? = null,
         priority: TodoPriority? = null,
-    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority).map(cryptoHandler::decryptTodo)
+        tag: String? = null,
+    ): List<Todo> = todoRepository.findAllByUserId(userId, completed, priority, tag).map(cryptoHandler::decryptTodo)
 
     fun get(id: UUID, userId: UUID): Todo = cryptoHandler.decryptTodo(findTodo(id, userId))
 
@@ -78,6 +81,7 @@ class TodoService(
                 dueDate = command.dueDate,
                 priority = effectivePriority,
                 estimatedMinutes = effectiveEstimatedMinutes,
+                tags = command.tags,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(saved)
@@ -127,6 +131,7 @@ class TodoService(
                 dueDate = command.dueDate,
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes,
+                tags = command.tags,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(updated)
@@ -154,6 +159,7 @@ class TodoService(
                 dueDate = command.dueDate ?: todo.dueDate,
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes ?: todo.estimatedMinutes,
+                tags = command.tags ?: todo.tags,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(updated)
@@ -205,6 +211,7 @@ class TodoService(
             dueDate?.toString(),
             priority?.name,
             estimatedMinutes?.toString(),
+            tags.sorted().joinToString(",").ifEmpty { null },
         )
         val digest = MessageDigest.getInstance("SHA-256")
         fields.forEach { field ->

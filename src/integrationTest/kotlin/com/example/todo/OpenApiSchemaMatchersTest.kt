@@ -31,7 +31,8 @@ class OpenApiSchemaMatchersTest {
               "description": null,
               "dueDate": "2025-04-18",
               "priority": "HIGH",
-              "estimatedMinutes": 30
+              "estimatedMinutes": 30,
+              "tags": ["groceries"]
             }
         """.trimIndent()
 

@@ -46,6 +46,8 @@ actions:
     update: 完了状態でTODOタスクを絞り込みます。
   - target: $.paths['/api/todos'].get.parameters[?(@.name=='priority')].description
     update: 優先度でTODOタスクを絞り込みます。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='tag')].description
+    update: タグでTODOタスクを絞り込みます。
   - target: $.paths['/api/todos'].get.responses['200'].description
     update: TODOタスク一覧
   - target: $.paths['/api/todos'].get.responses['401'].description
