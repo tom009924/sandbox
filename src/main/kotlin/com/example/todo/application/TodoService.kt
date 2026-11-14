@@ -21,6 +21,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
 
 data class TodoCommand(
     val title: String,
@@ -50,6 +51,8 @@ class TodoService(
     private val userSettingsRepository: UserSettingsRepository? = null,
     private val cryptoHandler: TodoCryptoHandler = TodoCryptoHandler(),
 ) {
+    private val idempotencyLocks = Array(IDEMPOTENCY_LOCK_STRIPES) { ReentrantLock() }
+
     fun list(
         userId: UUID,
         completed: Boolean? = null,
@@ -97,28 +100,35 @@ class TodoService(
     }
 
     fun createIdempotent(userId: UUID, key: String, command: TodoCommand): Todo {
-        val now = clock.instant()
-        idempotencyRecordRepository.deleteExpiredBefore(now)
-        val fingerprint = command.fingerprint()
-        val existing = idempotencyRecordRepository.findByUserIdAndKey(userId, key)
-        if (existing != null) {
-            if (existing.requestFingerprint != fingerprint) {
-                throw IdempotencyConflictException(key)
+        val lockIndex = (((userId.hashCode() * STRIPE_HASH_PRIME) + key.hashCode()) and Int.MAX_VALUE) %
+            IDEMPOTENCY_LOCK_STRIPES
+        val lock = idempotencyLocks[lockIndex]
+        lock.lock()
+        return try {
+            val now = clock.instant()
+            val fingerprint = command.fingerprint()
+            val existing = idempotencyRecordRepository.findByUserIdAndKey(userId, key)
+            if (existing != null && existing.expiresAt.isAfter(now)) {
+                if (existing.requestFingerprint != fingerprint) {
+                    throw IdempotencyConflictException(key)
+                }
+                existing.response
+            } else {
+                val todo = create(userId, command)
+                idempotencyRecordRepository.save(
+                    IdempotencyRecord(
+                        userId = userId,
+                        key = key,
+                        requestFingerprint = fingerprint,
+                        response = todo,
+                        expiresAt = now.plus(IDEMPOTENCY_RETENTION),
+                    ),
+                )
+                todo
             }
-            return existing.response
+        } finally {
+            lock.unlock()
         }
-
-        val todo = create(userId, command)
-        idempotencyRecordRepository.save(
-            IdempotencyRecord(
-                userId = userId,
-                key = key,
-                requestFingerprint = fingerprint,
-                response = todo,
-                expiresAt = now.plus(IDEMPOTENCY_RETENTION),
-            ),
-        )
-        return todo
     }
 
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
@@ -235,6 +245,8 @@ class TodoService(
         const val BYTE_MASK = 0xff
         const val HEX_RADIX = 16
         const val HEX_BYTE_WIDTH = 2
+        const val IDEMPOTENCY_LOCK_STRIPES = 64
+        const val STRIPE_HASH_PRIME = 31
         val IDEMPOTENCY_RETENTION: Duration = Duration.ofHours(24)
     }
 }
