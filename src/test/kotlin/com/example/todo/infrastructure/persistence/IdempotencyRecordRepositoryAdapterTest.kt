@@ -18,13 +18,15 @@ class IdempotencyRecordRepositoryAdapterTest @Autowired constructor(
 ) {
     @Test
     fun `save and find idempotency record`() {
+        val userId = UUID.randomUUID()
         val key = "key_${UUID.randomUUID()}"
         val record = IdempotencyRecord(
+            userId = userId,
             key = key,
             requestFingerprint = "fp_${UUID.randomUUID()}",
             response = Todo(
                 id = UUID.randomUUID(),
-                userId = UUID.randomUUID(),
+                userId = userId,
                 title = "Idempotent Todo",
                 priority = TodoPriority.LOW,
             ),
@@ -33,35 +35,40 @@ class IdempotencyRecordRepositoryAdapterTest @Autowired constructor(
 
         adapter.save(record)
 
-        val found = adapter.findByKey(key)
+        val found = adapter.findByUserIdAndKey(userId, key)
         assertNotNull(found)
+        assertEquals(userId, found?.userId)
         assertEquals(key, found?.key)
         assertEquals("Idempotent Todo", found?.response?.title)
     }
 
     @Test
     fun `deleteExpiredBefore deletes only expired records via SpannerTemplate DML`() {
+        val expiredUserId = UUID.randomUUID()
+        val activeUserId = UUID.randomUUID()
         val expiredKey = "expired_${UUID.randomUUID()}"
         val activeKey = "active_${UUID.randomUUID()}"
         val now = Instant.now()
 
         val expiredRecord = IdempotencyRecord(
+            userId = expiredUserId,
             key = expiredKey,
             requestFingerprint = "fp_exp",
             response = Todo(
                 id = UUID.randomUUID(),
-                userId = UUID.randomUUID(),
+                userId = expiredUserId,
                 title = "Expired Todo",
                 priority = TodoPriority.LOW,
             ),
             expiresAt = now.minusSeconds(60),
         )
         val activeRecord = IdempotencyRecord(
+            userId = activeUserId,
             key = activeKey,
             requestFingerprint = "fp_act",
             response = Todo(
                 id = UUID.randomUUID(),
-                userId = UUID.randomUUID(),
+                userId = activeUserId,
                 title = "Active Todo",
                 priority = TodoPriority.LOW,
             ),
@@ -73,7 +80,7 @@ class IdempotencyRecordRepositoryAdapterTest @Autowired constructor(
 
         adapter.deleteExpiredBefore(now)
 
-        assertNull(adapter.findByKey(expiredKey))
-        assertNotNull(adapter.findByKey(activeKey))
+        assertNull(adapter.findByUserIdAndKey(expiredUserId, expiredKey))
+        assertNotNull(adapter.findByUserIdAndKey(activeUserId, activeKey))
     }
 }

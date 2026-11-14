@@ -14,6 +14,7 @@ import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -370,17 +371,31 @@ class TodoServiceTest {
     }
 
     private class InMemoryIdempotencyRecordRepository : IdempotencyRecordRepository {
-        private val records = mutableMapOf<String, IdempotencyRecord>()
+        private val records = mutableMapOf<Pair<UUID, String>, IdempotencyRecord>()
 
-        override fun findByKey(key: String): IdempotencyRecord? = records[key]
+        override fun findByUserIdAndKey(userId: UUID, key: String): IdempotencyRecord? =
+            records[userId to key]
 
         override fun save(record: IdempotencyRecord) {
-            records[record.key] = record
+            records[record.userId to record.key] = record
         }
 
         override fun deleteExpiredBefore(instant: Instant) {
             records.entries.removeIf { (_, record) -> record.expiresAt <= instant }
         }
+    }
+
+    @Test
+    fun `createIdempotent isolates same key across different users`() {
+        val otherUserId = UUID.randomUUID()
+        val command = TodoCommand(title = "Buy milk")
+
+        val firstTodo = service.createIdempotent(userId, "shared-key", command)
+        val secondTodo = service.createIdempotent(otherUserId, "shared-key", command)
+
+        assertEquals(userId, firstTodo.userId)
+        assertEquals(otherUserId, secondTodo.userId)
+        assertNotEquals(firstTodo.id, secondTodo.id)
     }
 
     @Test
