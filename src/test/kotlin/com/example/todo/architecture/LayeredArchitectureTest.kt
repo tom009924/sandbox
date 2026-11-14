@@ -34,7 +34,12 @@ class LayeredArchitectureTest {
         noClasses()
             .that().resideInAnyPackage("..domain..", "..application..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("org.springframework..", "jakarta.persistence..", "com.fasterxml.jackson..")
+            .resideInAnyPackage(
+                "org.springframework..",
+                "jakarta.persistence..",
+                "com.fasterxml.jackson..",
+                "tools.jackson..",
+            )
             .because("Domain and Application layers must remain framework-agnostic")
             .check(classes)
     }
