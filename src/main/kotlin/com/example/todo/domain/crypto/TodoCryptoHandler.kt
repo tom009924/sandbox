@@ -20,7 +20,7 @@ class TodoCryptoHandler(
         else -> try {
             val cipherBytes = Base64.getDecoder().decode(description.removePrefix(ENCRYPTED_PREFIX))
             String(cryptoService.decrypt(kmsKeyName, cipherBytes), StandardCharsets.UTF_8)
-        } catch (_: Exception) {
+        } catch (_: IllegalArgumentException) {
             description
         }
     }
