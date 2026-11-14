@@ -544,12 +544,14 @@ components:
           example: 550e8400-e29b-41d4-a716-446655440000
         title:
           type: string
+          maxLength: 100
           example: Buy milk
         completed:
           type: boolean
           example: false
         description:
           type: string
+          maxLength: 500
           nullable: true
           example: Buy before the weekend
         dueDate:
@@ -601,11 +603,13 @@ components:
       properties:
         title:
           type: string
+          maxLength: 100
           pattern: .*\S.*
           description: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
           example: Buy milk
         description:
           type: string
+          maxLength: 500
           nullable: true
           example: Buy before the weekend
         dueDate:
@@ -638,6 +642,7 @@ components:
       properties:
         title:
           type: string
+          maxLength: 100
           pattern: .*\S.*
           description: 1文字以上の非空白文字を含む必要があります。前後の空白はトリムされます。
           example: Buy milk
@@ -646,6 +651,7 @@ components:
           example: true
         description:
           type: string
+          maxLength: 500
           nullable: true
           example: Purchased
         dueDate:
@@ -677,6 +683,7 @@ components:
       properties:
         title:
           type: string
+          maxLength: 100
           pattern: .*\S.*
           description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
           example: Buy milk
@@ -685,6 +692,7 @@ components:
           example: true
         description:
           type: string
+          maxLength: 500
           nullable: true
           example: Purchased
         dueDate:
