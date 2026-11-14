@@ -19,25 +19,26 @@ class SecurityStartupValidator(
     @PostConstruct
     fun validateSecretsOnStartup() {
         val activeProfiles = environment.activeProfiles.toSet()
-        val isProduction = activeProfiles.any {
-            it.equals("prod", ignoreCase = true) || it.equals("production", ignoreCase = true)
-        }
+        val allowsDefaultSecrets = activeProfiles.isEmpty() ||
+            activeProfiles.all { it.lowercase() in ALLOWED_DEFAULT_SECRET_PROFILES }
 
-        if (isProduction) {
+        if (!allowsDefaultSecrets) {
             check(jwtSecret != DEFAULT_JWT_SECRET) {
-                "Production profile detected but 'jwt.secret' is set to default insecure value. " +
+                "Non-local profile detected (${activeProfiles.joinToString()}) " +
+                    "but 'jwt.secret' is set to default insecure value. " +
                     "A secure 256-bit secret must be provided via environment variables."
             }
             check(adminApiKey != DEFAULT_ADMIN_API_KEY) {
-                "Production profile detected but 'todo.security.admin-api-key' is set to default insecure value. " +
+                "Non-local profile detected (${activeProfiles.joinToString()}) " +
+                    "but 'todo.security.admin-api-key' is set to default insecure value. " +
                     "A secure admin API key must be provided via environment variables."
             }
-            logger.info("Security secret validation passed for production profile.")
+            logger.info("Security secret validation passed for profiles: ${activeProfiles.joinToString()}.")
         } else {
             if (jwtSecret == DEFAULT_JWT_SECRET || adminApiKey == DEFAULT_ADMIN_API_KEY) {
                 logger.warn(
                     "Running with default insecure security keys (JWT secret or admin API key). " +
-                        "This is acceptable for local development but prohibited in production.",
+                        "This is acceptable for local development/testing only.",
                 )
             }
         }
@@ -46,5 +47,6 @@ class SecurityStartupValidator(
     companion object {
         const val DEFAULT_JWT_SECRET = "default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256"
         const val DEFAULT_ADMIN_API_KEY = "admin-secret-key"
+        private val ALLOWED_DEFAULT_SECRET_PROFILES = setOf("local", "dev", "development", "test")
     }
 }
