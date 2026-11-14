@@ -133,6 +133,39 @@ paths:
           schema:
             type: string
             maxLength: 32
+        - name: q
+          in: query
+          required: false
+          description: Filter todos by case-insensitive substring match on title.
+          schema:
+            type: string
+            maxLength: 100
+        - name: dueBefore
+          in: query
+          required: false
+          description: Filter todos with a due date on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+            format: date
+        - name: dueAfter
+          in: query
+          required: false
+          description: Filter todos with a due date on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          required: false
+          description: Field to sort todos by.
+          schema:
+            $ref: '#/components/schemas/TodoSortField'
+        - name: sortOrder
+          in: query
+          required: false
+          description: Sort direction (defaults to ASC when sortBy is specified).
+          schema:
+            $ref: '#/components/schemas/SortOrder'
       responses:
         '200':
           description: Todo list
@@ -803,6 +836,17 @@ components:
         - LOW
         - MEDIUM
         - HIGH
+    TodoSortField:
+      type: string
+      enum:
+        - DUE_DATE
+        - PRIORITY
+        - TITLE
+    SortOrder:
+      type: string
+      enum:
+        - ASC
+        - DESC
     UserSettingsResponse:
       type: object
       required:
