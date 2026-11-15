@@ -25,6 +25,7 @@ data class ProjectMemberInfo(
     val joinedAt: Instant,
 )
 
+@Suppress("TooManyFunctions")
 class ProjectService(
     private val projectRepository: ProjectRepository,
     private val projectMemberRepository: ProjectMemberRepository,
