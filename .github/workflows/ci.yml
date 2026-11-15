@@ -66,6 +66,11 @@ jobs:
           PUBSUB_EMULATOR_HOST: localhost:8085
         run: ./gradlew check bootJar --no-daemon
 
+      - name: Verify external connection diagrams are up-to-date
+        run: |
+          ./gradlew generateExternalConnectionDiagrams --no-daemon
+          git diff --exit-code docs/architecture/external-connection-order.md
+
       - name: Run Arazzo E2E workflow tests
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
