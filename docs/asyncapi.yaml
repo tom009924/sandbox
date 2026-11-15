@@ -5,6 +5,16 @@ info:
   description: |
     Asynchronous domain events published by the Todo Service to Google Cloud Pub/Sub.
     Derived from `com.example.todo.domain.event.TodoEvent` and `PubSubTodoEventPublisher`.
+  contact:
+    name: Todo API Team
+    url: https://example.com
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  tags:
+    - name: Todos
+      description: Todo lifecycle domain events
 servers:
   gcp-pubsub:
     host: pubsub.googleapis.com
@@ -13,6 +23,7 @@ servers:
 channels:
   todoEvents:
     address: projects/{projectId}/topics/todo-events
+    description: Google Cloud Pub/Sub topic for Todo lifecycle domain events.
     messages:
       todoEvent:
         $ref: '#/components/messages/TodoEventMessage'
@@ -25,6 +36,11 @@ operations:
     channel:
       $ref: '#/channels/todoEvents'
     summary: Publish Todo lifecycle event (CREATED, UPDATED, DELETED)
+    description: |
+      Publishes a Todo lifecycle domain event whenever a Todo is created, updated, or deleted.
+      For `DELETED` events, the `todo` payload field is `null`.
+    tags:
+      - name: Todos
     messages:
       - $ref: '#/channels/todoEvents/messages/todoEvent'
 components:
@@ -32,6 +48,7 @@ components:
     TodoEventMessage:
       name: TodoEvent
       title: Todo Lifecycle Event
+      summary: Domain event emitted when a Todo is created, updated, or deleted.
       contentType: application/json
       headers:
         type: object
@@ -44,6 +61,29 @@ components:
             format: uuid
       payload:
         $ref: '#/components/schemas/TodoEvent'
+      examples:
+        - name: todoCreated
+          summary: Example CREATED event
+          headers:
+            eventType: CREATED
+            todoId: 550e8400-e29b-41d4-a716-446655440000
+          payload:
+            eventId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            eventType: CREATED
+            timestamp: '2025-04-18T12:00:00Z'
+            todoId: 550e8400-e29b-41d4-a716-446655440000
+            todo:
+              id: 550e8400-e29b-41d4-a716-446655440000
+              userId: 123e4567-e89b-12d3-a456-426614174000
+              title: Buy milk
+              completed: false
+              description: Get fresh milk
+              dueDate: '2025-04-19'
+              priority: HIGH
+              estimatedMinutes: 30
+              tags:
+                - shopping
+              projectId: null
   schemas:
     TodoEvent:
       type: object
@@ -106,3 +146,8 @@ components:
           type: array
           items:
             type: string
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional shared project ID associated with the Todo
