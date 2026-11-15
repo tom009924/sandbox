@@ -1,0 +1,6 @@
+extends:
+  - "spectral:asyncapi"
+
+rules:
+  asyncapi-info-contact: warn
+  asyncapi-info-license: warn
