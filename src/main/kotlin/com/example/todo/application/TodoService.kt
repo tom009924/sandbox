@@ -5,6 +5,7 @@ import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
+import com.example.todo.domain.exception.InvalidTodoAssigneeException
 import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.Todo
@@ -27,6 +28,7 @@ data class TodoCommand(
     val estimatedMinutes: Int? = null,
     val tags: List<String> = emptyList(),
     val projectId: UUID? = null,
+    val assigneeId: UUID? = null,
 )
 
 data class PatchTodoCommand(
@@ -37,6 +39,7 @@ data class PatchTodoCommand(
     val priority: TodoPriority? = null,
     val estimatedMinutes: Int? = null,
     val tags: List<String>? = null,
+    val assigneeId: UUID? = null,
 )
 
 enum class TodoSortField {
@@ -79,6 +82,7 @@ data class TodoListQuery(
     val sortBy: TodoSortField? = null,
     val sortOrder: SortOrder = SortOrder.ASC,
     val projectId: UUID? = null,
+    val assigneeId: UUID? = null,
 )
 
 @Suppress("LongParameterList", "TooManyFunctions")
@@ -108,7 +112,8 @@ class TodoService(
             .filter { todo ->
                 (keyword == null || todo.title.contains(keyword, ignoreCase = true)) &&
                     (query.dueAfter == null || (todo.dueDate != null && !todo.dueDate.isBefore(query.dueAfter))) &&
-                    (query.dueBefore == null || (todo.dueDate != null && !todo.dueDate.isAfter(query.dueBefore)))
+                    (query.dueBefore == null || (todo.dueDate != null && !todo.dueDate.isAfter(query.dueBefore))) &&
+                    (query.assigneeId == null || todo.assigneeId == query.assigneeId)
             }
         val sortBy = query.sortBy ?: return filtered
         return filtered.sortedWith(sortBy.comparator(query.sortOrder))
@@ -120,6 +125,7 @@ class TodoService(
         if (command.projectId != null) {
             requireProjectMembership(command.projectId, userId)
         }
+        validateAssignee(command.projectId, command.assigneeId)
         val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
         if (command.projectId == null) {
             ensureActiveTodoLimitNotExceeded(userId, checkRequired = !command.completed, settings = settings)
@@ -137,6 +143,7 @@ class TodoService(
                 estimatedMinutes = effectiveEstimatedMinutes,
                 tags = command.tags,
                 projectId = command.projectId,
+                assigneeId = command.assigneeId,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(saved)
@@ -149,6 +156,7 @@ class TodoService(
 
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id, userId)
+        validateAssignee(todo.projectId, command.assigneeId)
         if (todo.projectId == null) {
             ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !command.completed)
         }
@@ -161,6 +169,7 @@ class TodoService(
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes,
                 tags = command.tags,
+                assigneeId = command.assigneeId,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(updated)
@@ -170,6 +179,9 @@ class TodoService(
 
     fun patch(id: UUID, userId: UUID, command: PatchTodoCommand): Todo {
         val todo = findTodo(id, userId)
+        if (command.assigneeId != null) {
+            validateAssignee(todo.projectId, command.assigneeId)
+        }
         val newCompleted = command.completed ?: todo.completed
         if (todo.projectId == null) {
             ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !newCompleted)
@@ -184,6 +196,7 @@ class TodoService(
                 priority = command.priority ?: todo.priority,
                 estimatedMinutes = command.estimatedMinutes ?: todo.estimatedMinutes,
                 tags = command.tags ?: todo.tags,
+                assigneeId = command.assigneeId ?: todo.assigneeId,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(updated)
@@ -241,6 +254,16 @@ class TodoService(
     private fun requireProjectMembership(projectId: UUID, userId: UUID) {
         if (projectMemberRepository?.findByProjectIdAndUserId(projectId, userId) == null) {
             throw ProjectNotFoundException(projectId)
+        }
+    }
+
+    private fun validateAssignee(projectId: UUID?, assigneeId: UUID?) {
+        if (assigneeId == null) return
+        if (projectId == null) {
+            throw InvalidTodoAssigneeException("Assignee can only be set for project todos")
+        }
+        if (projectMemberRepository?.findByProjectIdAndUserId(projectId, assigneeId) == null) {
+            throw InvalidTodoAssigneeException("Assignee $assigneeId is not a member of project $projectId")
         }
     }
 }

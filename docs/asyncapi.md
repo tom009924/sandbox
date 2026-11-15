@@ -45,3 +45,5 @@ flowchart LR
 | `priority` | `string` | - | Yes | No |
 | `estimatedMinutes` | `integer` | - | No | Yes |
 | `tags` | `array` | - | Yes | No |
+| `projectId` | `string` | `uuid` | No | Yes |
+| `assigneeId` | `string` | `uuid` | No | Yes |
