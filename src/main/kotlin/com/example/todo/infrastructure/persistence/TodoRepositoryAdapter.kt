@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 @Repository
+@Suppress("TooManyFunctions")
 class TodoRepositoryAdapter(
     private val springDataTodoRepository: SpringDataTodoRepository,
     private val spannerTemplate: SpannerTemplate,

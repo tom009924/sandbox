@@ -4,6 +4,7 @@ import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import java.util.UUID
 
+@Suppress("TooManyFunctions")
 interface TodoRepository {
     fun findAll(): List<Todo>
 

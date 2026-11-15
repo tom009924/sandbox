@@ -70,6 +70,7 @@ class TodoConfiguration {
     ): TodoCryptoHandler = TodoCryptoHandler(cryptoService, kmsProperties.keyName)
 
     @Bean
+    @Suppress("LongParameterList")
     fun todoService(
         todoRepository: TodoRepository,
         idempotencyRecordRepository: IdempotencyRecordRepository,

@@ -81,6 +81,7 @@ data class TodoListQuery(
     val projectId: UUID? = null,
 )
 
+@Suppress("LongParameterList", "TooManyFunctions")
 class TodoService(
     private val todoRepository: TodoRepository,
     idempotencyRecordRepository: IdempotencyRecordRepository,

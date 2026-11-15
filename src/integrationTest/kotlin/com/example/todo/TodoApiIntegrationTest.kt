@@ -50,7 +50,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Suppress("TooManyFunctions", "LargeClass")
+@Suppress("TooManyFunctions", "LargeClass", "LongParameterList")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
     private val userRepository: UserRepository,
@@ -956,22 +956,25 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    @Suppress("MagicNumber")
     fun projectEndpointsRejectUnauthenticatedRequests() {
         val pid = MISSING_TODO_ID
-        validatedRequest(token = null).get("/api/projects").then().statusCode(401)
+        val unauth = HttpStatus.UNAUTHORIZED.value()
+        validatedRequest(token = null).get("/api/projects").then().statusCode(unauth)
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
-            .post("/api/projects").then().statusCode(401)
-        validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(401)
+            .post("/api/projects").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(unauth)
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
-            .put("/api/projects/$pid").then().statusCode(401)
-        validatedRequest(token = null).delete("/api/projects/$pid").then().statusCode(401)
-        validatedRequest(token = null).get("/api/projects/$pid/members").then().statusCode(401)
+            .put("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/projects/$pid/members").then().statusCode(unauth)
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"username":"bob"}""")
-            .post("/api/projects/$pid/members").then().statusCode(401)
-        validatedRequest(token = null).delete("/api/projects/$pid/members/$pid").then().statusCode(401)
+            .post("/api/projects/$pid/members").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/projects/$pid/members/$pid").then().statusCode(unauth)
     }
 
     @Test
+    @Suppress("MagicNumber")
     fun projectCrudAndMemberAuthorizationFlow() {
         val memberUser = saveUser("project_member")
         val memberToken = jwtTokenProvider.generateToken(
@@ -993,6 +996,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    @Suppress("MagicNumber")
     fun projectScopedTodoFlow() {
         val memberUser = saveUser("todo_collaborator")
         val memberToken = jwtTokenProvider.generateToken(
@@ -1027,11 +1031,13 @@ class TodoApiIntegrationTest @Autowired constructor(
             userRepository.save(User(username = username, passwordHash = "hash"))
         }
 
+    @Suppress("MagicNumber")
     private fun createProjectAs(token: String, name: String): String =
         validatedRequest(token = token).contentType(ContentType.JSON)
             .body("""{"name":"$name","description":"Desc"}""")
             .post("/api/projects").then().statusCode(201).extract().path("id")
 
+    @Suppress("MagicNumber")
     private fun addAndVerifyProjectMembers(projectId: String, memberToken: String, memberId: UUID) {
         validatedRequest().get("/api/projects/$MISSING_TODO_ID/members").then().statusCode(404)
         validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"MEMBER"}""")
@@ -1050,6 +1056,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest().delete("/api/projects/$projectId/members/$memberId").then().statusCode(204)
     }
 
+    @Suppress("MagicNumber")
     private fun verifyProjectUpdateAndDeleteAuthorization(projectId: String, memberToken: String) {
         validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"MEMBER"}""")
             .post("/api/projects/$projectId/members").then().statusCode(201)

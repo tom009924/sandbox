@@ -111,10 +111,7 @@ class ProjectService(
         username: String,
         role: ProjectRole = ProjectRole.MEMBER,
     ): ProjectMemberInfo {
-        val actor = requireMembership(projectId, actorUserId)
-        if (actor.role != ProjectRole.OWNER) {
-            throw ProjectForbiddenException("Only project owners can add members")
-        }
+        requireOwner(projectId, actorUserId, "Only project owners can add members")
         val targetUser = userRepository.findByUsername(username.trim())
             ?: throw UserNotFoundException(username.trim())
         val targetUserId = requireNotNull(targetUser.id)
@@ -145,12 +142,24 @@ class ProjectService(
         }
         val target = projectMemberRepository.findByProjectIdAndUserId(projectId, targetUserId)
             ?: throw ProjectMemberNotFoundException(projectId, targetUserId)
+        ensureNotLastOwner(projectId, target)
+        projectMemberRepository.deleteByProjectIdAndUserId(projectId, targetUserId)
+    }
+
+    private fun requireOwner(projectId: UUID, userId: UUID, message: String): ProjectMember {
+        val member = requireMembership(projectId, userId)
+        if (member.role != ProjectRole.OWNER) {
+            throw ProjectForbiddenException(message)
+        }
+        return member
+    }
+
+    private fun ensureNotLastOwner(projectId: UUID, target: ProjectMember) {
         if (target.role == ProjectRole.OWNER &&
             projectMemberRepository.countByProjectIdAndRole(projectId, ProjectRole.OWNER) <= 1
         ) {
             throw LastProjectOwnerException(projectId)
         }
-        projectMemberRepository.deleteByProjectIdAndUserId(projectId, targetUserId)
     }
 
     private fun requireMembership(projectId: UUID, userId: UUID): ProjectMember =

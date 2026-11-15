@@ -43,6 +43,7 @@ data class NotFoundTestCase(
  * Central specification and acceptance criteria definitions for Todo API integration tests.
  * Separated from test execution infrastructure for straightforward code reviews and OAS alignment.
  */
+@Suppress("LargeClass")
 object TodoApiTestCases {
 
     /**
