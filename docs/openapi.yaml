@@ -175,6 +175,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: assigneeId
+          in: query
+          required: false
+          description: Filter todos by assignee user ID.
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Todo list
@@ -1189,6 +1196,12 @@ components:
           nullable: true
           description: Optional project ID if this todo belongs to a shared project.
           example: 550e8400-e29b-41d4-a716-446655440000
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional user ID of the project member assigned to this todo.
+          example: 550e8400-e29b-41d4-a716-446655440000
     ErrorResponse:
       type: object
       required:
@@ -1252,6 +1265,12 @@ components:
           nullable: true
           description: Optional project ID to create the todo inside a shared project.
           example: 550e8400-e29b-41d4-a716-446655440000
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional user ID of a project member to assign this todo to (requires projectId).
+          example: 550e8400-e29b-41d4-a716-446655440000
     UpdateTodoRequest:
       type: object
       required:
@@ -1296,6 +1315,12 @@ components:
           example:
             - shopping
             - groceries
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional user ID of a project member to assign this todo to (project todos only).
+          example: 550e8400-e29b-41d4-a716-446655440000
     PatchTodoRequest:
       type: object
       properties:
@@ -1337,6 +1362,12 @@ components:
           example:
             - shopping
             - groceries
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional user ID of a project member to assign this todo to (project todos only).
+          example: 550e8400-e29b-41d4-a716-446655440000
     TodoPriority:
       type: string
       enum:

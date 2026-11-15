@@ -14,4 +14,5 @@ data class Todo(
     val estimatedMinutes: Int? = null,
     val tags: List<String> = emptyList(),
     val projectId: UUID? = null,
+    val assigneeId: UUID? = null,
 )

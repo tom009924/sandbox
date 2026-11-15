@@ -444,11 +444,12 @@ workflows:
           payload:
             title: Project Scoped Task
             projectId: "{$steps.createProject.outputs.projectId}"
+            assigneeId: "{$steps.registerProjectMember.outputs.memberId}"
         successCriteria:
           - condition: $statusCode == 201
 
       - stepId: listProjectTodos
-        description: List Todos filtered by projectId
+        description: List Todos filtered by projectId and assigneeId
         operationId: $sourceDescriptions.publicApi.listTodos
         parameters:
           - name: Authorization
@@ -457,6 +458,9 @@ workflows:
           - name: projectId
             in: query
             value: "{$steps.createProject.outputs.projectId}"
+          - name: assigneeId
+            in: query
+            value: "{$steps.registerProjectMember.outputs.memberId}"
         successCriteria:
           - condition: $statusCode == 200
 

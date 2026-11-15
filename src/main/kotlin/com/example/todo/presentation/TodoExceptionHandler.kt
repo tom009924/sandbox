@@ -3,6 +3,7 @@ package com.example.todo.presentation
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.exception.InvalidCredentialsException
+import com.example.todo.domain.exception.InvalidTodoAssigneeException
 import com.example.todo.domain.exception.LastProjectOwnerException
 import com.example.todo.domain.exception.ProjectForbiddenException
 import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
@@ -36,9 +37,12 @@ class TodoExceptionHandler {
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(mapOf("message" to "Invalid request parameters"))
 
-    @ExceptionHandler(ActiveTodosLimitExceededException::class)
+    @ExceptionHandler(
+        ActiveTodosLimitExceededException::class,
+        InvalidTodoAssigneeException::class,
+    )
     fun handleActiveTodosLimitExceeded(
-        exception: ActiveTodosLimitExceededException,
+        exception: RuntimeException,
     ): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(mapOf("message" to requireNotNull(exception.message)))
