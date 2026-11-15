@@ -1054,6 +1054,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest().delete("/api/projects/$projectId/members/$defaultUserId").then().statusCode(409)
         validatedRequest().delete("/api/projects/$projectId/members/$MISSING_TODO_ID").then().statusCode(404)
         validatedRequest().delete("/api/projects/$projectId/members/$memberId").then().statusCode(204)
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"OWNER"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(201)
+        validatedRequest().delete("/api/projects/$projectId/members/$memberId").then().statusCode(204)
     }
 
     @Suppress("MagicNumber")
