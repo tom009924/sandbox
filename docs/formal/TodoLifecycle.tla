@@ -63,6 +63,12 @@ Init ==
 \* ---------------------------------------------------------------------------
 
 \* @operationId createTodo
+\* @obligation IDEMPOTENT_NEW_CREATE | createTodo | db=1+ | events=1 | New Idempotency-Key persists Todo, IdempotencyRecord, and publishes 1 CREATED event
+\* @obligation IDEMPOTENT_REPLAY | createTodo | db=0 | events=0 | Replayed Idempotency-Key with same fingerprint produces 0 DB writes and 0 events
+\* @obligation IDEMPOTENT_CONFLICT | createTodo | db=0 | events=0 | Reused Idempotency-Key with different fingerprint returns 409 with 0 side effects
+\* @obligation IDEMPOTENT_TTL_EXPIRED | createTodo | db=1+ | events=1 | Expired Idempotency-Key creates a new Todo and publishes 1 CREATED event
+\* @obligation ACTIVE_LIMIT_EXCEEDED_ON_CREATE | createTodo | db=0 | events=0 | Active Todo creation at maxActiveTodos limit fails with 0 side effects
+\* @obligation ACTIVE_LIMIT_BYPASSED_ON_COMPLETED_CREATE | createTodo | db=1+ | events=1 | Completed Todo creation at maxActiveTodos limit succeeds
 \* Step 1 of POST /api/v1/todos (with Idempotency-Key):
 \* Check existing idempotency record and active todo limit.
 StartCreateIdempotent(w, k, fp, completed) ==
@@ -109,6 +115,8 @@ SaveIdempotencyRecord(w) ==
 
 \* @operationId updateTodo
 \* @operationId patchTodo
+\* @obligation ACTIVE_LIMIT_EXCEEDED_ON_REOPEN | patchTodo | db=0 | events=0 | Reopening completed Todo at maxActiveTodos limit fails with 0 side effects
+\* @obligation ACTIVE_LIMIT_ALLOWED_ON_COMPLETE | patchTodo | db=1+ | events=1 | Completing active Todo at maxActiveTodos limit succeeds
 \* PUT/PATCH /api/v1/todos/{id}: Toggle completed status (respecting active limit on reopen).
 PatchToggleCompleted(t) ==
     /\ t \in todos
@@ -120,6 +128,7 @@ PatchToggleCompleted(t) ==
        /\ UNCHANGED <<idempotencyRecords, nextTodoId, now, workerState>>
 
 \* @operationId deleteTodo
+\* @obligation DELETE_TODO_EMITS_EVENT | deleteTodo | db=1+ | events=1 | Deleting Todo removes record and publishes 1 DELETED event
 \* DELETE /api/v1/todos/{id}
 DeleteTodo(t) ==
     /\ t \in todos

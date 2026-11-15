@@ -7,10 +7,21 @@ import org.junit.jupiter.api.Test
 
 class BehavioralCoverageTrackerTest {
     @Test
+    fun loadsObligationsDirectlyFromFormalTlaSpecs() {
+        val obligations = FormalObligationLoader.loadDefault()
+        val ids = obligations.map { it.id }.toSet()
+
+        assertTrue("IDEMPOTENT_NEW_CREATE" in ids)
+        assertTrue("IDEMPOTENT_REPLAY" in ids)
+        assertTrue("ACTIVE_LIMIT_EXCEEDED_ON_REOPEN" in ids)
+        assertTrue("DELETE_TODO_EMITS_EVENT" in ids)
+    }
+
+    @Test
     fun verifyAllCoveredFailsWhenObligationsAreMissing() {
         val tracker = BehavioralCoverageTracker()
         tracker.record(
-            obligation = BehavioralObligation.IDEMPOTENT_NEW_CREATE,
+            obligationId = "IDEMPOTENT_NEW_CREATE",
             observedDbWrites = 2,
             observedPublishedEvents = 1,
         )
@@ -19,17 +30,25 @@ class BehavioralCoverageTrackerTest {
             tracker.verifyAllCovered()
         }
         assertTrue(error.message.orEmpty().contains("IDEMPOTENT_REPLAY"))
-        assertTrue(error.message.orEmpty().contains("LAST_PROJECT_OWNER_PROTECTED"))
+        assertTrue(error.message.orEmpty().contains("ACTIVE_LIMIT_EXCEEDED_ON_REOPEN"))
     }
 
     @Test
-    fun recordRejectsSideEffectMismatch() {
+    fun recordRejectsUnknownObligationAndSideEffectMismatch() {
         val tracker = BehavioralCoverageTracker()
+
+        assertThrows(IllegalArgumentException::class.java) {
+            tracker.record(
+                obligationId = "UNDECLARED_OBLIGATION",
+                observedDbWrites = 0,
+                observedPublishedEvents = 0,
+            )
+        }
 
         // Idempotent replay must not write to DB or emit Pub/Sub events
         assertThrows(IllegalArgumentException::class.java) {
             tracker.record(
-                obligation = BehavioralObligation.IDEMPOTENT_REPLAY,
+                obligationId = "IDEMPOTENT_REPLAY",
                 observedDbWrites = 0,
                 observedPublishedEvents = 1,
             )
@@ -37,17 +56,17 @@ class BehavioralCoverageTrackerTest {
     }
 
     @Test
-    fun verifyAllCoveredPassesWhenAllObligationsAreRecordedWithValidSideEffects() {
+    fun verifyAllCoveredPassesWhenAllTlaDerivedObligationsAreRecorded() {
         val tracker = BehavioralCoverageTracker()
-        BehavioralObligation.entries.forEach { obligation ->
+        tracker.allObligations().forEach { obligation ->
             tracker.record(
-                obligation = obligation,
+                obligationId = obligation.id,
                 observedDbWrites = obligation.expectedDbWrites.first,
                 observedPublishedEvents = obligation.expectedPublishedEvents.first,
             )
         }
 
         tracker.verifyAllCovered()
-        assertEquals(BehavioralObligation.entries.size, tracker.traceEntries().size)
+        assertEquals(tracker.allObligations().size, tracker.traceEntries().size)
     }
 }

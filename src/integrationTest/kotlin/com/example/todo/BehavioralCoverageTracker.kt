@@ -1,131 +1,139 @@
 package com.example.todo
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * Behavioral, state-transition, and side-effect obligations that cannot be expressed
- * in OpenAPI (docs/openapi.yaml) alone, derived from docs/formal/TodoLifecycle.tla
- * and domain invariants.
+ * Behavioral, state-transition, and side-effect obligation derived directly from
+ * `@obligation` annotations in TLA+ files under `docs/formal/`.
  */
-enum class BehavioralObligation(
+data class BehavioralObligation(
+    val id: String,
     val operationId: String,
     val expectedDbWrites: IntRange,
     val expectedPublishedEvents: IntRange,
     val description: String,
-) {
-    IDEMPOTENT_NEW_CREATE(
-        operationId = "createTodo",
-        expectedDbWrites = 1..Int.MAX_VALUE,
-        expectedPublishedEvents = 1..1,
-        description = "New Idempotency-Key persists Todo, IdempotencyRecord, and publishes 1 CREATED event",
-    ),
-    IDEMPOTENT_REPLAY(
-        operationId = "createTodo",
-        expectedDbWrites = 0..0,
-        expectedPublishedEvents = 0..0,
-        description = "Replayed Idempotency-Key with same fingerprint produces 0 DB writes and 0 events",
-    ),
-    IDEMPOTENT_CONFLICT(
-        operationId = "createTodo",
-        expectedDbWrites = 0..0,
-        expectedPublishedEvents = 0..0,
-        description = "Reused Idempotency-Key with different fingerprint returns 409 with 0 side effects",
-    ),
-    IDEMPOTENT_TTL_EXPIRED(
-        operationId = "createTodo",
-        expectedDbWrites = 1..Int.MAX_VALUE,
-        expectedPublishedEvents = 1..1,
-        description = "Expired Idempotency-Key creates a new Todo and publishes 1 CREATED event",
-    ),
-    ACTIVE_LIMIT_EXCEEDED_ON_CREATE(
-        operationId = "createTodo",
-        expectedDbWrites = 0..0,
-        expectedPublishedEvents = 0..0,
-        description = "Active Todo creation at maxActiveTodos limit fails with 0 side effects",
-    ),
-    ACTIVE_LIMIT_BYPASSED_ON_COMPLETED_CREATE(
-        operationId = "createTodo",
-        expectedDbWrites = 1..Int.MAX_VALUE,
-        expectedPublishedEvents = 1..1,
-        description = "Completed Todo creation at maxActiveTodos limit succeeds",
-    ),
-    ACTIVE_LIMIT_EXCEEDED_ON_REOPEN(
-        operationId = "patchTodo",
-        expectedDbWrites = 0..0,
-        expectedPublishedEvents = 0..0,
-        description = "Reopening completed Todo at maxActiveTodos limit fails with 0 side effects",
-    ),
-    ACTIVE_LIMIT_ALLOWED_ON_COMPLETE(
-        operationId = "patchTodo",
-        expectedDbWrites = 1..Int.MAX_VALUE,
-        expectedPublishedEvents = 1..1,
-        description = "Completing active Todo at maxActiveTodos limit succeeds",
-    ),
-    LAST_PROJECT_OWNER_PROTECTED(
-        operationId = "removeProjectMember",
-        expectedDbWrites = 0..0,
-        expectedPublishedEvents = 0..0,
-        description = "Removing the last OWNER of a project fails with 0 side effects",
-    ),
-    NON_LAST_PROJECT_OWNER_REMOVABLE(
-        operationId = "removeProjectMember",
-        expectedDbWrites = 1..Int.MAX_VALUE,
-        expectedPublishedEvents = 0..0,
-        description = "Removing one OWNER when another OWNER remains succeeds",
-    ),
-}
+)
 
 data class BehavioralTraceEntry(
     val op: String,
-    val obligation: BehavioralObligation,
+    val obligationId: String,
     val dbWrites: Int,
     val publishedEvents: Int,
 )
 
 /**
- * Tracks behavioral coverage and verifies side-effect consistency for each recorded obligation.
- * Also collects trace entries that can be validated against docs/formal/TodoLifecycleTrace.tla.
+ * Parses `@obligation <ID> | <operationId> | db=<range> | events=<range> | <description>`
+ * from TLA+ formal specifications so coverage goals have a single source of truth.
  */
-class BehavioralCoverageTracker {
-    private val covered = ConcurrentHashMap.newKeySet<BehavioralObligation>()
+object FormalObligationLoader {
+    private val OBLIGATION_REGEX = Regex(
+        """^\\\*\s*@obligation\s+([A-Z0-9_]+)\s*\|\s*([A-Za-z0-9_]+)\s*""" +
+            """\|\s*db=([^\s|]+)\s*\|\s*events=([^\s|]+)\s*\|\s*(.+)$""",
+    )
+    private val PLUS_SUFFIX_REGEX = Regex("""^(\d+)\+$""")
+    private val RANGE_REGEX = Regex("""^(\d+)\.\.(\d+)$""")
+
+    fun loadDefault(): List<BehavioralObligation> = loadFromDirectory(Paths.get("docs", "formal"))
+
+    fun loadFromDirectory(dir: Path): List<BehavioralObligation> {
+        require(Files.isDirectory(dir)) { "Formal specs directory not found: $dir" }
+        val tlaFiles = Files.list(dir).use { stream ->
+            stream.filter { it.toString().endsWith(".tla") }
+                .sorted()
+                .toList()
+        }
+        return tlaFiles.flatMap { path -> parse(Files.readString(path)) }
+    }
+
+    fun parse(tlaContent: String): List<BehavioralObligation> =
+        tlaContent.lineSequence()
+            .mapNotNull { line ->
+                val match = OBLIGATION_REGEX.matchEntire(line.trim()) ?: return@mapNotNull null
+                BehavioralObligation(
+                    id = match.groupValues[GROUP_ID],
+                    operationId = match.groupValues[GROUP_OPERATION_ID],
+                    expectedDbWrites = parseRange(match.groupValues[GROUP_DB]),
+                    expectedPublishedEvents = parseRange(match.groupValues[GROUP_EVENTS]),
+                    description = match.groupValues[GROUP_DESCRIPTION].trim(),
+                )
+            }
+            .toList()
+
+    private fun parseRange(expr: String): IntRange {
+        val trimmed = expr.trim()
+        val plusMatch = PLUS_SUFFIX_REGEX.matchEntire(trimmed)
+        val rangeMatch = RANGE_REGEX.matchEntire(trimmed)
+        return when {
+            plusMatch != null -> plusMatch.groupValues[1].toInt()..Int.MAX_VALUE
+            rangeMatch != null -> rangeMatch.groupValues[1].toInt()..rangeMatch.groupValues[2].toInt()
+            else -> trimmed.toInt().let { it..it }
+        }
+    }
+
+    private const val GROUP_ID = 1
+    private const val GROUP_OPERATION_ID = 2
+    private const val GROUP_DB = 3
+    private const val GROUP_EVENTS = 4
+    private const val GROUP_DESCRIPTION = 5
+}
+
+/**
+ * Tracks behavioral coverage against obligations derived from `docs/formal/`
+ * and verifies side-effect consistency for each recorded obligation.
+ */
+class BehavioralCoverageTracker(
+    obligations: List<BehavioralObligation> = FormalObligationLoader.loadDefault(),
+) {
+    private val obligationsById: Map<String, BehavioralObligation> = obligations.associateBy { it.id }
+    private val covered = ConcurrentHashMap.newKeySet<String>()
     private val traceLog = CopyOnWriteArrayList<BehavioralTraceEntry>()
 
+    init {
+        require(obligationsById.isNotEmpty()) { "At least one @obligation must be defined in docs/formal/" }
+    }
+
     fun record(
-        obligation: BehavioralObligation,
+        obligationId: String,
         observedDbWrites: Int,
         observedPublishedEvents: Int,
     ) {
+        val obligation = requireNotNull(obligationsById[obligationId]) {
+            "Unknown behavioral obligation '$obligationId'. Define it in docs/formal/ first."
+        }
         require(observedDbWrites in obligation.expectedDbWrites) {
-            "Side-effect mismatch for ${obligation.name}: " +
+            "Side-effect mismatch for ${obligation.id}: " +
                 "expected dbWrites in ${obligation.expectedDbWrites}, got $observedDbWrites"
         }
         require(observedPublishedEvents in obligation.expectedPublishedEvents) {
-            "Side-effect mismatch for ${obligation.name}: " +
+            "Side-effect mismatch for ${obligation.id}: " +
                 "expected publishedEvents in ${obligation.expectedPublishedEvents}, got $observedPublishedEvents"
         }
-        covered.add(obligation)
+        covered.add(obligation.id)
         traceLog.add(
             BehavioralTraceEntry(
                 op = obligation.operationId,
-                obligation = obligation,
+                obligationId = obligation.id,
                 dbWrites = observedDbWrites,
                 publishedEvents = observedPublishedEvents,
             ),
         )
     }
 
-    fun coveredObligations(): Set<BehavioralObligation> = covered.toSet()
+    fun allObligations(): List<BehavioralObligation> = obligationsById.values.toList()
 
     fun uncoveredObligations(): List<BehavioralObligation> =
-        BehavioralObligation.entries.filterNot { it in covered }
+        obligationsById.values.filterNot { it.id in covered }
 
     fun traceEntries(): List<BehavioralTraceEntry> = traceLog.toList()
 
     fun verifyAllCovered() {
         val uncovered = uncoveredObligations()
         if (uncovered.isNotEmpty()) {
-            val details = uncovered.joinToString("\n") { "  - ${it.name} (${it.operationId}): ${it.description}" }
+            val details = uncovered.joinToString("\n") { "  - ${it.id} (${it.operationId}): ${it.description}" }
             throw AssertionError("Uncovered behavioral obligations:\n$details")
         }
     }
