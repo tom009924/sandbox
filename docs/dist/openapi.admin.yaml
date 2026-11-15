@@ -633,6 +633,46 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{projectId}/stats:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Project identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Projects
+      summary: Get project statistics
+      description: Retrieve Todo progress and priority breakdown statistics for a project. Only accessible to project members.
+      operationId: getProjectStats
+      responses:
+        '200':
+          description: Project statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectStatsResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or user is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/projects/{projectId}/members:
     parameters:
       - name: projectId
@@ -1409,6 +1449,58 @@ components:
           example: bob
         role:
           $ref: '#/components/schemas/ProjectRole'
+    ProjectStatsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - projectId
+        - totalTodos
+        - completedTodos
+        - activeTodos
+        - overdueTodos
+        - highPriorityTodos
+        - mediumPriorityTodos
+        - lowPriorityTodos
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        totalTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 10
+        completedTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 4
+        activeTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 6
+        overdueTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 1
+        highPriorityTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 2
+        mediumPriorityTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 5
+        lowPriorityTodos:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 3
     AdminStatsResponse:
       type: object
       required:

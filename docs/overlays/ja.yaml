@@ -213,6 +213,10 @@ actions:
     update: プロジェクト更新
   - target: $.paths['/api/projects/{projectId}'].delete.summary
     update: プロジェクト削除
+  - target: $.paths['/api/projects/{projectId}/stats'].get.summary
+    update: プロジェクト統計取得
+  - target: $.paths['/api/projects/{projectId}/stats'].get.description
+    update: プロジェクト内のTODO進捗および優先度別集計を取得します。プロジェクトメンバーのみアクセス可能です。
   - target: $.paths['/api/projects/{projectId}/members'].get.summary
     update: プロジェクトメンバー一覧取得
   - target: $.paths['/api/projects/{projectId}/members'].post.summary

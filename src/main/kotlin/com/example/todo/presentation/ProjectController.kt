@@ -5,11 +5,13 @@ import com.example.todo.application.ProjectService
 import com.example.todo.application.UserContext
 import com.example.todo.domain.model.Project
 import com.example.todo.domain.model.ProjectRole
+import com.example.todo.domain.model.ProjectStats
 import com.example.todo.presentation.api.ProjectsApi
 import com.example.todo.presentation.model.AddProjectMemberRequest
 import com.example.todo.presentation.model.CreateProjectRequest
 import com.example.todo.presentation.model.ProjectMemberResponse
 import com.example.todo.presentation.model.ProjectResponse
+import com.example.todo.presentation.model.ProjectStatsResponse
 import com.example.todo.presentation.model.UpdateProjectRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -45,6 +47,12 @@ class ProjectController(
     override fun getProject(projectId: UUID): ResponseEntity<ProjectResponse> {
         val userId = userContext.currentUserId()
         return ResponseEntity.ok(projectService.getForUser(projectId, userId).toResponse())
+    }
+
+    @Transactional(readOnly = true)
+    override fun getProjectStats(projectId: UUID): ResponseEntity<ProjectStatsResponse> {
+        val userId = userContext.currentUserId()
+        return ResponseEntity.ok(projectService.getStats(projectId, userId).toResponse())
     }
 
     @Transactional
@@ -97,20 +105,31 @@ class ProjectController(
         projectService.removeMember(projectId, actorUserId, userId)
         return ResponseEntity.noContent().build()
     }
-
-    private fun Project.toResponse() = ProjectResponse(
-        id = requireNotNull(id),
-        name = name,
-        description = description,
-        createdBy = createdBy,
-        createdAt = createdAt.atOffset(ZoneOffset.UTC),
-    )
-
-    private fun ProjectMemberInfo.toResponse() = ProjectMemberResponse(
-        projectId = projectId,
-        userId = userId,
-        username = username,
-        role = ApiProjectRole.valueOf(role.name),
-        joinedAt = joinedAt.atOffset(ZoneOffset.UTC),
-    )
 }
+
+private fun Project.toResponse() = ProjectResponse(
+    id = requireNotNull(id),
+    name = name,
+    description = description,
+    createdBy = createdBy,
+    createdAt = createdAt.atOffset(ZoneOffset.UTC),
+)
+
+private fun ProjectMemberInfo.toResponse() = ProjectMemberResponse(
+    projectId = projectId,
+    userId = userId,
+    username = username,
+    role = ApiProjectRole.valueOf(role.name),
+    joinedAt = joinedAt.atOffset(ZoneOffset.UTC),
+)
+
+private fun ProjectStats.toResponse() = ProjectStatsResponse(
+    projectId = projectId,
+    totalTodos = totalTodos,
+    completedTodos = completedTodos,
+    activeTodos = activeTodos,
+    overdueTodos = overdueTodos,
+    highPriorityTodos = highPriorityTodos,
+    mediumPriorityTodos = mediumPriorityTodos,
+    lowPriorityTodos = lowPriorityTodos,
+)

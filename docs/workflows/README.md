@@ -92,6 +92,8 @@ sequenceDiagram
     API-->>Client: 201
     Client->>API: listProjectTodos: List Todos filtered by projectId
     API-->>Client: 200
+    Client->>API: getProjectStats: Fetch project Todo progress and priority statistics
+    API-->>Client: 200
     Client->>API: removeProjectMember: Remove collaborator from the shared project
     API-->>Client: 204
     Client->>API: deleteProject: Delete the shared project

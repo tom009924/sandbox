@@ -428,6 +428,24 @@ object TodoApiTestCases {
             scenarios = listOf("Return 404 for missing project or non-member"),
         ),
         AcceptanceCriterion(
+            operationId = "getProjectStats",
+            statusCode = 200,
+            summary = "Project statistics retrieved",
+            scenarios = listOf("Get project stats as member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "getProjectStats",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated getProjectStats request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "getProjectStats",
+            statusCode = 404,
+            summary = "Project not found or user is not a member",
+            scenarios = listOf("Return 404 for missing project or non-member"),
+        ),
+        AcceptanceCriterion(
             operationId = "updateProject",
             statusCode = 200,
             summary = "Project updated",

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -147,6 +148,58 @@ class ProjectServiceTest {
 
         service.removeMember(projectId, memberId, memberId)
         assertEquals(1, service.listMembers(projectId, ownerId).size)
+    }
+
+    @Test
+    fun `getStats aggregates todo progress, overdue count, and priority breakdown`() {
+        val project = service.create(ownerId, "Team", null)
+        val projectId = requireNotNull(project.id)
+        val today = LocalDate.now(Clock.fixed(Instant.parse("2025-04-18T12:00:00Z"), ZoneOffset.UTC))
+
+        todoRepository.save(
+            Todo(
+                userId = ownerId,
+                title = "Done High",
+                completed = true,
+                priority = TodoPriority.HIGH,
+                dueDate = today.minusDays(2),
+                projectId = projectId,
+            ),
+        )
+        todoRepository.save(
+            Todo(
+                userId = ownerId,
+                title = "Overdue Medium",
+                completed = false,
+                priority = TodoPriority.MEDIUM,
+                dueDate = today.minusDays(1),
+                projectId = projectId,
+            ),
+        )
+        todoRepository.save(
+            Todo(
+                userId = ownerId,
+                title = "Future Low",
+                completed = false,
+                priority = TodoPriority.LOW,
+                dueDate = today.plusDays(1),
+                projectId = projectId,
+            ),
+        )
+
+        val stats = service.getStats(projectId, ownerId)
+        assertEquals(projectId, stats.projectId)
+        assertEquals(3L, stats.totalTodos)
+        assertEquals(1L, stats.completedTodos)
+        assertEquals(2L, stats.activeTodos)
+        assertEquals(1L, stats.overdueTodos)
+        assertEquals(1L, stats.highPriorityTodos)
+        assertEquals(1L, stats.mediumPriorityTodos)
+        assertEquals(1L, stats.lowPriorityTodos)
+
+        assertThrows<ProjectNotFoundException> {
+            service.getStats(projectId, memberId)
+        }
     }
 
     private class InMemoryProjectRepository : ProjectRepository {

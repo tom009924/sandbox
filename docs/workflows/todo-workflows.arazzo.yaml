@@ -392,6 +392,19 @@ workflows:
         successCriteria:
           - condition: $statusCode == 200
 
+      - stepId: getProjectStats
+        description: Fetch project Todo progress and priority statistics
+        operationId: $sourceDescriptions.publicApi.getProjectStats
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
       - stepId: removeProjectMember
         description: Remove collaborator from the shared project
         operationId: $sourceDescriptions.publicApi.removeProjectMember

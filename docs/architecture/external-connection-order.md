@@ -20,6 +20,7 @@
 | `POST /api/projects` | readWrite | Spanner.ProjectRepository.save → Spanner.ProjectMemberRepository.save |
 | `GET /api/projects` | readOnly | Spanner.ProjectMemberRepository.findAllByUserId → Spanner.ProjectRepository.findAllByIdIn |
 | `GET /api/projects/{projectId}` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById |
+| `GET /api/projects/{projectId}/stats` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.TodoRepository.findAllByProjectId |
 | `PUT /api/projects/{projectId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.ProjectRepository.save |
 | `POST /api/projects/{projectId}/members` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.UserRepository.findByUsername → Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.save |
 | `GET /api/projects/{projectId}/members` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findAllByProjectId → Spanner.UserRepository.findById → Spanner.UserRepository.findById |
@@ -277,6 +278,21 @@ sequenceDiagram
     Client->>App: GET /api/projects/{projectId}
     App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
     App->>Spanner: ProjectRepository.findById
+    App-->>Client: Response
+```
+
+## GET /api/projects/{projectId}/stats
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: GET /api/projects/{projectId}/stats
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectRepository.findById
+    App->>Spanner: TodoRepository.findAllByProjectId
     App-->>Client: Response
 ```
 

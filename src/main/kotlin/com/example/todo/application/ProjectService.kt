@@ -9,12 +9,15 @@ import com.example.todo.domain.exception.UserNotFoundException
 import com.example.todo.domain.model.Project
 import com.example.todo.domain.model.ProjectMember
 import com.example.todo.domain.model.ProjectRole
+import com.example.todo.domain.model.ProjectStats
+import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 data class ProjectMemberInfo(
@@ -64,6 +67,27 @@ class ProjectService(
     fun getForUser(projectId: UUID, userId: UUID): Project {
         requireMembership(projectId, userId)
         return projectRepository.findById(projectId) ?: throw ProjectNotFoundException(projectId)
+    }
+
+    fun getStats(projectId: UUID, userId: UUID): ProjectStats {
+        requireMembership(projectId, userId)
+        if (projectRepository.findById(projectId) == null) {
+            throw ProjectNotFoundException(projectId)
+        }
+        val todos = todoRepository.findAllByProjectId(projectId)
+        val today = LocalDate.now(clock)
+        val completedTodos = todos.count { it.completed }.toLong()
+        val totalTodos = todos.size.toLong()
+        return ProjectStats(
+            projectId = projectId,
+            totalTodos = totalTodos,
+            completedTodos = completedTodos,
+            activeTodos = totalTodos - completedTodos,
+            overdueTodos = todos.count { !it.completed && it.dueDate != null && it.dueDate.isBefore(today) }.toLong(),
+            highPriorityTodos = todos.count { it.priority == TodoPriority.HIGH }.toLong(),
+            mediumPriorityTodos = todos.count { it.priority == TodoPriority.MEDIUM }.toLong(),
+            lowPriorityTodos = todos.count { it.priority == TodoPriority.LOW }.toLong(),
+        )
     }
 
     fun update(projectId: UUID, userId: UUID, name: String, description: String?): Project {

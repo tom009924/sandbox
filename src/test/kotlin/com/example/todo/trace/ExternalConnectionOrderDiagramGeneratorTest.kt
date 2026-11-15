@@ -385,6 +385,9 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             tracer.trace("GET /api/projects/{projectId}", transactionalReadOnly = true) {
                 projectController.getProject(projectId)
             }
+            tracer.trace("GET /api/projects/{projectId}/stats", transactionalReadOnly = true) {
+                projectController.getProjectStats(projectId)
+            }
             tracer.trace("PUT /api/projects/{projectId}", transactionalReadOnly = false) {
                 projectController.updateProject(projectId, UpdateProjectRequest("Shared v2", "Updated"))
             }
