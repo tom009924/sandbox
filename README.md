@@ -104,6 +104,16 @@ Todo機能は依存関係を内側へ向けたレイヤード構成です。
 ControllerはApplication Serviceを呼び出し、Domainが定義するRepositoryポートをInfrastructureが実装します。
 この依存方向とDomain/Applicationのフレームワーク非依存はArchUnitのアーキテクチャテストで検証します。
 
+### 外部連携・ドキュメント管理
+
+外部システムとの連携仕様および接続順ドキュメントは、コードや仕様ファイルと同期する Docs-as-Code 構成で管理しています。
+
+- **外部接続順ダイアグラム（自動生成）**: [`docs/architecture/external-connection-order.md`](docs/architecture/external-connection-order.md)
+  - `./gradlew generateExternalConnectionDiagrams` で動的トレース（`ExternalConnectionTracer`）から Mermaid シーケンス図を自動生成し、CI で差分チェック（`git diff --exit-code`）を行います。
+- **非同期イベント仕様（AsyncAPI 3.0.0）**: [`docs/asyncapi.yaml`](docs/asyncapi.yaml)
+  - Cloud Pub/Sub トピック（`todo-events`）へ発行する `TodoEvent`（`CREATED` / `UPDATED` / `DELETED`）のスキーマを定義しています。
+- **同期 REST API / E2E ワークフロー**: [`docs/openapi.yaml`](docs/openapi.yaml)（Spectral 検証）、[`docs/workflows/README.md`](docs/workflows/README.md)（Arazzo から `npm run generate:diagrams` で自動生成）
+
 更新リクエスト:
 
 ```json
