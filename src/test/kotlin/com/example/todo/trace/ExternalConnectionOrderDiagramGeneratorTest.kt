@@ -3,6 +3,7 @@ package com.example.todo.trace
 import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
+import com.example.todo.application.ProjectService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
 import com.example.todo.application.TodoService
@@ -14,6 +15,9 @@ import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.model.AuthenticatedUser
 import com.example.todo.domain.model.IdempotencyRecord
+import com.example.todo.domain.model.Project
+import com.example.todo.domain.model.ProjectMember
+import com.example.todo.domain.model.ProjectRole
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
@@ -22,27 +26,35 @@ import com.example.todo.domain.notification.EmailNotification
 import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.notification.EmailSendResult
 import com.example.todo.domain.repository.IdempotencyRecordRepository
+import com.example.todo.domain.repository.ProjectMemberRepository
+import com.example.todo.domain.repository.ProjectRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.presentation.AdminController
 import com.example.todo.presentation.AuthController
+import com.example.todo.presentation.ProjectController
 import com.example.todo.presentation.TodoController
 import com.example.todo.presentation.UserSettingsController
+import com.example.todo.presentation.model.AddProjectMemberRequest
+import com.example.todo.presentation.model.CreateProjectRequest
 import com.example.todo.presentation.model.CreateTodoRequest
 import com.example.todo.presentation.model.LoginRequest
 import com.example.todo.presentation.model.PatchTodoRequest
 import com.example.todo.presentation.model.RegisterRequest
+import com.example.todo.presentation.model.UpdateProjectRequest
 import com.example.todo.presentation.model.UpdateTodoRequest
 import com.example.todo.presentation.model.UpdateUserSettingsRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.yaml.snakeyaml.Yaml
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import java.util.UUID
+import com.example.todo.presentation.model.ProjectRole as ApiProjectRole
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
 class ExternalConnectionOrderDiagramGeneratorTest {
@@ -53,6 +65,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         val harness = TracedControllerHarness(tracer)
 
         val userId = harness.traceRegister()
+        val collaboratorId = harness.registerCollaborator("bob")
         harness.setCurrentUser(userId)
         harness.traceLogin()
         harness.traceUpdateSettings()
@@ -66,9 +79,11 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         harness.traceAdminStats()
         harness.traceAdminUsers()
         harness.traceDeleteTodo(todoId)
+        harness.traceProjectLifecycle(collaboratorId)
 
         val traces = tracer.traces()
         val byEndpoint = traces.associateBy { it.endpoint }
+        assertAllOpenApiEndpointsTraced(byEndpoint.keys)
 
         assertEquals(
             listOf(
@@ -106,6 +121,26 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         assertTrue(report.contains("POST /api/todos"))
     }
 
+    private fun assertAllOpenApiEndpointsTraced(tracedEndpoints: Set<String>) {
+        val openApiPath = Path.of("docs/dist/openapi.admin.yaml")
+        val spec = Yaml().load<Map<String, Any>>(Files.readString(openApiPath))
+        @Suppress("UNCHECKED_CAST")
+        val paths = spec["paths"] as? Map<String, Map<String, Any>> ?: emptyMap()
+        val httpMethods = setOf("get", "put", "post", "delete", "patch")
+        val normalizedTraced = tracedEndpoints.map { it.substringBefore(" (") }.toSet()
+        val missing = paths.flatMap { (path, item) ->
+            item.keys
+                .filter { it.lowercase() in httpMethods }
+                .map { "${it.uppercase()} $path" }
+        }.filter { it !in normalizedTraced }
+
+        assertEquals(
+            emptyList<String>(),
+            missing,
+            "OpenAPI endpoints missing from ExternalConnectionOrderDiagramGeneratorTest: $missing",
+        )
+    }
+
     @Suppress("TooManyFunctions")
     private class TracedControllerHarness(private val tracer: ExternalConnectionTracer) {
         private var activeUserId: UUID = UUID.randomUUID()
@@ -133,6 +168,18 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             InMemoryUserSettingsRepository(),
             ExternalSystem.SPANNER,
         ) { method, _ -> "UserSettingsRepository.${method.name}" }
+
+        private val projectRepo = tracer.wrap(
+            ProjectRepository::class.java,
+            InMemoryProjectRepository(),
+            ExternalSystem.SPANNER,
+        ) { method, _ -> "ProjectRepository.${method.name}" }
+
+        private val projectMemberRepo = tracer.wrap(
+            ProjectMemberRepository::class.java,
+            InMemoryProjectMemberRepository(),
+            ExternalSystem.SPANNER,
+        ) { method, _ -> "ProjectMemberRepository.${method.name}" }
 
         private val cryptoService = tracer.wrap(
             CryptoService::class.java,
@@ -187,6 +234,17 @@ class ExternalConnectionOrderDiagramGeneratorTest {
                 todoEventPublisher = eventPublisher,
                 userSettingsRepository = userSettingsRepo,
                 cryptoHandler = TodoCryptoHandler(cryptoService),
+                projectMemberRepository = projectMemberRepo,
+            ),
+            userContext,
+        )
+
+        private val projectController = ProjectController(
+            ProjectService(
+                projectRepository = projectRepo,
+                projectMemberRepository = projectMemberRepo,
+                userRepository = userRepo,
+                todoRepository = todoRepo,
             ),
             userContext,
         )
@@ -205,6 +263,9 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             activeUserId = userId
         }
 
+        fun registerCollaborator(username: String): UUID =
+            requireNotNull(authController.registerUser(RegisterRequest(username, "secret123")).body?.id)
+
         fun traceRegister(): UUID = tracer.trace("POST /api/auth/register", transactionalReadOnly = false) {
             requireNotNull(authController.registerUser(RegisterRequest("alice", "secret123")).body?.id)
         }
@@ -213,7 +274,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             authController.loginUser(LoginRequest("alice", "secret123"))
         }
 
-        fun traceUpdateSettings() = tracer.trace("PUT /api/settings", transactionalReadOnly = false) {
+        fun traceUpdateSettings() = tracer.trace("PUT /api/user/settings", transactionalReadOnly = false) {
             settingsController.updateUserSettings(
                 UpdateUserSettingsRequest(
                     defaultPriority = ApiTodoPriority.HIGH,
@@ -223,7 +284,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             )
         }
 
-        fun traceGetSettings() = tracer.trace("GET /api/settings", transactionalReadOnly = true) {
+        fun traceGetSettings() = tracer.trace("GET /api/user/settings", transactionalReadOnly = true) {
             settingsController.getUserSettings()
         }
 
@@ -309,6 +370,38 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         fun traceDeleteTodo(id: UUID) = tracer.trace("DELETE /api/todos/{id}", transactionalReadOnly = false) {
             todoController.deleteTodo(id)
+        }
+
+        fun traceProjectLifecycle(collaboratorId: UUID) {
+            val projectId = tracer.trace("POST /api/projects", transactionalReadOnly = false) {
+                requireNotNull(
+                    projectController.createProject(CreateProjectRequest("Shared", "Team project")).body?.id,
+                )
+            }
+            tracer.trace("GET /api/projects", transactionalReadOnly = true) {
+                projectController.listProjects()
+            }
+            tracer.trace("GET /api/projects/{projectId}", transactionalReadOnly = true) {
+                projectController.getProject(projectId)
+            }
+            tracer.trace("PUT /api/projects/{projectId}", transactionalReadOnly = false) {
+                projectController.updateProject(projectId, UpdateProjectRequest("Shared v2", "Updated"))
+            }
+            tracer.trace("POST /api/projects/{projectId}/members", transactionalReadOnly = false) {
+                projectController.addProjectMember(
+                    projectId,
+                    AddProjectMemberRequest(username = "bob", role = ApiProjectRole.MEMBER),
+                )
+            }
+            tracer.trace("GET /api/projects/{projectId}/members", transactionalReadOnly = true) {
+                projectController.listProjectMembers(projectId)
+            }
+            tracer.trace("DELETE /api/projects/{projectId}/members/{userId}", transactionalReadOnly = false) {
+                projectController.removeProjectMember(projectId, collaboratorId)
+            }
+            tracer.trace("DELETE /api/projects/{projectId}", transactionalReadOnly = false) {
+                projectController.deleteProject(projectId)
+            }
         }
 
         private companion object {
@@ -420,6 +513,52 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         override fun save(userSettings: UserSettings): UserSettings {
             store[userSettings.userId] = userSettings
             return userSettings
+        }
+    }
+
+    private class InMemoryProjectRepository : ProjectRepository {
+        private val store = linkedMapOf<UUID, Project>()
+
+        override fun save(project: Project): Project {
+            val assignedId = project.id ?: UUID.randomUUID()
+            val saved = project.copy(id = assignedId)
+            store[assignedId] = saved
+            return saved
+        }
+
+        override fun findById(id: UUID): Project? = store[id]
+        override fun findAllByIdIn(ids: Collection<UUID>): List<Project> = ids.mapNotNull { store[it] }
+        override fun deleteById(id: UUID) {
+            store.remove(id)
+        }
+    }
+
+    private class InMemoryProjectMemberRepository : ProjectMemberRepository {
+        private val store = linkedMapOf<Pair<UUID, UUID>, ProjectMember>()
+
+        override fun save(member: ProjectMember): ProjectMember {
+            store[member.projectId to member.userId] = member
+            return member
+        }
+
+        override fun findByProjectIdAndUserId(projectId: UUID, userId: UUID): ProjectMember? =
+            store[projectId to userId]
+
+        override fun findAllByProjectId(projectId: UUID): List<ProjectMember> =
+            store.values.filter { it.projectId == projectId }
+
+        override fun findAllByUserId(userId: UUID): List<ProjectMember> =
+            store.values.filter { it.userId == userId }
+
+        override fun countByProjectIdAndRole(projectId: UUID, role: ProjectRole): Long =
+            store.values.count { it.projectId == projectId && it.role == role }.toLong()
+
+        override fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID) {
+            store.remove(projectId to userId)
+        }
+
+        override fun deleteAllByProjectId(projectId: UUID) {
+            store.entries.removeIf { it.key.first == projectId }
         }
     }
 }
