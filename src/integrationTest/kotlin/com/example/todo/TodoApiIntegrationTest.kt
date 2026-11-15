@@ -807,6 +807,57 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    @Suppress("MagicNumber")
+    fun listTodosFiltersByKeywordAndDueDateRangeAndSortsResults() {
+        saveTodo(
+            testTodo(
+                title = "Buy milk",
+                priority = TodoPriority.LOW,
+                dueDate = LocalDate.parse("2025-05-10"),
+            ),
+        )
+        saveTodo(
+            testTodo(
+                title = "Buy bread",
+                priority = TodoPriority.HIGH,
+                dueDate = LocalDate.parse("2025-05-05"),
+            ),
+        )
+        saveTodo(
+            testTodo(
+                title = "Clean room",
+                priority = TodoPriority.MEDIUM,
+                dueDate = null,
+            ),
+        )
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?q=buy")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(2))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?dueAfter=2025-05-01&dueBefore=2025-05-08")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(1))
+            .body("[0].title", equalTo("Buy bread"))
+
+        validatedRequest()
+            .`when`()
+            .get("/api/todos?sortBy=PRIORITY&sortOrder=DESC")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("$", hasSize<Any>(3))
+            .body("[0].title", equalTo("Buy bread"))
+            .body("[1].title", equalTo("Clean room"))
+            .body("[2].title", equalTo("Buy milk"))
+    }
+
+    @Test
     fun patchTodoChangesStoredTodo() {
         val todo = saveTodo(
             testTodo(
