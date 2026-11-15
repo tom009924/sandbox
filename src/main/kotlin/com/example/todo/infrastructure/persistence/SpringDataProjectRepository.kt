@@ -4,6 +4,4 @@ import com.google.cloud.spring.data.spanner.repository.SpannerRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface SpringDataProjectRepository : SpannerRepository<ProjectSpannerEntity, String> {
-    fun findAllByIdIn(ids: Collection<String>): List<ProjectSpannerEntity>
-}
+interface SpringDataProjectRepository : SpannerRepository<ProjectSpannerEntity, String>

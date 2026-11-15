@@ -28,7 +28,7 @@ class ProjectRepositoryAdapter(
 
     override fun findAllByIdIn(ids: Collection<UUID>): List<Project> {
         if (ids.isEmpty()) return emptyList()
-        return springDataProjectRepository.findAllByIdIn(ids.map { it.toString() }).map { it.toDomain() }
+        return springDataProjectRepository.findAllById(ids.map { it.toString() }).map { it.toDomain() }
     }
 
     override fun deleteById(id: UUID) {
