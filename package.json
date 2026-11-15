@@ -14,6 +14,8 @@
     "test:diagrams": "node --test scripts/generate-workflow-diagrams.test.mjs scripts/check-arazzo-coverage.test.mjs",
     "check:diagrams": "npm run test:diagrams && node scripts/generate-workflow-diagrams.mjs --check",
     "lint:arazzo": "redocly lint docs/workflows/*.arazzo.yaml && npm run check:diagrams && node scripts/check-arazzo-coverage.mjs",
+    "test:formal": "node --test scripts/check-formal-coverage.test.mjs",
+    "lint:formal": "npm run test:formal && node scripts/check-formal-coverage.mjs",
     "lint:spectral": "spectral lint docs/openapi.yaml docs/dist/openapi.yaml docs/dist/openapi.admin.yaml docs/dist/openapi.ja.yaml --ruleset .spectral.yaml --fail-severity=warn && npm run lint:arazzo",
     "lint:openapi": "npm run bundle:openapi && npm run lint:spectral",
     "test:arazzo": "scripts/run-arazzo.sh",

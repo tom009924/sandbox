@@ -62,6 +62,7 @@ Init ==
 \* Actions mapped to OpenAPI operations
 \* ---------------------------------------------------------------------------
 
+\* @operationId createTodo
 \* Step 1 of POST /api/v1/todos (with Idempotency-Key):
 \* Check existing idempotency record and active todo limit.
 StartCreateIdempotent(w, k, fp, completed) ==
@@ -106,7 +107,9 @@ SaveIdempotencyRecord(w) ==
        /\ workerState' = [workerState EXCEPT ![w] = IdleWorker]
        /\ UNCHANGED <<todos, publishedEvents, nextTodoId, now>>
 
-\* PATCH /api/v1/todos/{id}: Toggle completed status (respecting active limit on reopen).
+\* @operationId updateTodo
+\* @operationId patchTodo
+\* PUT/PATCH /api/v1/todos/{id}: Toggle completed status (respecting active limit on reopen).
 PatchToggleCompleted(t) ==
     /\ t \in todos
     /\ LET newCompleted == ~t.completed
@@ -116,6 +119,7 @@ PatchToggleCompleted(t) ==
        /\ publishedEvents' = Append(publishedEvents, [type |-> "UPDATED", todoId |-> t.id])
        /\ UNCHANGED <<idempotencyRecords, nextTodoId, now, workerState>>
 
+\* @operationId deleteTodo
 \* DELETE /api/v1/todos/{id}
 DeleteTodo(t) ==
     /\ t \in todos
