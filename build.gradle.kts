@@ -126,6 +126,10 @@ dependencies {
     }
 
     implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.actuator)
+    runtimeOnly(libs.micrometer.tracing.bridge.otel)
+    runtimeOnly(libs.micrometer.registry.prometheus)
+    runtimeOnly(libs.opentelemetry.exporter.otlp)
     implementation(libs.spring.cloud.gcp.starter.data.spanner)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
@@ -168,6 +172,7 @@ dependencyAnalysis {
                     "org.springframework.boot:spring-boot-starter-security",
                     "org.springframework.boot:spring-boot-starter-validation",
                     "org.springframework.boot:spring-boot-starter-web",
+                    "org.springframework.boot:spring-boot-starter-actuator",
                     "org.springframework.boot:spring-boot-starter-flyway",
                     "org.springframework.boot:spring-boot-starter-test",
                     "org.springframework.boot:spring-boot-starter-webmvc-test",

@@ -19,6 +19,10 @@ bouncycastle = "1.85"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel" }
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-cloud-gcp-dependencies = { module = "com.google.cloud:spring-cloud-gcp-dependencies", version.ref = "springCloudGcp" }
 spring-cloud-gcp-starter-data-spanner = { module = "com.google.cloud:spring-cloud-gcp-starter-data-spanner", version.ref = "springCloudGcp" }
