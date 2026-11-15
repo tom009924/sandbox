@@ -81,7 +81,6 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         assertEquals(
             listOf(
-                "Spanner:IdempotencyRecordRepository.deleteExpiredBefore",
                 "Spanner:IdempotencyRecordRepository.findByUserIdAndKey",
                 "Spanner:UserSettingsRepository.findByUserId",
                 "Spanner:TodoRepository.countByUserIdAndCompletedFalse",
@@ -257,7 +256,16 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         }
 
         fun traceListTodos() = tracer.trace("GET /api/todos", transactionalReadOnly = true) {
-            todoController.listTodos(null, null, null)
+            todoController.listTodos(
+                completed = null,
+                priority = null,
+                tag = null,
+                q = null,
+                dueBefore = null,
+                dueAfter = null,
+                sortBy = null,
+                sortOrder = null,
+            )
         }
 
         fun traceGetTodo(id: UUID) = tracer.trace("GET /api/todos/{id}", transactionalReadOnly = true) {

@@ -105,6 +105,11 @@ class ExternalConnectionTracer {
     fun renderMarkdownReport(traces: List<EndpointTrace> = recordedTraces): String = buildString {
         appendLine("# 外部接続順ダイアグラム（動的トレース自動生成）")
         appendLine()
+        appendLine(
+            "> **自動生成ドキュメント**: 本ドキュメントは `./gradlew generateExternalConnectionDiagrams` " +
+                "により動的トレースから自動生成されています。手動編集は行わないでください。",
+        )
+        appendLine()
         appendLine("| エンドポイント | トランザクション | 外部接続順 |")
         appendLine("|---|---|---|")
         traces.forEach { trace ->
