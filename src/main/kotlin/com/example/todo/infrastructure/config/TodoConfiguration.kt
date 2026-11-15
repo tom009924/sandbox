@@ -4,6 +4,7 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.UserSettingsService
@@ -14,6 +15,7 @@ import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
+import com.example.todo.domain.repository.TodoCommentRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
@@ -38,6 +40,7 @@ import tools.jackson.databind.ObjectMapper
     EmailNotificationProperties::class,
     GrpcKeyManagementProperties::class,
 )
+@Suppress("TooManyFunctions")
 class TodoConfiguration {
 
     @Bean(destroyMethod = "close")
@@ -98,6 +101,19 @@ class TodoConfiguration {
         projectMemberRepository = projectMemberRepository,
         userRepository = userRepository,
         todoRepository = todoRepository,
+    )
+
+    @Bean
+    fun todoCommentService(
+        todoRepository: TodoRepository,
+        todoCommentRepository: TodoCommentRepository,
+        projectMemberRepository: ProjectMemberRepository,
+        userRepository: UserRepository,
+    ) = TodoCommentService(
+        todoRepository = todoRepository,
+        todoCommentRepository = todoCommentRepository,
+        projectMemberRepository = projectMemberRepository,
+        userRepository = userRepository,
     )
 
     @Bean

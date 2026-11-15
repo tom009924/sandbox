@@ -16,6 +16,9 @@
 | `PATCH /api/todos/{id} (reopen)` | readWrite | Spanner.TodoRepository.findById → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
 | `GET /api/admin/stats` | readOnly | Spanner.UserRepository.count → Spanner.TodoRepository.count → Spanner.TodoRepository.countByCompleted |
 | `GET /api/admin/users` | readOnly | Spanner.UserRepository.findAll |
+| `POST /api/todos/{id}/comments` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.save → Spanner.UserRepository.findById |
+| `GET /api/todos/{id}/comments` | readOnly | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc → Spanner.UserRepository.findById |
+| `DELETE /api/todos/{id}/comments/{commentId}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.findById → Spanner.TodoCommentRepository.deleteById |
 | `DELETE /api/todos/{id}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoRepository.delete → PubSub.publish(DELETED) |
 | `POST /api/projects` | readWrite | Spanner.ProjectRepository.save → Spanner.ProjectMemberRepository.save |
 | `GET /api/projects` | readOnly | Spanner.ProjectMemberRepository.findAllByUserId → Spanner.ProjectRepository.findAllByIdIn |
@@ -217,6 +220,53 @@ sequenceDiagram
     participant Spanner as Cloud Spanner
     Client->>App: GET /api/admin/users
     App->>Spanner: UserRepository.findAll
+    App-->>Client: Response
+```
+
+## POST /api/todos/{id}/comments
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: POST /api/todos/{id}/comments
+    App->>Spanner: TodoRepository.findById
+    App->>Spanner: TodoCommentRepository.save
+    App->>Spanner: UserRepository.findById
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## GET /api/todos/{id}/comments
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: GET /api/todos/{id}/comments
+    App->>Spanner: TodoRepository.findById
+    App->>Spanner: TodoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc
+    App->>Spanner: UserRepository.findById
+    App-->>Client: Response
+```
+
+## DELETE /api/todos/{id}/comments/{commentId}
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: DELETE /api/todos/{id}/comments/{commentId}
+    App->>Spanner: TodoRepository.findById
+    App->>Spanner: TodoCommentRepository.findById
+    App->>Spanner: TodoCommentRepository.deleteById
+    App->>Spanner: Commit (@Transactional)
     App-->>Client: Response
 ```
 

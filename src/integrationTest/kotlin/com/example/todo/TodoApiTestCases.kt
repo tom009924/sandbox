@@ -287,6 +287,72 @@ object TodoApiTestCases {
             ),
         ),
         AcceptanceCriterion(
+            operationId = "listTodoComments",
+            statusCode = 200,
+            summary = "Todo comment list",
+            scenarios = listOf("List comments for accessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listTodoComments",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated listTodoComments request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listTodoComments",
+            statusCode = 404,
+            summary = "Todo not found",
+            scenarios = listOf("Return 404 for missing or inaccessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoComment",
+            statusCode = 201,
+            summary = "Comment created",
+            scenarios = listOf("Add comment to accessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoComment",
+            statusCode = 400,
+            summary = "Invalid comment request",
+            scenarios = listOf("Blank content", "Missing content"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoComment",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated createTodoComment request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoComment",
+            statusCode = 404,
+            summary = "Todo not found",
+            scenarios = listOf("Return 404 when adding comment to missing todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoComment",
+            statusCode = 204,
+            summary = "Comment deleted",
+            scenarios = listOf("Delete own comment on todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoComment",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated deleteTodoComment request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoComment",
+            statusCode = 403,
+            summary = "Forbidden",
+            scenarios = listOf("Reject deleting another user's comment"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoComment",
+            statusCode = 404,
+            summary = "Todo or comment not found",
+            scenarios = listOf("Return 404 for missing todo or comment"),
+        ),
+        AcceptanceCriterion(
             operationId = "getUserSettings",
             statusCode = 200,
             summary = "User settings retrieved",
@@ -771,6 +837,20 @@ object TodoApiTestCases {
             method = PathItem.HttpMethod.POST,
             pathProvider = { "/api/projects/00000000-0000-0000-0000-000000000099/members" },
             requestBody = """{"role":"MEMBER"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "createTodoComment",
+            description = "Blank content",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/todos/00000000-0000-0000-0000-000000000099/comments" },
+            requestBody = """{"content":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "createTodoComment",
+            description = "Missing content",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/todos/00000000-0000-0000-0000-000000000099/comments" },
+            requestBody = """{}""",
         ),
     )
 

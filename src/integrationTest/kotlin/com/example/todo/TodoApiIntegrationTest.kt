@@ -963,6 +963,9 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
             .post("/api/projects").then().statusCode(unauth)
         validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/todos/$pid/comments").then().statusCode(unauth)
+        validatedRequest(token = null).post("/api/todos/$pid/comments").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/todos/$pid/comments/$pid").then().statusCode(unauth)
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
             .put("/api/projects/$pid").then().statusCode(unauth)
         validatedRequest(token = null).delete("/api/projects/$pid").then().statusCode(unauth)
@@ -1022,6 +1025,20 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/todos").then().statusCode(400)
         validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId")
             .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
+
+        val commentId = validatedRequest(token = memberToken).contentType(ContentType.JSON)
+            .body("""{"content":"Looks good!"}""")
+            .post("/api/todos/$todoId/comments").then().statusCode(201).extract().path<String>("id")
+        validatedRequest().get("/api/todos/$todoId/comments").then().statusCode(200)
+            .body("size()", equalTo(1)).body("[0].content", equalTo("Looks good!"))
+        validatedRequest().get("/api/todos/$MISSING_TODO_ID/comments").then().statusCode(404)
+        validatedRequest().contentType(ContentType.JSON).body("""{"content":"Missing"}""")
+            .post("/api/todos/$MISSING_TODO_ID/comments").then().statusCode(404)
+        validatedRequest().delete("/api/todos/$todoId/comments/$commentId").then().statusCode(403)
+        validatedRequest(token = memberToken)
+            .delete("/api/todos/$todoId/comments/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest(token = memberToken).delete("/api/todos/$todoId/comments/$commentId").then().statusCode(204)
+        sideEffectVerifier.verifyDatabaseTable("todo_comments")
         validatedRequest(token = memberToken)
             .get("/api/todos?projectId=$projectId&completed=false&priority=MEDIUM&tag=work")
             .then().statusCode(200).body("size()", equalTo(0))
@@ -1162,6 +1179,7 @@ class TodoApiIntegrationTest @Autowired constructor(
     }
 
     @Test
+    @Suppress("LongMethod")
     fun maxActiveTodosLimitEnforcedOnCreateAndUpdate() {
         validatedRequest()
             .contentType(ContentType.JSON)

@@ -4,6 +4,7 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
@@ -19,6 +20,7 @@ import com.example.todo.domain.model.Project
 import com.example.todo.domain.model.ProjectMember
 import com.example.todo.domain.model.ProjectRole
 import com.example.todo.domain.model.Todo
+import com.example.todo.domain.model.TodoComment
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
 import com.example.todo.domain.model.UserSettings
@@ -28,6 +30,7 @@ import com.example.todo.domain.notification.EmailSendResult
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
+import com.example.todo.domain.repository.TodoCommentRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
@@ -35,10 +38,12 @@ import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.presentation.AdminController
 import com.example.todo.presentation.AuthController
 import com.example.todo.presentation.ProjectController
+import com.example.todo.presentation.TodoCommentController
 import com.example.todo.presentation.TodoController
 import com.example.todo.presentation.UserSettingsController
 import com.example.todo.presentation.model.AddProjectMemberRequest
 import com.example.todo.presentation.model.CreateProjectRequest
+import com.example.todo.presentation.model.CreateTodoCommentRequest
 import com.example.todo.presentation.model.CreateTodoRequest
 import com.example.todo.presentation.model.LoginRequest
 import com.example.todo.presentation.model.PatchTodoRequest
@@ -78,6 +83,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         harness.tracePatchTodoReopen(todoId)
         harness.traceAdminStats()
         harness.traceAdminUsers()
+        harness.traceCommentLifecycle(todoId)
         harness.traceDeleteTodo(todoId)
         harness.traceProjectLifecycle(collaboratorId)
 
@@ -250,6 +256,38 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             userContext,
         )
 
+        private val commentStorage = linkedMapOf<UUID, TodoComment>()
+        private val todoCommentRepo = tracer.wrap(
+            TodoCommentRepository::class.java,
+            object : TodoCommentRepository {
+                override fun save(comment: TodoComment): TodoComment {
+                    val saved = comment.copy(id = comment.id ?: UUID.randomUUID())
+                    commentStorage[requireNotNull(saved.id)] = saved
+                    return saved
+                }
+                override fun findAllByTodoIdOrderByCreatedAtAsc(todoId: UUID): List<TodoComment> =
+                    commentStorage.values.filter { it.todoId == todoId }
+                override fun findById(id: UUID): TodoComment? = commentStorage[id]
+                override fun deleteById(id: UUID) {
+                    commentStorage.remove(id)
+                }
+                override fun deleteAllByTodoId(todoId: UUID) {
+                    commentStorage.entries.removeIf { it.value.todoId == todoId }
+                }
+            },
+            ExternalSystem.SPANNER,
+        ) { method, _ -> "TodoCommentRepository.${method.name}" }
+
+        private val todoCommentController = TodoCommentController(
+            TodoCommentService(
+                todoRepository = todoRepo,
+                todoCommentRepository = todoCommentRepo,
+                projectMemberRepository = projectMemberRepo,
+                userRepository = userRepo,
+            ),
+            userContext,
+        )
+
         private val settingsController = UserSettingsController(
             UserSettingsService(userSettingsRepo),
             userContext,
@@ -372,6 +410,23 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         fun traceDeleteTodo(id: UUID) = tracer.trace("DELETE /api/todos/{id}", transactionalReadOnly = false) {
             todoController.deleteTodo(id)
+        }
+
+        fun traceCommentLifecycle(todoId: UUID) {
+            val commentId = tracer.trace("POST /api/todos/{id}/comments", transactionalReadOnly = false) {
+                requireNotNull(
+                    todoCommentController.createTodoComment(
+                        todoId,
+                        CreateTodoCommentRequest("Review notes"),
+                    ).body?.id,
+                )
+            }
+            tracer.trace("GET /api/todos/{id}/comments", transactionalReadOnly = true) {
+                todoCommentController.listTodoComments(todoId)
+            }
+            tracer.trace("DELETE /api/todos/{id}/comments/{commentId}", transactionalReadOnly = false) {
+                todoCommentController.deleteTodoComment(todoId, commentId)
+            }
         }
 
         fun traceProjectLifecycle(collaboratorId: UUID) {

@@ -173,6 +173,54 @@ workflows:
           - condition: $statusCode == 200
           - condition: $response.body#/priority == 'LOW'
 
+      - stepId: createTodoComment
+        description: Add a comment to the Todo item
+        operationId: $sourceDescriptions.publicApi.createTodoComment
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            content: Picked up fresh milk!
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          commentId: $response.body#/id
+
+      - stepId: listTodoComments
+        description: List comments on the Todo item
+        operationId: $sourceDescriptions.publicApi.listTodoComments
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: deleteTodoComment
+        description: Delete the comment from the Todo item
+        operationId: $sourceDescriptions.publicApi.deleteTodoComment
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+          - name: commentId
+            in: path
+            value: "{$steps.createTodoComment.outputs.commentId}"
+        successCriteria:
+          - condition: $statusCode == 204
+
       - stepId: deleteTodo
         description: Delete the completed Todo item
         operationId: $sourceDescriptions.publicApi.deleteTodo
