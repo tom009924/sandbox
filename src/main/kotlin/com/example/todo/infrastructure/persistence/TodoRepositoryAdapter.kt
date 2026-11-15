@@ -93,7 +93,10 @@ class TodoRepositoryAdapter(
     }
 
     override fun deleteAllByProjectId(projectId: UUID) {
-        springDataTodoRepository.deleteAllByProjectId(projectId.toString())
+        val entities = springDataTodoRepository.findAllByProjectId(projectId.toString())
+        if (entities.isNotEmpty()) {
+            springDataTodoRepository.deleteAll(entities)
+        }
     }
 }
 

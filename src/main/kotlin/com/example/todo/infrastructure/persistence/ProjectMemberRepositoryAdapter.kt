@@ -39,11 +39,14 @@ class ProjectMemberRepositoryAdapter(
         springDataProjectMemberRepository.countByProjectIdAndRole(projectId.toString(), role.name)
 
     override fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID) {
-        springDataProjectMemberRepository.deleteByProjectIdAndUserId(projectId.toString(), userId.toString())
+        springDataProjectMemberRepository.deleteById(Key.of(projectId.toString(), userId.toString()))
     }
 
     override fun deleteAllByProjectId(projectId: UUID) {
-        springDataProjectMemberRepository.deleteAllByProjectId(projectId.toString())
+        val entities = springDataProjectMemberRepository.findAllByProjectId(projectId.toString())
+        if (entities.isNotEmpty()) {
+            springDataProjectMemberRepository.deleteAll(entities)
+        }
     }
 }
 
