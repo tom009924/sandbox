@@ -131,6 +131,39 @@ paths:
           schema:
             type: string
             maxLength: 32
+        - name: q
+          in: query
+          required: false
+          description: タイトルの部分一致（大文字・小文字を区別しない）でTODOタスクを検索します。
+          schema:
+            type: string
+            maxLength: 100
+        - name: dueBefore
+          in: query
+          required: false
+          description: 指定日以前の期限（YYYY-MM-DD）を持つTODOタスクに絞り込みます。
+          schema:
+            type: string
+            format: date
+        - name: dueAfter
+          in: query
+          required: false
+          description: 指定日以降の期限（YYYY-MM-DD）を持つTODOタスクに絞り込みます。
+          schema:
+            type: string
+            format: date
+        - name: sortBy
+          in: query
+          required: false
+          description: TODOタスクのソート項目を指定します。
+          schema:
+            $ref: '#/components/schemas/TodoSortField'
+        - name: sortOrder
+          in: query
+          required: false
+          description: ソート順を指定します（sortBy指定時のデフォルトはASC）。
+          schema:
+            $ref: '#/components/schemas/SortOrder'
       responses:
         '200':
           description: TODOタスク一覧
@@ -725,6 +758,17 @@ components:
         - LOW
         - MEDIUM
         - HIGH
+    TodoSortField:
+      type: string
+      enum:
+        - DUE_DATE
+        - PRIORITY
+        - TITLE
+    SortOrder:
+      type: string
+      enum:
+        - ASC
+        - DESC
     UserSettingsResponse:
       type: object
       required:

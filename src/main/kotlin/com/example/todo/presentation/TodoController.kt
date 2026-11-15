@@ -1,8 +1,11 @@
 package com.example.todo.presentation
 
 import com.example.todo.application.PatchTodoCommand
+import com.example.todo.application.SortOrder
 import com.example.todo.application.TodoCommand
+import com.example.todo.application.TodoListQuery
 import com.example.todo.application.TodoService
+import com.example.todo.application.TodoSortField
 import com.example.todo.application.UserContext
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
@@ -14,23 +17,44 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDate
 import java.util.UUID
+import com.example.todo.presentation.model.SortOrder as ApiSortOrder
 import com.example.todo.presentation.model.Todo as TodoResponse
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
+import com.example.todo.presentation.model.TodoSortField as ApiTodoSortField
 
 @RestController
 class TodoController(
     private val todoService: TodoService,
     private val userContext: UserContext,
 ) : TodosApi {
+    @Suppress("LongParameterList")
     @Transactional(readOnly = true)
     override fun listTodos(
         completed: Boolean?,
         priority: ApiTodoPriority?,
         tag: String?,
+        q: String?,
+        dueBefore: LocalDate?,
+        dueAfter: LocalDate?,
+        sortBy: ApiTodoSortField?,
+        sortOrder: ApiSortOrder?,
     ): ResponseEntity<List<TodoResponse>> {
         val userId = userContext.currentUserId()
-        val todos = todoService.list(userId, completed, priority?.toDomain(), tag)
+        val todos = todoService.list(
+            userId,
+            TodoListQuery(
+                completed = completed,
+                priority = priority?.toDomain(),
+                tag = tag,
+                keyword = q,
+                dueBefore = dueBefore,
+                dueAfter = dueAfter,
+                sortBy = sortBy?.let { TodoSortField.valueOf(it.name) },
+                sortOrder = sortOrder?.let { SortOrder.valueOf(it.name) } ?: SortOrder.ASC,
+            ),
+        )
         return ResponseEntity.ok(todos.map { it.toResponse() })
     }
 
