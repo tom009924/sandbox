@@ -111,6 +111,7 @@ private fun TodoSpannerEntity.toDomain() = Todo(
     estimatedMinutes = estimatedMinutes,
     tags = tags.orEmpty(),
     projectId = projectId?.let(UUID::fromString),
+    assigneeId = assigneeId?.let(UUID::fromString),
 )
 
 private fun Todo.toEntity() = TodoSpannerEntity(
@@ -124,4 +125,5 @@ private fun Todo.toEntity() = TodoSpannerEntity(
     estimatedMinutes = estimatedMinutes,
     tags = tags,
     projectId = projectId?.toString(),
+    assigneeId = assigneeId?.toString(),
 )

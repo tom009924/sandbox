@@ -5,12 +5,16 @@ import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.IdempotencyConflictException
+import com.example.todo.domain.exception.InvalidTodoAssigneeException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.IdempotencyRecord
+import com.example.todo.domain.model.ProjectMember
+import com.example.todo.domain.model.ProjectRole
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.UserSettings
 import com.example.todo.domain.repository.IdempotencyRecordRepository
+import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -594,6 +598,106 @@ class TodoServiceTest {
             PatchTodoCommand(description = "Patched Secret"),
         )
         assertEquals("Patched Secret", patched.description)
+    }
+
+    @Test
+    fun `project todo supports assigning, updating, and filtering by assigneeId`() {
+        val projectMemberRepo = InMemoryProjectMemberRepository()
+        val projectId = UUID.randomUUID()
+        val memberId = UUID.randomUUID()
+        projectMemberRepo.save(ProjectMember(projectId, userId, ProjectRole.OWNER, IDEMPOTENCY_TIME))
+        projectMemberRepo.save(ProjectMember(projectId, memberId, ProjectRole.MEMBER, IDEMPOTENCY_TIME))
+
+        val projectTodoService = TodoService(
+            todoRepository = repository,
+            idempotencyRecordRepository = idempotencyRepository,
+            todoEventPublisher = eventPublisher,
+            userSettingsRepository = userSettingsRepository,
+            projectMemberRepository = projectMemberRepo,
+        )
+
+        val assigned = projectTodoService.create(
+            userId,
+            TodoCommand(title = "Assigned Task", projectId = projectId, assigneeId = memberId),
+        )
+        val unassigned = projectTodoService.create(
+            userId,
+            TodoCommand(title = "Unassigned Task", projectId = projectId),
+        )
+
+        assertEquals(memberId, assigned.assigneeId)
+        val filtered = projectTodoService.list(userId, TodoListQuery(projectId = projectId, assigneeId = memberId))
+        assertEquals(listOf(assigned), filtered)
+
+        val patched = projectTodoService.patch(
+            requireNotNull(unassigned.id),
+            userId,
+            PatchTodoCommand(assigneeId = userId),
+        )
+        assertEquals(userId, patched.assigneeId)
+
+        val updated = projectTodoService.update(
+            requireNotNull(assigned.id),
+            userId,
+            TodoCommand(title = "Assigned Task", completed = true, assigneeId = null),
+        )
+        assertEquals(null, updated.assigneeId)
+    }
+
+    @Test
+    fun `assigning personal todo or non-member throws InvalidTodoAssigneeException`() {
+        val projectMemberRepo = InMemoryProjectMemberRepository()
+        val projectId = UUID.randomUUID()
+        val nonMemberId = UUID.randomUUID()
+        projectMemberRepo.save(ProjectMember(projectId, userId, ProjectRole.OWNER, IDEMPOTENCY_TIME))
+
+        val projectTodoService = TodoService(
+            todoRepository = repository,
+            idempotencyRecordRepository = idempotencyRepository,
+            todoEventPublisher = eventPublisher,
+            userSettingsRepository = userSettingsRepository,
+            projectMemberRepository = projectMemberRepo,
+        )
+
+        assertThrows(InvalidTodoAssigneeException::class.java) {
+            projectTodoService.create(userId, TodoCommand(title = "Personal", assigneeId = userId))
+        }
+        assertThrows(InvalidTodoAssigneeException::class.java) {
+            projectTodoService.create(
+                userId,
+                TodoCommand(title = "Project", projectId = projectId, assigneeId = nonMemberId),
+            )
+        }
+    }
+
+    private class InMemoryProjectMemberRepository : ProjectMemberRepository {
+        private val members = mutableListOf<ProjectMember>()
+
+        override fun save(member: ProjectMember): ProjectMember {
+            members.removeIf { it.projectId == member.projectId && it.userId == member.userId }
+            members.add(member)
+            return member
+        }
+
+        override fun findByProjectIdAndUserId(projectId: UUID, userId: UUID): ProjectMember? =
+            members.find { it.projectId == projectId && it.userId == userId }
+
+        override fun findAllByProjectId(projectId: UUID): List<ProjectMember> =
+            members.filter { it.projectId == projectId }
+
+        override fun findAllByUserId(userId: UUID): List<ProjectMember> =
+            members.filter { it.userId == userId }
+
+        override fun countByProjectIdAndRole(projectId: UUID, role: ProjectRole): Long =
+            members.count { it.projectId == projectId && it.role == role }.toLong()
+
+        override fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID) {
+            members.removeIf { it.projectId == projectId && it.userId == userId }
+        }
+
+        override fun deleteAllByProjectId(projectId: UUID) {
+            members.removeIf { it.projectId == projectId }
+        }
     }
 
     private class FakeCryptoService : com.example.todo.domain.crypto.CryptoService {

@@ -1013,9 +1013,16 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/todos").then().statusCode(404)
 
         val todoId = validatedPostRequest().contentType(ContentType.JSON)
-            .body("""{"title":"Shared Task","projectId":"$projectId"}""")
-            .post("/api/todos").then().statusCode(201).extract().path<String>("id")
+            .body("""{"title":"Shared Task","projectId":"$projectId","assigneeId":"${memberUser.id}"}""")
+            .post("/api/todos").then().statusCode(201)
+            .body("assigneeId", equalTo(memberUser.id.toString()))
+            .extract().path<String>("id")
 
+        validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId&assigneeId=${memberUser.id}")
+            .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
+        validatedPostRequest().contentType(ContentType.JSON)
+            .body("""{"title":"Invalid Assignee","projectId":"$projectId","assigneeId":"$MISSING_TODO_ID"}""")
+            .post("/api/todos").then().statusCode(400)
         validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId")
             .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
 

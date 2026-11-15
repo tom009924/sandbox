@@ -84,6 +84,7 @@ components:
               tags:
                 - shopping
               projectId: null
+              assigneeId: null
   schemas:
     TodoEvent:
       type: object
@@ -151,3 +152,8 @@ components:
           format: uuid
           nullable: true
           description: Optional shared project ID associated with the Todo
+        assigneeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional user ID of the project member assigned to this Todo
