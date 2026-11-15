@@ -173,6 +173,74 @@ workflows:
           - condition: $statusCode == 200
           - condition: $response.body#/priority == 'LOW'
 
+      - stepId: createTodoSubtask
+        description: Add a subtask to the Todo checklist
+        operationId: $sourceDescriptions.publicApi.createTodoSubtask
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            title: Check expiration date
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          subtaskId: $response.body#/id
+
+      - stepId: listTodoSubtasks
+        description: List subtasks for the Todo item
+        operationId: $sourceDescriptions.publicApi.listTodoSubtasks
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: patchTodoSubtask
+        description: Mark the subtask as completed
+        operationId: $sourceDescriptions.publicApi.patchTodoSubtask
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+          - name: subtaskId
+            in: path
+            value: "{$steps.createTodoSubtask.outputs.subtaskId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            completed: true
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: deleteTodoSubtask
+        description: Delete the subtask from the Todo checklist
+        operationId: $sourceDescriptions.publicApi.deleteTodoSubtask
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginUser.outputs.jwtToken}"
+          - name: id
+            in: path
+            value: "{$steps.createTodo.outputs.createdTodoId}"
+          - name: subtaskId
+            in: path
+            value: "{$steps.createTodoSubtask.outputs.subtaskId}"
+        successCriteria:
+          - condition: $statusCode == 204
+
       - stepId: deleteTodo
         description: Delete the completed Todo item
         operationId: $sourceDescriptions.publicApi.deleteTodo

@@ -219,4 +219,12 @@ actions:
     update: プロジェクトメンバー追加
   - target: $.paths['/api/projects/{projectId}/members/{userId}'].delete.summary
     update: プロジェクトメンバー削除・脱退
+  - target: $.paths['/api/todos/{id}/subtasks'].get.summary
+    update: サブタスク一覧取得
+  - target: $.paths['/api/todos/{id}/subtasks'].post.summary
+    update: サブタスク作成
+  - target: $.paths['/api/todos/{id}/subtasks/{subtaskId}'].patch.summary
+    update: サブタスク部分更新
+  - target: $.paths['/api/todos/{id}/subtasks/{subtaskId}'].delete.summary
+    update: サブタスク削除
 

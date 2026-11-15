@@ -5,6 +5,7 @@ import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
 import com.example.todo.application.TodoService
+import com.example.todo.application.TodoSubtaskService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
 import com.example.todo.application.UserContext
@@ -20,6 +21,7 @@ import com.example.todo.domain.model.ProjectMember
 import com.example.todo.domain.model.ProjectRole
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
+import com.example.todo.domain.model.TodoSubtask
 import com.example.todo.domain.model.User
 import com.example.todo.domain.model.UserSettings
 import com.example.todo.domain.notification.EmailNotification
@@ -29,6 +31,7 @@ import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.TodoSubtaskRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
@@ -36,12 +39,15 @@ import com.example.todo.presentation.AdminController
 import com.example.todo.presentation.AuthController
 import com.example.todo.presentation.ProjectController
 import com.example.todo.presentation.TodoController
+import com.example.todo.presentation.TodoSubtaskController
 import com.example.todo.presentation.UserSettingsController
 import com.example.todo.presentation.model.AddProjectMemberRequest
 import com.example.todo.presentation.model.CreateProjectRequest
 import com.example.todo.presentation.model.CreateTodoRequest
+import com.example.todo.presentation.model.CreateTodoSubtaskRequest
 import com.example.todo.presentation.model.LoginRequest
 import com.example.todo.presentation.model.PatchTodoRequest
+import com.example.todo.presentation.model.PatchTodoSubtaskRequest
 import com.example.todo.presentation.model.RegisterRequest
 import com.example.todo.presentation.model.UpdateProjectRequest
 import com.example.todo.presentation.model.UpdateTodoRequest
@@ -78,6 +84,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         harness.tracePatchTodoReopen(todoId)
         harness.traceAdminStats()
         harness.traceAdminUsers()
+        harness.traceSubtaskLifecycle(todoId)
         harness.traceDeleteTodo(todoId)
         harness.traceProjectLifecycle(collaboratorId)
 
@@ -250,6 +257,37 @@ class ExternalConnectionOrderDiagramGeneratorTest {
             userContext,
         )
 
+        private val subtaskStorage = linkedMapOf<UUID, TodoSubtask>()
+        private val todoSubtaskRepo = tracer.wrap(
+            TodoSubtaskRepository::class.java,
+            object : TodoSubtaskRepository {
+                override fun save(subtask: TodoSubtask): TodoSubtask {
+                    val saved = subtask.copy(id = subtask.id ?: UUID.randomUUID())
+                    subtaskStorage[requireNotNull(saved.id)] = saved
+                    return saved
+                }
+                override fun findAllByTodoIdOrderByPositionAsc(todoId: UUID): List<TodoSubtask> =
+                    subtaskStorage.values.filter { it.todoId == todoId }
+                override fun findById(id: UUID): TodoSubtask? = subtaskStorage[id]
+                override fun deleteById(id: UUID) {
+                    subtaskStorage.remove(id)
+                }
+                override fun deleteAllByTodoId(todoId: UUID) {
+                    subtaskStorage.entries.removeIf { it.value.todoId == todoId }
+                }
+            },
+            ExternalSystem.SPANNER,
+        ) { method, _ -> "TodoSubtaskRepository.${method.name}" }
+
+        private val todoSubtaskController = TodoSubtaskController(
+            TodoSubtaskService(
+                todoRepository = todoRepo,
+                todoSubtaskRepository = todoSubtaskRepo,
+                projectMemberRepository = projectMemberRepo,
+            ),
+            userContext,
+        )
+
         private val settingsController = UserSettingsController(
             UserSettingsService(userSettingsRepo),
             userContext,
@@ -371,6 +409,30 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         fun traceDeleteTodo(id: UUID) = tracer.trace("DELETE /api/todos/{id}", transactionalReadOnly = false) {
             todoController.deleteTodo(id)
+        }
+
+        fun traceSubtaskLifecycle(todoId: UUID) {
+            val subtaskId = tracer.trace("POST /api/todos/{id}/subtasks", transactionalReadOnly = false) {
+                requireNotNull(
+                    todoSubtaskController.createTodoSubtask(
+                        todoId,
+                        CreateTodoSubtaskRequest("Step 1"),
+                    ).body?.id,
+                )
+            }
+            tracer.trace("GET /api/todos/{id}/subtasks", transactionalReadOnly = true) {
+                todoSubtaskController.listTodoSubtasks(todoId)
+            }
+            tracer.trace("PATCH /api/todos/{id}/subtasks/{subtaskId}", transactionalReadOnly = false) {
+                todoSubtaskController.patchTodoSubtask(
+                    todoId,
+                    subtaskId,
+                    PatchTodoSubtaskRequest(completed = true),
+                )
+            }
+            tracer.trace("DELETE /api/todos/{id}/subtasks/{subtaskId}", transactionalReadOnly = false) {
+                todoSubtaskController.deleteTodoSubtask(todoId, subtaskId)
+            }
         }
 
         fun traceProjectLifecycle(collaboratorId: UUID) {

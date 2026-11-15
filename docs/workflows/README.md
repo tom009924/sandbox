@@ -36,6 +36,14 @@ sequenceDiagram
     API-->>Client: 200
     Client->>API: patchTodo: Partially update the Todo priority
     API-->>Client: 200
+    Client->>API: createTodoSubtask: Add a subtask to the Todo checklist
+    API-->>Client: 201 (outputs: subtaskId)
+    Client->>API: listTodoSubtasks: List subtasks for the Todo item
+    API-->>Client: 200
+    Client->>API: patchTodoSubtask: Mark the subtask as completed
+    API-->>Client: 200
+    Client->>API: deleteTodoSubtask: Delete the subtask from the Todo checklist
+    API-->>Client: 204
     Client->>API: deleteTodo: Delete the completed Todo item
     API-->>Client: 204
 ```

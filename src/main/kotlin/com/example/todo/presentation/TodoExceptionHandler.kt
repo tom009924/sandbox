@@ -9,6 +9,7 @@ import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
 import com.example.todo.domain.exception.ProjectMemberNotFoundException
 import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
+import com.example.todo.domain.exception.TodoSubtaskNotFoundException
 import com.example.todo.domain.exception.UserAlreadyExistsException
 import com.example.todo.domain.exception.UserNotFoundException
 import jakarta.validation.ConstraintViolationException
@@ -50,6 +51,7 @@ class TodoExceptionHandler {
     @ExceptionHandler(
         ProjectNotFoundException::class,
         ProjectMemberNotFoundException::class,
+        TodoSubtaskNotFoundException::class,
         UserNotFoundException::class,
     )
     fun handleProjectNotFound(exception: RuntimeException): ResponseEntity<Map<String, String>> =
