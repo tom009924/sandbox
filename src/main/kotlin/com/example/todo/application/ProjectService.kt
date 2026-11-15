@@ -89,6 +89,7 @@ class ProjectService(
             throw ProjectNotFoundException(projectId)
         }
         todoRepository.deleteAllByProjectId(projectId)
+        projectMemberRepository.deleteAllByProjectId(projectId)
         projectRepository.deleteById(projectId)
     }
 

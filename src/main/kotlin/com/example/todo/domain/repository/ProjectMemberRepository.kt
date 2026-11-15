@@ -16,4 +16,6 @@ interface ProjectMemberRepository {
     fun countByProjectIdAndRole(projectId: UUID, role: ProjectRole): Long
 
     fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID)
+
+    fun deleteAllByProjectId(projectId: UUID)
 }

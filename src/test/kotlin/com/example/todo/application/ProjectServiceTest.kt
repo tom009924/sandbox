@@ -188,6 +188,10 @@ class ProjectServiceTest {
         override fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID) {
             storage.removeIf { it.projectId == projectId && it.userId == userId }
         }
+
+        override fun deleteAllByProjectId(projectId: UUID) {
+            storage.removeIf { it.projectId == projectId }
+        }
     }
 
     private class InMemoryUserRepository : UserRepository {

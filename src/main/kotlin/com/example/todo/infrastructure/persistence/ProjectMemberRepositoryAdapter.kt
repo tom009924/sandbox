@@ -41,6 +41,10 @@ class ProjectMemberRepositoryAdapter(
     override fun deleteByProjectIdAndUserId(projectId: UUID, userId: UUID) {
         springDataProjectMemberRepository.deleteByProjectIdAndUserId(projectId.toString(), userId.toString())
     }
+
+    override fun deleteAllByProjectId(projectId: UUID) {
+        springDataProjectMemberRepository.deleteAllByProjectId(projectId.toString())
+    }
 }
 
 private fun ProjectMemberSpannerEntity.toDomain() = ProjectMember(

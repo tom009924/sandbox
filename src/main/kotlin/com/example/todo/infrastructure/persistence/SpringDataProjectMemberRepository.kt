@@ -15,4 +15,6 @@ interface SpringDataProjectMemberRepository : SpannerRepository<ProjectMemberSpa
     fun countByProjectIdAndRole(projectId: String, role: String): Long
 
     fun deleteByProjectIdAndUserId(projectId: String, userId: String)
+
+    fun deleteAllByProjectId(projectId: String)
 }
