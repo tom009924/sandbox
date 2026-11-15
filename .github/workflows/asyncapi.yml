@@ -1,0 +1,34 @@
+name: AsyncAPI Specification Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/asyncapi.yaml"
+      - ".github/workflows/asyncapi.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/asyncapi.yaml"
+      - ".github/workflows/asyncapi.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asyncapi-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-asyncapi:
+    name: Validate AsyncAPI Spec
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate docs/asyncapi.yaml
+        uses: asyncapi/cli@v2.16.0
+        with:
+          command: custom
+          custom_command: "validate docs/asyncapi.yaml"
