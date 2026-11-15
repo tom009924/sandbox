@@ -368,6 +368,9 @@ workflows:
           - name: Authorization
             in: header
             value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: Idempotency-Key
+            in: header
+            value: arazzo-project-todo-key-001
         requestBody:
           contentType: application/json
           payload:
