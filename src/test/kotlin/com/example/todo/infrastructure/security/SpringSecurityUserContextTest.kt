@@ -48,4 +48,3 @@ class SpringSecurityUserContextTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
     }
 }
-

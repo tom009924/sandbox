@@ -23,7 +23,7 @@ dependencyLocking {
 }
 
 detekt {
-    autoCorrect = true
+    autoCorrect = findProperty("detektAutoCorrect")?.toString()?.toBooleanStrictOrNull() ?: true
     source.setFrom(
         files(
             "src/main/kotlin",
@@ -154,6 +154,7 @@ dependencies {
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
     add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
     add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
+    detektPlugins(libs.detekt.formatting)
 }
 
 dependencyAnalysis {

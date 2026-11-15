@@ -4,9 +4,11 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
-import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
+import com.example.todo.application.TokenIssuer
 import com.example.todo.application.UserSettingsService
+import com.example.todo.domain.crypto.CryptoService
+import com.example.todo.domain.crypto.TodoCryptoHandler
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.repository.IdempotencyRecordRepository
@@ -16,20 +18,18 @@ import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
+import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
+import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
 import com.example.todo.infrastructure.notification.EmailNotificationProperties
 import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
-import com.example.todo.domain.crypto.CryptoService
-import com.example.todo.domain.crypto.TodoCryptoHandler
-import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
-import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
-import tools.jackson.databind.ObjectMapper
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
+import tools.jackson.databind.ObjectMapper
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -104,6 +104,7 @@ class TodoConfiguration {
     fun userSettingsService(
         userSettingsRepository: UserSettingsRepository,
     ) = UserSettingsService(userSettingsRepository)
+
     @Bean
     fun adminStatsService(
         userRepository: UserRepository,

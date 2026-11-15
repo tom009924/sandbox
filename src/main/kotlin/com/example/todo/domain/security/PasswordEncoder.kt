@@ -5,4 +5,3 @@ interface PasswordEncoder {
 
     fun matches(rawPassword: String, encodedPassword: String): Boolean
 }
-

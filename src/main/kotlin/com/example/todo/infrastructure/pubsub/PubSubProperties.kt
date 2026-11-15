@@ -8,4 +8,3 @@ data class PubSubProperties(
     val topicId: String = "todo-events",
     val emulatorHost: String? = null,
 )
-

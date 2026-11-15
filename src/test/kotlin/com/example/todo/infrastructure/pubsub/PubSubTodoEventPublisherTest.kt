@@ -4,10 +4,10 @@ import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
-import tools.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -89,4 +89,3 @@ class PubSubTodoEventPublisherTest {
         publisher.close()
     }
 }
-

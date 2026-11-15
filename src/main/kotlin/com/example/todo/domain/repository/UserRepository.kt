@@ -18,4 +18,3 @@ interface UserRepository {
 
     fun deleteAll()
 }
-

@@ -2,7 +2,6 @@ package com.example.todo.infrastructure.pubsub
 
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
-import tools.jackson.databind.ObjectMapper
 import com.google.api.gax.core.NoCredentialsProvider
 import com.google.api.gax.grpc.GrpcTransportChannel
 import com.google.api.gax.rpc.FixedTransportChannelProvider
@@ -16,6 +15,7 @@ import com.google.pubsub.v1.TopicName
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import org.slf4j.LoggerFactory
+import tools.jackson.databind.ObjectMapper
 import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -120,4 +120,3 @@ class PubSubTodoEventPublisher(
         const val TERMINATION_TIMEOUT_SECONDS = 5L
     }
 }
-

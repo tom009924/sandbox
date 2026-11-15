@@ -2,8 +2,6 @@
 
 package com.example.todo
 
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.ObjectMapper
 import io.restassured.filter.Filter
 import io.restassured.filter.FilterContext
 import io.restassured.response.Response
@@ -13,6 +11,8 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.Schema
 import org.junit.jupiter.api.Assertions.assertEquals
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -139,4 +139,3 @@ private val JsonNode.nodeTypeName: String
     get() = nodeType.name.lowercase()
 
 private val objectMapper = ObjectMapper()
-

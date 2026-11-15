@@ -4,8 +4,8 @@ import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 import java.util.UUID
 
 class AdminUserServiceTest {
@@ -25,4 +25,3 @@ class AdminUserServiceTest {
         assertEquals("user2", result[1].username)
     }
 }
-
