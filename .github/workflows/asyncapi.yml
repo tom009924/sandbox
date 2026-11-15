@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "docs/asyncapi.yaml"
+      - ".spectral.asyncapi.yaml"
       - ".github/workflows/asyncapi.yml"
   pull_request:
     branches: [main]
     paths:
       - "docs/asyncapi.yaml"
+      - ".spectral.asyncapi.yaml"
       - ".github/workflows/asyncapi.yml"
 
 permissions:
@@ -32,3 +34,15 @@ jobs:
         with:
           command: custom
           custom_command: "validate docs/asyncapi.yaml"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint AsyncAPI spec with Spectral
+        run: npm run lint:asyncapi
