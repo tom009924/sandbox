@@ -47,4 +47,3 @@ class UserSettingsController(
         maxActiveTodos = maxActiveTodos,
     )
 }
-

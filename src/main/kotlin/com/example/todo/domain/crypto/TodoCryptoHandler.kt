@@ -1,9 +1,9 @@
 package com.example.todo.domain.crypto
 
 import com.example.todo.domain.model.Todo
+import org.slf4j.LoggerFactory
 import java.nio.charset.StandardCharsets
 import java.util.Base64
-import org.slf4j.LoggerFactory
 
 class TodoCryptoHandler(
     private val cryptoService: CryptoService? = null,

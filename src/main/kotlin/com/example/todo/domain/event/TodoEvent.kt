@@ -11,4 +11,3 @@ data class TodoEvent(
     val todoId: UUID,
     val todo: Todo? = null,
 )
-

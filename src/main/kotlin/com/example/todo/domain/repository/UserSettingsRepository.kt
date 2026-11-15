@@ -8,4 +8,3 @@ interface UserSettingsRepository {
 
     fun save(userSettings: UserSettings): UserSettings
 }
-

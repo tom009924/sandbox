@@ -8,8 +8,8 @@ import com.example.todo.infrastructure.security.JwtTokenProvider
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -61,7 +61,7 @@ class TodoControllerTest @Autowired constructor(
                       "estimatedMinutes":30,
                       "tags":["groceries", "dairy"]
                     }
-                    """.trimIndent(),
+                """.trimIndent(),
             ),
         )
             .andExpect(status().isCreated)
@@ -97,7 +97,7 @@ class TodoControllerTest @Autowired constructor(
                       "priority":"HIGH",
                       "estimatedMinutes":30
                     }
-                    """.trimIndent(),
+                """.trimIndent(),
             ),
         ).andReturn().response.contentAsString
         val id = UUID.fromString(Regex(""""id":"([^"]+)"""").find(created)!!.groupValues[1])

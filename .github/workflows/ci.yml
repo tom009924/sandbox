@@ -64,7 +64,7 @@ jobs:
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
-        run: ./gradlew check bootJar --no-daemon
+        run: ./gradlew check bootJar --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated docs and diagrams are up-to-date
         run: |
