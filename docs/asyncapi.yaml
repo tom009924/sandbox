@@ -1,0 +1,108 @@
+asyncapi: 3.0.0
+info:
+  title: Todo Service Events
+  version: 1.0.0
+  description: |
+    Asynchronous domain events published by the Todo Service to Google Cloud Pub/Sub.
+    Derived from `com.example.todo.domain.event.TodoEvent` and `PubSubTodoEventPublisher`.
+servers:
+  gcp-pubsub:
+    host: pubsub.googleapis.com
+    protocol: googlepubsub
+    description: Google Cloud Pub/Sub (projectId configurable via `pubsub.project-id`)
+channels:
+  todoEvents:
+    address: projects/{projectId}/topics/todo-events
+    messages:
+      todoEvent:
+        $ref: '#/components/messages/TodoEventMessage'
+    parameters:
+      projectId:
+        description: GCP Project ID (default `todo-project`)
+operations:
+  publishTodoEvent:
+    action: send
+    channel:
+      $ref: '#/channels/todoEvents'
+    summary: Publish Todo lifecycle event (CREATED, UPDATED, DELETED)
+    messages:
+      - $ref: '#/channels/todoEvents/messages/todoEvent'
+components:
+  messages:
+    TodoEventMessage:
+      name: TodoEvent
+      title: Todo Lifecycle Event
+      contentType: application/json
+      headers:
+        type: object
+        properties:
+          eventType:
+            type: string
+            enum: [CREATED, UPDATED, DELETED]
+          todoId:
+            type: string
+            format: uuid
+      payload:
+        $ref: '#/components/schemas/TodoEvent'
+  schemas:
+    TodoEvent:
+      type: object
+      required:
+        - eventId
+        - eventType
+        - timestamp
+        - todoId
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: [CREATED, UPDATED, DELETED]
+        timestamp:
+          type: string
+          format: date-time
+        todoId:
+          type: string
+          format: uuid
+        todo:
+          nullable: true
+          $ref: '#/components/schemas/TodoPayload'
+    TodoPayload:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - completed
+        - priority
+        - tags
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        completed:
+          type: boolean
+        description:
+          type: string
+          nullable: true
+          description: Decrypted plaintext description (when available)
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        estimatedMinutes:
+          type: integer
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
