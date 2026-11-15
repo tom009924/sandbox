@@ -62,6 +62,8 @@ actions:
     update: ソート順を指定します（sortBy指定時のデフォルトはASC）。
   - target: $.paths['/api/todos'].get.parameters[?(@.name=='projectId')].description
     update: プロジェクトIDでTODOタスクを絞り込みます。未指定時はプロジェクトに属さない個人TODOを返します。
+  - target: $.paths['/api/todos'].get.parameters[?(@.name=='assigneeId')].description
+    update: 担当者のユーザーIDでTODOタスクを絞り込みます。
   - target: $.paths['/api/todos'].get.responses['200'].description
     update: TODOタスク一覧
   - target: $.paths['/api/todos'].get.responses['401'].description

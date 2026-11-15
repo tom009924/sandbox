@@ -90,7 +90,7 @@ sequenceDiagram
     API-->>Client: 200
     Client->>API: createProjectTodo: Create a Todo scoped to the shared project
     API-->>Client: 201
-    Client->>API: listProjectTodos: List Todos filtered by projectId
+    Client->>API: listProjectTodos: List Todos filtered by projectId and assigneeId
     API-->>Client: 200
     Client->>API: removeProjectMember: Remove collaborator from the shared project
     API-->>Client: 204

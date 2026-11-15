@@ -328,6 +328,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
                 sortBy = null,
                 sortOrder = null,
                 projectId = null,
+                assigneeId = null,
             )
         }
 
