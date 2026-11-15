@@ -1,0 +1,34 @@
+name: OpenAPI Breaking Change Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/openapi.yaml"
+      - "docs/dist/openapi.yaml"
+      - "docs/overlays/**"
+      - ".github/workflows/openapi-diff.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openapi-diff-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  oasdiff-breaking:
+    name: Check OpenAPI Breaking Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run oasdiff breaking change check
+        uses: oasdiff/oasdiff-action/breaking@v0
+        with:
+          base: origin/${{ github.base_ref }}:docs/dist/openapi.yaml
+          revision: HEAD:docs/dist/openapi.yaml
+          fail-on-diff: true
