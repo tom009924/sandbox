@@ -14,6 +14,13 @@ interface TodoRepository {
         tag: String? = null,
     ): List<Todo>
 
+    fun findAllByProjectId(
+        projectId: UUID,
+        completed: Boolean? = null,
+        priority: TodoPriority? = null,
+        tag: String? = null,
+    ): List<Todo>
+
     fun findById(id: UUID): Todo?
 
     fun findByIdAndUserId(id: UUID, userId: UUID): Todo?
@@ -27,4 +34,6 @@ interface TodoRepository {
     fun save(todo: Todo): Todo
 
     fun delete(todo: Todo)
+
+    fun deleteAllByProjectId(projectId: UUID)
 }

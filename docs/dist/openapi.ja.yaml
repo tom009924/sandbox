@@ -15,6 +15,8 @@ security:
 tags:
   - name: Todos
     description: TODOタスクの管理
+  - name: Projects
+    description: プロジェクトおよびメンバーの管理
   - name: Auth
     description: ユーザー認証および登録
   - name: Settings
@@ -164,6 +166,13 @@ paths:
           description: ソート順を指定します（sortBy指定時のデフォルトはASC）。
           schema:
             $ref: '#/components/schemas/SortOrder'
+        - name: projectId
+          in: query
+          required: false
+          description: プロジェクトIDでTODOタスクを絞り込みます。未指定時はプロジェクトに属さない個人TODOを返します。
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: TODOタスク一覧
@@ -229,6 +238,15 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Bearer認証トークンが不足しているか無効です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 指定されたプロジェクトが見つからないか、メンバーではありません
           content:
             application/json:
               schema:
@@ -413,6 +431,377 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/projects:
+    get:
+      tags:
+        - Projects
+      summary: プロジェクト一覧取得
+      description: 認証済みユーザーが所属するプロジェクトの一覧を取得します。
+      operationId: listProjects
+      responses:
+        '200':
+          description: Project list
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 1000
+                items:
+                  $ref: '#/components/schemas/ProjectResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Projects
+      summary: プロジェクト作成
+      description: 新しい共有プロジェクトを作成します。作成者は自動的にOWNERとして登録されます。
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+            example:
+              name: Backend Migration
+              description: Tasks for migrating to Spanner
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Project identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Projects
+      summary: プロジェクト詳細取得
+      description: Retrieve a project by its ID. Only accessible to project members.
+      operationId: getProject
+      responses:
+        '200':
+          description: Project found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or user is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Projects
+      summary: プロジェクト更新
+      description: Update project name and description. Only project owners are allowed.
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+            example:
+              name: Backend Migration Phase 2
+              description: Updated scope
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only project owners can update the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or user is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Projects
+      summary: プロジェクト削除
+      description: Delete a project, its memberships, and its todos. Only project owners are allowed.
+      operationId: deleteProject
+      responses:
+        '204':
+          description: Project deleted
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only project owners can delete the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or user is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{projectId}/members:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Project identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Projects
+      summary: プロジェクトメンバー一覧取得
+      description: Retrieve all members of a project. Only accessible to project members.
+      operationId: listProjectMembers
+      responses:
+        '200':
+          description: Project member list
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 1000
+                items:
+                  $ref: '#/components/schemas/ProjectMemberResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or user is not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Projects
+      summary: プロジェクトメンバー追加
+      description: Add a user to the project by username. Only project owners are allowed.
+      operationId: addProjectMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddProjectMemberRequest'
+            example:
+              username: bob
+              role: MEMBER
+      responses:
+        '201':
+          description: Project member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMemberResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only project owners can add members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project or target user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User is already a member of this project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{projectId}/members/{userId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Project identifier
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        description: Target user identifier
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags:
+        - Projects
+      summary: プロジェクトメンバー削除・脱退
+      description: Remove a member from the project (by an owner) or leave the project (by self). Cannot remove the last owner.
+      operationId: removeProjectMember
+      responses:
+        '204':
+          description: Member removed from project
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only project owners can remove other members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project or member not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot remove the last owner of the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/user/settings:
     get:
       tags:
@@ -566,6 +955,7 @@ components:
         - priority
         - estimatedMinutes
         - tags
+        - projectId
       properties:
         id:
           type: string
@@ -610,6 +1000,12 @@ components:
           example:
             - shopping
             - groceries
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional project ID if this todo belongs to a shared project.
+          example: 550e8400-e29b-41d4-a716-446655440000
     ErrorResponse:
       type: object
       required:
@@ -667,6 +1063,12 @@ components:
           example:
             - shopping
             - groceries
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional project ID to create the todo inside a shared project.
+          example: 550e8400-e29b-41d4-a716-446655440000
     UpdateTodoRequest:
       type: object
       required:
@@ -817,3 +1219,115 @@ components:
           minimum: 1
           description: 同時に保持できる未完了TODOタスクの最大件数
           example: 10
+    ProjectRole:
+      type: string
+      enum:
+        - OWNER
+        - MEMBER
+    ProjectResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - createdBy
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          maxLength: 100
+          example: Backend Migration
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Tasks for migrating to Spanner
+        createdBy:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-04-18T10:00:00Z'
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Project name. Must contain at least one non-whitespace character.
+          example: Backend Migration
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Tasks for migrating to Spanner
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Project name. Must contain at least one non-whitespace character.
+          example: Backend Migration Phase 2
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Updated scope
+    ProjectMemberResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - projectId
+        - userId
+        - username
+        - role
+        - joinedAt
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        username:
+          type: string
+          example: bob
+        role:
+          $ref: '#/components/schemas/ProjectRole'
+        joinedAt:
+          type: string
+          format: date-time
+          example: '2025-04-18T10:00:00Z'
+    AddProjectMemberRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: .*\S.*
+          description: Username of the user to add to the project.
+          example: bob
+        role:
+          $ref: '#/components/schemas/ProjectRole'

@@ -53,6 +53,10 @@ interface SpringDataTodoRepository : SpannerRepository<TodoSpannerEntity, String
 
     fun findByIdAndUserId(id: String, userId: String): TodoSpannerEntity?
 
+    fun findAllByProjectId(projectId: String): List<TodoSpannerEntity>
+
+    fun deleteAllByProjectId(projectId: String)
+
     @Query("SELECT COUNT(1) FROM todos WHERE user_id = @userId AND completed = FALSE")
     fun countByUserIdAndCompletedFalse(@Param("userId") userId: String): Long
 

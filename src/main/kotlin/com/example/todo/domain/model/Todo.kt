@@ -13,4 +13,5 @@ data class Todo(
     val priority: TodoPriority = TodoPriority.MEDIUM,
     val estimatedMinutes: Int? = null,
     val tags: List<String> = emptyList(),
+    val projectId: UUID? = null,
 )

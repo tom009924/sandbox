@@ -48,6 +48,19 @@ class TodoRepositoryAdapter(
         return entities.map { it.toDomain() }
     }
 
+    override fun findAllByProjectId(
+        projectId: UUID,
+        completed: Boolean?,
+        priority: TodoPriority?,
+        tag: String?,
+    ): List<Todo> = springDataTodoRepository.findAllByProjectId(projectId.toString())
+        .map { it.toDomain() }
+        .filter { todo ->
+            (completed == null || todo.completed == completed) &&
+                (priority == null || todo.priority == priority) &&
+                (tag == null || todo.tags.contains(tag))
+        }
+
     override fun findById(id: UUID): Todo? =
         springDataTodoRepository.findById(id.toString()).orElse(null)?.toDomain()
 
@@ -77,6 +90,10 @@ class TodoRepositoryAdapter(
     override fun delete(todo: Todo) {
         springDataTodoRepository.deleteById(requireNotNull(todo.id).toString())
     }
+
+    override fun deleteAllByProjectId(projectId: UUID) {
+        springDataTodoRepository.deleteAllByProjectId(projectId.toString())
+    }
 }
 
 private fun TodoSpannerEntity.toDomain() = Todo(
@@ -89,6 +106,7 @@ private fun TodoSpannerEntity.toDomain() = Todo(
     priority = TodoPriority.valueOf(priority),
     estimatedMinutes = estimatedMinutes,
     tags = tags.orEmpty(),
+    projectId = projectId?.let(UUID::fromString),
 )
 
 private fun Todo.toEntity() = TodoSpannerEntity(
@@ -101,4 +119,5 @@ private fun Todo.toEntity() = TodoSpannerEntity(
     priority = priority.name,
     estimatedMinutes = estimatedMinutes,
     tags = tags,
+    projectId = projectId?.toString(),
 )

@@ -3,8 +3,14 @@ package com.example.todo.presentation
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.exception.InvalidCredentialsException
+import com.example.todo.domain.exception.LastProjectOwnerException
+import com.example.todo.domain.exception.ProjectForbiddenException
+import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
+import com.example.todo.domain.exception.ProjectMemberNotFoundException
+import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.exception.UserAlreadyExistsException
+import com.example.todo.domain.exception.UserNotFoundException
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -36,18 +42,28 @@ class TodoExceptionHandler {
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
-    @ExceptionHandler(TodoNotFoundException::class)
-    fun handleTodoNotFound(exception: TodoNotFoundException): ResponseEntity<Map<String, String>> =
+    @ExceptionHandler(
+        TodoNotFoundException::class,
+        ProjectNotFoundException::class,
+        ProjectMemberNotFoundException::class,
+        UserNotFoundException::class,
+    )
+    fun handleNotFound(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
-    @ExceptionHandler(IdempotencyConflictException::class)
-    fun handleIdempotencyConflict(exception: IdempotencyConflictException): ResponseEntity<Map<String, String>> =
-        ResponseEntity.status(HttpStatus.CONFLICT)
+    @ExceptionHandler(ProjectForbiddenException::class)
+    fun handleProjectForbidden(exception: ProjectForbiddenException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
-    @ExceptionHandler(UserAlreadyExistsException::class)
-    fun handleUserAlreadyExists(exception: UserAlreadyExistsException): ResponseEntity<Map<String, String>> =
+    @ExceptionHandler(
+        IdempotencyConflictException::class,
+        UserAlreadyExistsException::class,
+        ProjectMemberAlreadyExistsException::class,
+        LastProjectOwnerException::class,
+    )
+    fun handleConflict(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.CONFLICT)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
