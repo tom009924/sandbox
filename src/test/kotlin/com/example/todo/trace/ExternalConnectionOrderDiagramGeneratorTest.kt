@@ -127,11 +127,12 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         @Suppress("UNCHECKED_CAST")
         val paths = spec["paths"] as? Map<String, Map<String, Any>> ?: emptyMap()
         val httpMethods = setOf("get", "put", "post", "delete", "patch")
+        val normalizedTraced = tracedEndpoints.map { it.substringBefore(" (") }.toSet()
         val missing = paths.flatMap { (path, item) ->
             item.keys
                 .filter { it.lowercase() in httpMethods }
                 .map { "${it.uppercase()} $path" }
-        }.filter { it !in tracedEndpoints }
+        }.filter { it !in normalizedTraced }
 
         assertEquals(
             emptyList<String>(),
