@@ -16,10 +16,9 @@
 | `PATCH /api/todos/{id} (reopen)` | readWrite | Spanner.TodoRepository.findById → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
 | `GET /api/admin/stats` | readOnly | Spanner.UserRepository.count → Spanner.TodoRepository.count → Spanner.TodoRepository.countByCompleted |
 | `GET /api/admin/users` | readOnly | Spanner.UserRepository.findAll |
-| `POST /api/todos/{id}/subtasks` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoSubtaskRepository.findAllByTodoIdOrderByPositionAsc → Spanner.TodoSubtaskRepository.save |
-| `GET /api/todos/{id}/subtasks` | readOnly | Spanner.TodoRepository.findById → Spanner.TodoSubtaskRepository.findAllByTodoIdOrderByPositionAsc |
-| `PATCH /api/todos/{id}/subtasks/{subtaskId}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoSubtaskRepository.findById → Spanner.TodoSubtaskRepository.save |
-| `DELETE /api/todos/{id}/subtasks/{subtaskId}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoSubtaskRepository.findById → Spanner.TodoSubtaskRepository.deleteById |
+| `POST /api/todos/{id}/comments` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.save → Spanner.UserRepository.findById |
+| `GET /api/todos/{id}/comments` | readOnly | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc → Spanner.UserRepository.findById |
+| `DELETE /api/todos/{id}/comments/{commentId}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoCommentRepository.findById → Spanner.TodoCommentRepository.deleteById |
 | `DELETE /api/todos/{id}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoRepository.delete → PubSub.publish(DELETED) |
 | `POST /api/projects` | readWrite | Spanner.ProjectRepository.save → Spanner.ProjectMemberRepository.save |
 | `GET /api/projects` | readOnly | Spanner.ProjectMemberRepository.findAllByUserId → Spanner.ProjectRepository.findAllByIdIn |
@@ -224,7 +223,7 @@ sequenceDiagram
     App-->>Client: Response
 ```
 
-## POST /api/todos/{id}/subtasks
+## POST /api/todos/{id}/comments
 
 ```mermaid
 sequenceDiagram
@@ -232,15 +231,15 @@ sequenceDiagram
     participant Client
     participant App as Todo App
     participant Spanner as Cloud Spanner
-    Client->>App: POST /api/todos/{id}/subtasks
+    Client->>App: POST /api/todos/{id}/comments
     App->>Spanner: TodoRepository.findById
-    App->>Spanner: TodoSubtaskRepository.findAllByTodoIdOrderByPositionAsc
-    App->>Spanner: TodoSubtaskRepository.save
+    App->>Spanner: TodoCommentRepository.save
+    App->>Spanner: UserRepository.findById
     App->>Spanner: Commit (@Transactional)
     App-->>Client: Response
 ```
 
-## GET /api/todos/{id}/subtasks
+## GET /api/todos/{id}/comments
 
 ```mermaid
 sequenceDiagram
@@ -248,13 +247,14 @@ sequenceDiagram
     participant Client
     participant App as Todo App
     participant Spanner as Cloud Spanner
-    Client->>App: GET /api/todos/{id}/subtasks
+    Client->>App: GET /api/todos/{id}/comments
     App->>Spanner: TodoRepository.findById
-    App->>Spanner: TodoSubtaskRepository.findAllByTodoIdOrderByPositionAsc
+    App->>Spanner: TodoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc
+    App->>Spanner: UserRepository.findById
     App-->>Client: Response
 ```
 
-## PATCH /api/todos/{id}/subtasks/{subtaskId}
+## DELETE /api/todos/{id}/comments/{commentId}
 
 ```mermaid
 sequenceDiagram
@@ -262,26 +262,10 @@ sequenceDiagram
     participant Client
     participant App as Todo App
     participant Spanner as Cloud Spanner
-    Client->>App: PATCH /api/todos/{id}/subtasks/{subtaskId}
+    Client->>App: DELETE /api/todos/{id}/comments/{commentId}
     App->>Spanner: TodoRepository.findById
-    App->>Spanner: TodoSubtaskRepository.findById
-    App->>Spanner: TodoSubtaskRepository.save
-    App->>Spanner: Commit (@Transactional)
-    App-->>Client: Response
-```
-
-## DELETE /api/todos/{id}/subtasks/{subtaskId}
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant App as Todo App
-    participant Spanner as Cloud Spanner
-    Client->>App: DELETE /api/todos/{id}/subtasks/{subtaskId}
-    App->>Spanner: TodoRepository.findById
-    App->>Spanner: TodoSubtaskRepository.findById
-    App->>Spanner: TodoSubtaskRepository.deleteById
+    App->>Spanner: TodoCommentRepository.findById
+    App->>Spanner: TodoCommentRepository.deleteById
     App->>Spanner: Commit (@Transactional)
     App-->>Client: Response
 ```

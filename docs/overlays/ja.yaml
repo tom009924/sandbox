@@ -229,4 +229,10 @@ actions:
     update: サブタスク部分更新
   - target: $.paths['/api/todos/{id}/subtasks/{subtaskId}'].delete.summary
     update: サブタスク削除
+  - target: $.paths['/api/todos/{id}/comments'].get.summary
+    update: TODOコメント一覧取得
+  - target: $.paths['/api/todos/{id}/comments'].post.summary
+    update: TODOコメント投稿
+  - target: $.paths['/api/todos/{id}/comments/{commentId}'].delete.summary
+    update: TODOコメント削除
 

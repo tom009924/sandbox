@@ -17,6 +17,8 @@ tags:
     description: TODOタスクの管理
   - name: Todo Subtasks
     description: Todo subtask checklist management
+  - name: Todo Comments
+    description: Todo comment management
   - name: Projects
     description: プロジェクトおよびメンバーの管理
   - name: Auth
@@ -611,6 +613,147 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo or subtask not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}/comments:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Todo identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Todo Comments
+      summary: TODOコメント一覧取得
+      description: Retrieve comments for a todo ordered chronologically. Accessible to the todo owner or project members.
+      operationId: listTodoComments
+      responses:
+        '200':
+          description: Todo comment list
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 1000
+                items:
+                  $ref: '#/components/schemas/TodoCommentResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Todo Comments
+      summary: TODOコメント投稿
+      description: Add a comment to a todo. Accessible to the todo owner or project members.
+      operationId: createTodoComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoCommentRequest'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoCommentResponse'
+        '400':
+          description: Invalid comment request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}/comments/{commentId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Todo identifier
+        schema:
+          type: string
+          format: uuid
+      - name: commentId
+        in: path
+        required: true
+        description: Comment identifier
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags:
+        - Todo Comments
+      summary: TODOコメント削除
+      description: Delete a comment from a todo. Only the comment author is allowed.
+      operationId: deleteTodoComment
+      responses:
+        '204':
+          description: Comment deleted
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (only the comment author can delete)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo or comment not found
           content:
             application/json:
               schema:
@@ -1602,3 +1745,49 @@ components:
           format: int32
           minimum: 0
           example: 1
+    TodoCommentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - todoId
+        - userId
+        - username
+        - content
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        todoId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440002
+        username:
+          type: string
+          example: alice
+        content:
+          type: string
+          maxLength: 1000
+          example: Looks good!
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-04-18T10:00:00Z'
+    CreateTodoCommentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          maxLength: 1000
+          pattern: .*\S.*
+          description: Comment text. Must contain at least one non-whitespace character.
+          example: Please review this before Friday.

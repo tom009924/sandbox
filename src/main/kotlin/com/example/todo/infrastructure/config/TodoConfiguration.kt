@@ -4,6 +4,7 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TodoSubtaskService
 import com.example.todo.application.TokenIssuer
@@ -15,6 +16,7 @@ import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
+import com.example.todo.domain.repository.TodoCommentRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.TodoSubtaskRepository
 import com.example.todo.domain.repository.UserRepository
@@ -112,6 +114,19 @@ class TodoConfiguration {
         todoRepository = todoRepository,
         todoSubtaskRepository = todoSubtaskRepository,
         projectMemberRepository = projectMemberRepository,
+    )
+
+    @Bean
+    fun todoCommentService(
+        todoRepository: TodoRepository,
+        todoCommentRepository: TodoCommentRepository,
+        projectMemberRepository: ProjectMemberRepository,
+        userRepository: UserRepository,
+    ) = TodoCommentService(
+        todoRepository = todoRepository,
+        todoCommentRepository = todoCommentRepository,
+        projectMemberRepository = projectMemberRepository,
+        userRepository = userRepository,
     )
 
     @Bean
