@@ -59,3 +59,43 @@ sequenceDiagram
 ```
 
 ---
+
+### ワークフロー: `project-collaboration-lifecycle`
+**Shared project creation, member management, and project-scoped Todo lifecycle**
+
+Demonstrates creating a shared project, inviting a collaborator, creating and listing project-scoped Todos, removing a member, and deleting the project.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Client / Runner
+    participant API as Todo API
+    Client->>API: registerProjectOwner: Register a project owner account
+    API-->>Client: 201 (outputs: ownerId, ownerName)
+    Client->>API: registerProjectMember: Register a project collaborator account
+    API-->>Client: 201 (outputs: memberId, memberName)
+    Client->>API: loginProjectOwner: Authenticate project owner and acquire JWT token
+    API-->>Client: 200 (outputs: ownerToken)
+    Client->>API: createProject: Create a shared project
+    API-->>Client: 201 (outputs: projectId)
+    Client->>API: listProjects: List projects accessible to the owner
+    API-->>Client: 200
+    Client->>API: getProject: Fetch project details by ID
+    API-->>Client: 200
+    Client->>API: updateProject: Update project name and description
+    API-->>Client: 200
+    Client->>API: addProjectMember: Add collaborator to the shared project
+    API-->>Client: 201
+    Client->>API: listProjectMembers: List members of the shared project
+    API-->>Client: 200
+    Client->>API: createProjectTodo: Create a Todo scoped to the shared project
+    API-->>Client: 201
+    Client->>API: listProjectTodos: List Todos filtered by projectId
+    API-->>Client: 200
+    Client->>API: removeProjectMember: Remove collaborator from the shared project
+    API-->>Client: 204
+    Client->>API: deleteProject: Delete the shared project
+    API-->>Client: 204
+```
+
+---
