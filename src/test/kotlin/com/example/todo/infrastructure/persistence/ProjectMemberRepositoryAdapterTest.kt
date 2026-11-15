@@ -42,7 +42,15 @@ class ProjectMemberRepositoryAdapterTest @Autowired constructor(
         assertEquals(1, adapter.findAllByProjectId(projectId).size)
         assertEquals(1, adapter.findAllByUserId(userId).size)
 
+        val updated = adapter.save(saved.copy(role = ProjectRole.MEMBER))
+        assertEquals(ProjectRole.MEMBER, updated.role)
+
         adapter.deleteByProjectIdAndUserId(projectId, userId)
         assertNull(adapter.findByProjectIdAndUserId(projectId, userId))
+
+        adapter.save(saved)
+        adapter.deleteAllByProjectId(projectId)
+        adapter.deleteAllByProjectId(projectId)
+        assertEquals(0, adapter.findAllByProjectId(projectId).size)
     }
 }

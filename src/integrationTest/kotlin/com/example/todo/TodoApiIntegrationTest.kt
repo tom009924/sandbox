@@ -1016,6 +1016,12 @@ class TodoApiIntegrationTest @Autowired constructor(
 
         validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId")
             .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
+        validatedRequest(token = memberToken)
+            .get("/api/todos?projectId=$projectId&completed=false&priority=MEDIUM&tag=work")
+            .then().statusCode(200).body("size()", equalTo(0))
+        validatedRequest(token = memberToken)
+            .get("/api/todos?projectId=$projectId&completed=true&priority=HIGH")
+            .then().statusCode(200).body("size()", equalTo(0))
 
         sideEffectVerifier.verifyDatabaseTable("users")
         sideEffectVerifier.verifyDatabaseTable("projects")

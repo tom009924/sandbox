@@ -62,6 +62,7 @@ class ProjectServiceTest {
         assertEquals(1, members.size)
         assertEquals(ProjectRole.OWNER, members.first().role)
         assertEquals("alice", members.first().username)
+        assertEquals(1, service.listForUser(ownerId).size)
     }
 
     @Test
@@ -69,8 +70,12 @@ class ProjectServiceTest {
         val project = service.create(ownerId, "Shared Project", null)
         val projectId = requireNotNull(project.id)
 
+        assertTrue(service.listForUser(outsiderId).isEmpty())
         assertThrows<ProjectNotFoundException> {
             service.getForUser(projectId, outsiderId)
+        }
+        assertThrows<ProjectNotFoundException> {
+            service.listMembers(projectId, outsiderId)
         }
     }
 

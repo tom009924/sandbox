@@ -39,6 +39,10 @@ class ProjectRepositoryAdapterTest @Autowired constructor(
         assertNotNull(found)
         assertEquals("Alpha", found?.name)
         assertEquals(listOf(saved), adapter.findAllByIdIn(listOf(projectId)))
+        assertEquals(emptyList<Project>(), adapter.findAllByIdIn(emptyList()))
+
+        val updated = adapter.save(saved.copy(name = "Beta"))
+        assertEquals("Beta", updated.name)
 
         adapter.deleteById(projectId)
         assertNull(adapter.findById(projectId))
