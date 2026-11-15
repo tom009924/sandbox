@@ -42,13 +42,17 @@ class TodoExceptionHandler {
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
+    @ExceptionHandler(TodoNotFoundException::class)
+    fun handleTodoNotFound(exception: TodoNotFoundException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
     @ExceptionHandler(
-        TodoNotFoundException::class,
         ProjectNotFoundException::class,
         ProjectMemberNotFoundException::class,
         UserNotFoundException::class,
     )
-    fun handleNotFound(exception: RuntimeException): ResponseEntity<Map<String, String>> =
+    fun handleProjectNotFound(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
@@ -57,13 +61,21 @@ class TodoExceptionHandler {
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
+    @ExceptionHandler(IdempotencyConflictException::class)
+    fun handleIdempotencyConflict(exception: IdempotencyConflictException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
+    @ExceptionHandler(UserAlreadyExistsException::class)
+    fun handleUserAlreadyExists(exception: UserAlreadyExistsException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(mapOf("message" to requireNotNull(exception.message)))
+
     @ExceptionHandler(
-        IdempotencyConflictException::class,
-        UserAlreadyExistsException::class,
         ProjectMemberAlreadyExistsException::class,
         LastProjectOwnerException::class,
     )
-    fun handleConflict(exception: RuntimeException): ResponseEntity<Map<String, String>> =
+    fun handleProjectConflict(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.CONFLICT)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
