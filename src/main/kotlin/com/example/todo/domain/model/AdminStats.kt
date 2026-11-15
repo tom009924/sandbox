@@ -6,4 +6,3 @@ data class AdminStats(
     val completedTodos: Long,
     val activeTodos: Long,
 )
-

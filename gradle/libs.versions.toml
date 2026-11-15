@@ -40,6 +40,7 @@ spanner-jdbc = { module = "com.google.cloud:google-cloud-spanner-jdbc", version.
 google-cloud-pubsub = { module = "com.google.cloud:google-cloud-pubsub", version.ref = "googleCloudPubsub" }
 
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "restAssured" }
 swagger-parser = { module = "io.swagger.parser.v3:swagger-parser-v3", version.ref = "swaggerParser" }
 flyway-gcp-spanner = { module = "org.flywaydb:flyway-gcp-spanner" }

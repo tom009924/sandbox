@@ -5,4 +5,3 @@ enum class TodoEventType {
     UPDATED,
     DELETED,
 }
-

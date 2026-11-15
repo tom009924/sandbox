@@ -4,8 +4,8 @@ import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class AdminStatsServiceTest {
     private val userRepository = mock(UserRepository::class.java)
@@ -26,4 +26,3 @@ class AdminStatsServiceTest {
         assertEquals(6L, stats.activeTodos)
     }
 }
-

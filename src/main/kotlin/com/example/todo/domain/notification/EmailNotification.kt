@@ -25,4 +25,3 @@ class EmailServerException(
     message: String,
     cause: Throwable? = null,
 ) : EmailNotificationException(message, cause)
-

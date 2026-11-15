@@ -1,7 +1,6 @@
 package com.example.todo
 
 import com.example.todo.domain.event.TodoEvent
-import tools.jackson.databind.ObjectMapper
 import com.google.api.gax.core.NoCredentialsProvider
 import com.google.api.gax.grpc.GrpcTransportChannel
 import com.google.api.gax.rpc.AlreadyExistsException
@@ -21,6 +20,7 @@ import com.google.pubsub.v1.TopicName
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import org.slf4j.LoggerFactory
+import tools.jackson.databind.ObjectMapper
 import java.io.Closeable
 import java.io.IOException
 import java.time.Duration

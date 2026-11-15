@@ -85,8 +85,10 @@ internal class SpannerSideEffectProxy(
         val unverified = recordedMutations.filter { it !in verifiedMutations }
         val matching = unverified.filter { mutation ->
             val matchesOp = mutation.operation == operation ||
-                (mutation.operation == DbOperation.UPSERT &&
-                    (operation == DbOperation.INSERT || operation == DbOperation.UPDATE))
+                (
+                    mutation.operation == DbOperation.UPSERT &&
+                        (operation == DbOperation.INSERT || operation == DbOperation.UPDATE)
+                    )
             matchesOp && mutation.table == targetTable
         }
 

@@ -4,9 +4,9 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
-import com.example.todo.application.TodoService
 import com.example.todo.application.UserContext
 import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.crypto.CryptoService
@@ -124,6 +124,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
     private fun assertAllOpenApiEndpointsTraced(tracedEndpoints: Set<String>) {
         val openApiPath = Path.of("docs/dist/openapi.admin.yaml")
         val spec = Yaml().load<Map<String, Any>>(Files.readString(openApiPath))
+
         @Suppress("UNCHECKED_CAST")
         val paths = spec["paths"] as? Map<String, Map<String, Any>> ?: emptyMap()
         val httpMethods = setOf("get", "put", "post", "delete", "patch")

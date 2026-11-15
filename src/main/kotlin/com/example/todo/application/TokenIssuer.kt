@@ -11,4 +11,3 @@ data class TokenResult(
 interface TokenIssuer {
     fun issueToken(user: AuthenticatedUser): TokenResult
 }
-

@@ -27,4 +27,3 @@ class UserSettingsService(
         return userSettingsRepository.save(settings)
     }
 }
-

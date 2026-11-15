@@ -141,4 +141,3 @@ class JwtTokenProviderTest {
         assertNull(SecurityContextHolder.getContext().authentication)
     }
 }
-

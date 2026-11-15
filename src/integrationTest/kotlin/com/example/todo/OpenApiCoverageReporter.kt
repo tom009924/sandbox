@@ -144,12 +144,12 @@ object OpenApiCoverageReporter {
         )
     }
 
-private data class CoverageContext(
-    val definition: OpenApiCoverageDefinition,
-    val coveredResponses: Set<OpenApiResponse>,
-    val coveredConstraints: Set<OpenApiConstraint>,
-    val coveredParameters: Set<OpenApiParameter>,
-)
+    private data class CoverageContext(
+        val definition: OpenApiCoverageDefinition,
+        val coveredResponses: Set<OpenApiResponse>,
+        val coveredConstraints: Set<OpenApiConstraint>,
+        val coveredParameters: Set<OpenApiParameter>,
+    )
 
     fun formatConsoleSummary(report: OpenApiCoverageReport): String = buildString {
         appendLine()

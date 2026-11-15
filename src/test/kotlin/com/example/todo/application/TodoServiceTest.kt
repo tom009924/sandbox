@@ -1,11 +1,11 @@
 package com.example.todo.application
 
 import com.example.todo.domain.event.TodoEvent
-import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.event.TodoEventPublisher
+import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
-import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.exception.IdempotencyConflictException
+import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
@@ -14,8 +14,8 @@ import com.example.todo.domain.repository.IdempotencyRecordRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach

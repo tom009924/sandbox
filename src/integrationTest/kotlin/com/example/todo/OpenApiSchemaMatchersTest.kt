@@ -1,12 +1,12 @@
 package com.example.todo
 
-import tools.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.ObjectMapper
 
 class OpenApiSchemaMatchersTest {
     private val openApi = requireNotNull(

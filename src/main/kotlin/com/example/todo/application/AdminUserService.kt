@@ -8,4 +8,3 @@ class AdminUserService(
 ) {
     fun getUsers(): List<User> = userRepository.findAll()
 }
-

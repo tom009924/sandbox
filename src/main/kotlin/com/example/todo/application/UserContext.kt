@@ -5,4 +5,3 @@ import java.util.UUID
 interface UserContext {
     fun currentUserId(): UUID
 }
-

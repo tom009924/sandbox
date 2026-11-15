@@ -18,4 +18,3 @@ class SpringSecurityUserContext : UserContext {
         return principal.userId
     }
 }
-
