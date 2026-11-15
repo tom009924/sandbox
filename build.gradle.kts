@@ -214,6 +214,22 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     }
 }
 
+tasks.register<Test>("generateExternalConnectionDiagrams") {
+    description = "Generates Mermaid external connection order diagrams from dynamic traces."
+    group = "documentation"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching("com.example.todo.trace.ExternalConnectionOrderDiagramGeneratorTest")
+    }
+    systemProperty(
+        "externalConnectionDiagramOut",
+        "$projectDir/docs/architecture/external-connection-order.md",
+    )
+    outputs.upToDateWhen { false }
+}
+
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.test, integrationTest)
     executionData.setFrom(
