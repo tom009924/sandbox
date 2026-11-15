@@ -36,6 +36,12 @@ sequenceDiagram
     API-->>Client: 200
     Client->>API: patchTodo: Partially update the Todo priority
     API-->>Client: 200
+    Client->>API: createTodoComment: Add a comment to the Todo item
+    API-->>Client: 201 (outputs: commentId)
+    Client->>API: listTodoComments: List comments on the Todo item
+    API-->>Client: 200
+    Client->>API: deleteTodoComment: Delete the comment from the Todo item
+    API-->>Client: 204
     Client->>API: deleteTodo: Delete the completed Todo item
     API-->>Client: 204
 ```

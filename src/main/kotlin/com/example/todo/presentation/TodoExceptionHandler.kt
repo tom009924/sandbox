@@ -8,6 +8,8 @@ import com.example.todo.domain.exception.ProjectForbiddenException
 import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
 import com.example.todo.domain.exception.ProjectMemberNotFoundException
 import com.example.todo.domain.exception.ProjectNotFoundException
+import com.example.todo.domain.exception.TodoCommentForbiddenException
+import com.example.todo.domain.exception.TodoCommentNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.exception.UserAlreadyExistsException
 import com.example.todo.domain.exception.UserNotFoundException
@@ -50,14 +52,18 @@ class TodoExceptionHandler {
     @ExceptionHandler(
         ProjectNotFoundException::class,
         ProjectMemberNotFoundException::class,
+        TodoCommentNotFoundException::class,
         UserNotFoundException::class,
     )
     fun handleProjectNotFound(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
-    @ExceptionHandler(ProjectForbiddenException::class)
-    fun handleProjectForbidden(exception: ProjectForbiddenException): ResponseEntity<Map<String, String>> =
+    @ExceptionHandler(
+        ProjectForbiddenException::class,
+        TodoCommentForbiddenException::class,
+    )
+    fun handleProjectForbidden(exception: RuntimeException): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(mapOf("message" to requireNotNull(exception.message)))
 
