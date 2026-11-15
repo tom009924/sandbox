@@ -6,8 +6,8 @@
 |---|---|---|
 | `POST /api/auth/register` | readWrite | Spanner.UserRepository.existsByUsername → Spanner.UserRepository.save → Email.POST /api/v1/emails |
 | `POST /api/auth/login` | readOnly | Spanner.UserRepository.findByUsername |
-| `PUT /api/settings` | readWrite | Spanner.UserSettingsRepository.save |
-| `GET /api/settings` | readOnly | Spanner.UserSettingsRepository.findByUserId |
+| `PUT /api/user/settings` | readWrite | Spanner.UserSettingsRepository.save |
+| `GET /api/user/settings` | readOnly | Spanner.UserSettingsRepository.findByUserId |
 | `POST /api/todos` | readWrite | Spanner.IdempotencyRecordRepository.findByUserIdAndKey → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(CREATED) → Spanner.IdempotencyRecordRepository.save |
 | `POST /api/todos (idempotent replay)` | readWrite | Spanner.IdempotencyRecordRepository.findByUserIdAndKey |
 | `GET /api/todos` | readOnly | Spanner.TodoRepository.findAllByUserId → KMS.Decrypt |
@@ -17,6 +17,14 @@
 | `GET /api/admin/stats` | readOnly | Spanner.UserRepository.count → Spanner.TodoRepository.count → Spanner.TodoRepository.countByCompleted |
 | `GET /api/admin/users` | readOnly | Spanner.UserRepository.findAll |
 | `DELETE /api/todos/{id}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoRepository.delete → PubSub.publish(DELETED) |
+| `POST /api/projects` | readWrite | Spanner.ProjectRepository.save → Spanner.ProjectMemberRepository.save |
+| `GET /api/projects` | readOnly | Spanner.ProjectMemberRepository.findAllByUserId → Spanner.ProjectRepository.findAllByIdIn |
+| `GET /api/projects/{projectId}` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById |
+| `PUT /api/projects/{projectId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.ProjectRepository.save |
+| `POST /api/projects/{projectId}/members` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.UserRepository.findByUsername → Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.save |
+| `GET /api/projects/{projectId}/members` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findAllByProjectId → Spanner.UserRepository.findById → Spanner.UserRepository.findById |
+| `DELETE /api/projects/{projectId}/members/{userId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.deleteByProjectIdAndUserId |
+| `DELETE /api/projects/{projectId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.TodoRepository.deleteAllByProjectId → Spanner.ProjectMemberRepository.deleteAllByProjectId → Spanner.ProjectRepository.deleteById |
 
 ## POST /api/auth/register
 
@@ -48,7 +56,7 @@ sequenceDiagram
     App-->>Client: Response
 ```
 
-## PUT /api/settings
+## PUT /api/user/settings
 
 ```mermaid
 sequenceDiagram
@@ -56,13 +64,13 @@ sequenceDiagram
     participant Client
     participant App as Todo App
     participant Spanner as Cloud Spanner
-    Client->>App: PUT /api/settings
+    Client->>App: PUT /api/user/settings
     App->>Spanner: UserSettingsRepository.save
     App->>Spanner: Commit (@Transactional)
     App-->>Client: Response
 ```
 
-## GET /api/settings
+## GET /api/user/settings
 
 ```mermaid
 sequenceDiagram
@@ -70,7 +78,7 @@ sequenceDiagram
     participant Client
     participant App as Todo App
     participant Spanner as Cloud Spanner
-    Client->>App: GET /api/settings
+    Client->>App: GET /api/user/settings
     App->>Spanner: UserSettingsRepository.findByUserId
     App-->>Client: Response
 ```
@@ -225,6 +233,132 @@ sequenceDiagram
     App->>Spanner: TodoRepository.findById
     App->>Spanner: TodoRepository.delete
     App-->>PubSub: publish(DELETED)
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## POST /api/projects
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: POST /api/projects
+    App->>Spanner: ProjectRepository.save
+    App->>Spanner: ProjectMemberRepository.save
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## GET /api/projects
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: GET /api/projects
+    App->>Spanner: ProjectMemberRepository.findAllByUserId
+    App->>Spanner: ProjectRepository.findAllByIdIn
+    App-->>Client: Response
+```
+
+## GET /api/projects/{projectId}
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: GET /api/projects/{projectId}
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectRepository.findById
+    App-->>Client: Response
+```
+
+## PUT /api/projects/{projectId}
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: PUT /api/projects/{projectId}
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectRepository.findById
+    App->>Spanner: ProjectRepository.save
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## POST /api/projects/{projectId}/members
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: POST /api/projects/{projectId}/members
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: UserRepository.findByUsername
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectMemberRepository.save
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## GET /api/projects/{projectId}/members
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: GET /api/projects/{projectId}/members
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectMemberRepository.findAllByProjectId
+    App->>Spanner: UserRepository.findById
+    App->>Spanner: UserRepository.findById
+    App-->>Client: Response
+```
+
+## DELETE /api/projects/{projectId}/members/{userId}
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: DELETE /api/projects/{projectId}/members/{userId}
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectMemberRepository.deleteByProjectIdAndUserId
+    App->>Spanner: Commit (@Transactional)
+    App-->>Client: Response
+```
+
+## DELETE /api/projects/{projectId}
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant App as Todo App
+    participant Spanner as Cloud Spanner
+    Client->>App: DELETE /api/projects/{projectId}
+    App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
+    App->>Spanner: ProjectRepository.findById
+    App->>Spanner: TodoRepository.deleteAllByProjectId
+    App->>Spanner: ProjectMemberRepository.deleteAllByProjectId
+    App->>Spanner: ProjectRepository.deleteById
     App->>Spanner: Commit (@Transactional)
     App-->>Client: Response
 ```
