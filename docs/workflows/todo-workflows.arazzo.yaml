@@ -215,3 +215,205 @@ workflows:
             value: "{$inputs.adminApiKey}"
         successCriteria:
           - condition: $statusCode == 200
+
+  - workflowId: project-collaboration-lifecycle
+    summary: Shared project creation, member management, and project-scoped Todo lifecycle
+    description: >
+      Demonstrates creating a shared project, inviting a collaborator, creating and listing
+      project-scoped Todos, removing a member, and deleting the project.
+    inputs:
+      type: object
+      properties:
+        username:
+          type: string
+          default: arazzo-user
+        password:
+          type: string
+          default: Password123!
+    steps:
+      - stepId: registerProjectOwner
+        description: Register a project owner account
+        operationId: $sourceDescriptions.publicApi.registerUser
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$inputs.username}-owner"
+            password: "{$inputs.password}"
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          ownerId: $response.body#/id
+          ownerName: $response.body#/username
+
+      - stepId: registerProjectMember
+        description: Register a project collaborator account
+        operationId: $sourceDescriptions.publicApi.registerUser
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$inputs.username}-member"
+            password: "{$inputs.password}"
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          memberId: $response.body#/id
+          memberName: $response.body#/username
+
+      - stepId: loginProjectOwner
+        description: Authenticate project owner and acquire JWT token
+        operationId: $sourceDescriptions.publicApi.loginUser
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$steps.registerProjectOwner.outputs.ownerName}"
+            password: "{$inputs.password}"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          ownerToken: $response.body#/token
+
+      - stepId: createProject
+        description: Create a shared project
+        operationId: $sourceDescriptions.publicApi.createProject
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+        requestBody:
+          contentType: application/json
+          payload:
+            name: Arazzo Shared Project
+            description: Project created during Arazzo E2E verification
+        successCriteria:
+          - condition: $statusCode == 201
+        outputs:
+          projectId: $response.body#/id
+
+      - stepId: listProjects
+        description: List projects accessible to the owner
+        operationId: $sourceDescriptions.publicApi.listProjects
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: getProject
+        description: Fetch project details by ID
+        operationId: $sourceDescriptions.publicApi.getProject
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: updateProject
+        description: Update project name and description
+        operationId: $sourceDescriptions.publicApi.updateProject
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            name: Arazzo Shared Project Updated
+            description: Updated during Arazzo E2E verification
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: addProjectMember
+        description: Add collaborator to the shared project
+        operationId: $sourceDescriptions.publicApi.addProjectMember
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        requestBody:
+          contentType: application/json
+          payload:
+            username: "{$steps.registerProjectMember.outputs.memberName}"
+            role: MEMBER
+        successCriteria:
+          - condition: $statusCode == 201
+
+      - stepId: listProjectMembers
+        description: List members of the shared project
+        operationId: $sourceDescriptions.publicApi.listProjectMembers
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: createProjectTodo
+        description: Create a Todo scoped to the shared project
+        operationId: $sourceDescriptions.publicApi.createTodo
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+        requestBody:
+          contentType: application/json
+          payload:
+            title: Project Scoped Task
+            projectId: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 201
+
+      - stepId: listProjectTodos
+        description: List Todos filtered by projectId
+        operationId: $sourceDescriptions.publicApi.listTodos
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: query
+            value: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 200
+
+      - stepId: removeProjectMember
+        description: Remove collaborator from the shared project
+        operationId: $sourceDescriptions.publicApi.removeProjectMember
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+          - name: userId
+            in: path
+            value: "{$steps.registerProjectMember.outputs.memberId}"
+        successCriteria:
+          - condition: $statusCode == 204
+
+      - stepId: deleteProject
+        description: Delete the shared project
+        operationId: $sourceDescriptions.publicApi.deleteProject
+        parameters:
+          - name: Authorization
+            in: header
+            value: "Bearer {$steps.loginProjectOwner.outputs.ownerToken}"
+          - name: projectId
+            in: path
+            value: "{$steps.createProject.outputs.projectId}"
+        successCriteria:
+          - condition: $statusCode == 204
