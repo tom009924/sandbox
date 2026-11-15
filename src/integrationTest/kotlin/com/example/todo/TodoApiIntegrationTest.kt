@@ -958,17 +958,17 @@ class TodoApiIntegrationTest @Autowired constructor(
     @Test
     fun projectEndpointsRejectUnauthenticatedRequests() {
         val pid = MISSING_TODO_ID
-        unauthenticatedRequest().get("/api/projects").then().statusCode(401)
-        unauthenticatedRequest().contentType(ContentType.JSON).body("""{"name":"P"}""")
+        validatedRequest(token = null).get("/api/projects").then().statusCode(401)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
             .post("/api/projects").then().statusCode(401)
-        unauthenticatedRequest().get("/api/projects/$pid").then().statusCode(401)
-        unauthenticatedRequest().contentType(ContentType.JSON).body("""{"name":"P"}""")
+        validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(401)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
             .put("/api/projects/$pid").then().statusCode(401)
-        unauthenticatedRequest().delete("/api/projects/$pid").then().statusCode(401)
-        unauthenticatedRequest().get("/api/projects/$pid/members").then().statusCode(401)
-        unauthenticatedRequest().contentType(ContentType.JSON).body("""{"username":"bob"}""")
+        validatedRequest(token = null).delete("/api/projects/$pid").then().statusCode(401)
+        validatedRequest(token = null).get("/api/projects/$pid/members").then().statusCode(401)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"username":"bob"}""")
             .post("/api/projects/$pid/members").then().statusCode(401)
-        unauthenticatedRequest().delete("/api/projects/$pid/members/$pid").then().statusCode(401)
+        validatedRequest(token = null).delete("/api/projects/$pid/members/$pid").then().statusCode(401)
     }
 
     @Test
