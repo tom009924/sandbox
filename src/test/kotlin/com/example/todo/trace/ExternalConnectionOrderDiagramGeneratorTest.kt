@@ -526,7 +526,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         }
 
         override fun findById(id: UUID): Project? = store[id]
-        override fun findAllByIdIn(ids: List<UUID>): List<Project> = ids.mapNotNull { store[it] }
+        override fun findAllByIdIn(ids: Collection<UUID>): List<Project> = ids.mapNotNull { store[it] }
         override fun deleteById(id: UUID) {
             store.remove(id)
         }
