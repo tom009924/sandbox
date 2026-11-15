@@ -11,12 +11,12 @@
 | `POST /api/todos` | readWrite | Spanner.IdempotencyRecordRepository.findByUserIdAndKey → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(CREATED) → Spanner.IdempotencyRecordRepository.save |
 | `POST /api/todos (idempotent replay)` | readWrite | Spanner.IdempotencyRecordRepository.findByUserIdAndKey |
 | `GET /api/todos` | readOnly | Spanner.TodoRepository.findAllByUserId → KMS.Decrypt |
-| `GET /api/todos/{id}` | readOnly | Spanner.TodoRepository.findByIdAndUserId → KMS.Decrypt |
-| `PUT /api/todos/{id}` | readWrite | Spanner.TodoRepository.findByIdAndUserId → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
-| `PATCH /api/todos/{id} (reopen)` | readWrite | Spanner.TodoRepository.findByIdAndUserId → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
+| `GET /api/todos/{id}` | readOnly | Spanner.TodoRepository.findById → KMS.Decrypt |
+| `PUT /api/todos/{id}` | readWrite | Spanner.TodoRepository.findById → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
+| `PATCH /api/todos/{id} (reopen)` | readWrite | Spanner.TodoRepository.findById → Spanner.UserSettingsRepository.findByUserId → Spanner.TodoRepository.countByUserIdAndCompletedFalse → KMS.Encrypt → Spanner.TodoRepository.save → KMS.Decrypt → PubSub.publish(UPDATED) |
 | `GET /api/admin/stats` | readOnly | Spanner.UserRepository.count → Spanner.TodoRepository.count → Spanner.TodoRepository.countByCompleted |
 | `GET /api/admin/users` | readOnly | Spanner.UserRepository.findAll |
-| `DELETE /api/todos/{id}` | readWrite | Spanner.TodoRepository.findByIdAndUserId → Spanner.TodoRepository.delete → PubSub.publish(DELETED) |
+| `DELETE /api/todos/{id}` | readWrite | Spanner.TodoRepository.findById → Spanner.TodoRepository.delete → PubSub.publish(DELETED) |
 
 ## POST /api/auth/register
 
@@ -137,7 +137,7 @@ sequenceDiagram
     participant Spanner as Cloud Spanner
     participant KMS as KMS (gRPC)
     Client->>App: GET /api/todos/{id}
-    App->>Spanner: TodoRepository.findByIdAndUserId
+    App->>Spanner: TodoRepository.findById
     App->>KMS: Decrypt
     App-->>Client: Response
 ```
@@ -153,7 +153,7 @@ sequenceDiagram
     participant KMS as KMS (gRPC)
     participant PubSub as Cloud Pub/Sub
     Client->>App: PUT /api/todos/{id}
-    App->>Spanner: TodoRepository.findByIdAndUserId
+    App->>Spanner: TodoRepository.findById
     App->>KMS: Encrypt
     App->>Spanner: TodoRepository.save
     App->>KMS: Decrypt
@@ -173,7 +173,7 @@ sequenceDiagram
     participant KMS as KMS (gRPC)
     participant PubSub as Cloud Pub/Sub
     Client->>App: PATCH /api/todos/{id} (reopen)
-    App->>Spanner: TodoRepository.findByIdAndUserId
+    App->>Spanner: TodoRepository.findById
     App->>Spanner: UserSettingsRepository.findByUserId
     App->>Spanner: TodoRepository.countByUserIdAndCompletedFalse
     App->>KMS: Encrypt
@@ -222,7 +222,7 @@ sequenceDiagram
     participant Spanner as Cloud Spanner
     participant PubSub as Cloud Pub/Sub
     Client->>App: DELETE /api/todos/{id}
-    App->>Spanner: TodoRepository.findByIdAndUserId
+    App->>Spanner: TodoRepository.findById
     App->>Spanner: TodoRepository.delete
     App-->>PubSub: publish(DELETED)
     App->>Spanner: Commit (@Transactional)

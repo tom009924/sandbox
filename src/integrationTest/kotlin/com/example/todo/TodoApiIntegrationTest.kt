@@ -7,6 +7,8 @@ import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
+import com.example.todo.infrastructure.persistence.SpringDataProjectMemberRepository
+import com.example.todo.infrastructure.persistence.SpringDataProjectRepository
 import com.example.todo.infrastructure.persistence.SpringDataUserSettingsRepository
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.security.JwtTokenProvider
@@ -48,13 +50,15 @@ import java.time.LocalDate
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Suppress("TooManyFunctions", "LargeClass")
+@Suppress("TooManyFunctions", "LargeClass", "LongParameterList")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
     private val userRepository: UserRepository,
     private val pubSubReceiver: PubSubTestReceiver,
     private val jwtTokenProvider: JwtTokenProvider,
     private val springDataUserSettingsRepository: SpringDataUserSettingsRepository,
+    private val springDataProjectMemberRepository: SpringDataProjectMemberRepository,
+    private val springDataProjectRepository: SpringDataProjectRepository,
 ) {
     @LocalServerPort
     private var port: Int = 0
@@ -67,6 +71,8 @@ class TodoApiIntegrationTest @Autowired constructor(
     fun cleanDatabase() {
         DatabaseSideEffectInspector.stopTracking()
         todoRepository.findAll().forEach(todoRepository::delete)
+        springDataProjectMemberRepository.deleteAll()
+        springDataProjectRepository.deleteAll()
         userRepository.deleteAll()
         springDataUserSettingsRepository.deleteAll()
         wireMockServer.resetRequests()
@@ -947,6 +953,131 @@ class TodoApiIntegrationTest @Autowired constructor(
         assertPublishedEvent(TodoEventType.DELETED, todoId) {
             assertEquals(null, it.event.todo)
         }
+    }
+
+    @Test
+    @Suppress("MagicNumber")
+    fun projectEndpointsRejectUnauthenticatedRequests() {
+        val pid = MISSING_TODO_ID
+        val unauth = HttpStatus.UNAUTHORIZED.value()
+        validatedRequest(token = null).get("/api/projects").then().statusCode(unauth)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
+            .post("/api/projects").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
+            .put("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/projects/$pid/members").then().statusCode(unauth)
+        validatedRequest(token = null).contentType(ContentType.JSON).body("""{"username":"bob"}""")
+            .post("/api/projects/$pid/members").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/projects/$pid/members/$pid").then().statusCode(unauth)
+    }
+
+    @Test
+    @Suppress("MagicNumber")
+    fun projectCrudAndMemberAuthorizationFlow() {
+        val memberUser = saveUser("project_member")
+        val memberToken = jwtTokenProvider.generateToken(
+            AuthenticatedUser(requireNotNull(memberUser.id), memberUser.username),
+        )
+        val projectId = createProjectAs(defaultToken, "Shared Project")
+
+        validatedRequest().get("/api/projects").then().statusCode(200).body("size()", equalTo(1))
+        validatedRequest().get("/api/projects/$projectId").then().statusCode(200)
+        validatedRequest(token = memberToken).get("/api/projects/$projectId").then().statusCode(404)
+        validatedRequest().get("/api/projects/$MISSING_TODO_ID").then().statusCode(404)
+
+        addAndVerifyProjectMembers(projectId, memberToken, requireNotNull(memberUser.id))
+        verifyProjectUpdateAndDeleteAuthorization(projectId, memberToken)
+
+        sideEffectVerifier.verifyDatabaseTable("users")
+        sideEffectVerifier.verifyDatabaseTable("projects")
+        sideEffectVerifier.verifyDatabaseTable("project_members")
+    }
+
+    @Test
+    @Suppress("MagicNumber")
+    fun projectScopedTodoFlow() {
+        val memberUser = saveUser("todo_collaborator")
+        val memberToken = jwtTokenProvider.generateToken(
+            AuthenticatedUser(requireNotNull(memberUser.id), memberUser.username),
+        )
+        val projectId = createProjectAs(defaultToken, "Todo Project")
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"todo_collaborator","role":"MEMBER"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(201)
+
+        validatedPostRequest().contentType(ContentType.JSON)
+            .body("""{"title":"Bad project","projectId":"$MISSING_TODO_ID"}""")
+            .post("/api/todos").then().statusCode(404)
+
+        val todoId = validatedPostRequest().contentType(ContentType.JSON)
+            .body("""{"title":"Shared Task","projectId":"$projectId"}""")
+            .post("/api/todos").then().statusCode(201).extract().path<String>("id")
+
+        validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId")
+            .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
+        validatedRequest(token = memberToken)
+            .get("/api/todos?projectId=$projectId&completed=false&priority=MEDIUM&tag=work")
+            .then().statusCode(200).body("size()", equalTo(0))
+        validatedRequest(token = memberToken)
+            .get("/api/todos?projectId=$projectId&completed=true&priority=HIGH")
+            .then().statusCode(200).body("size()", equalTo(0))
+
+        sideEffectVerifier.verifyDatabaseTable("users")
+        sideEffectVerifier.verifyDatabaseTable("projects")
+        sideEffectVerifier.verifyDatabaseTable("project_members")
+        sideEffectVerifier.verifyDatabaseTable("todos")
+        if (pubSubReceiver.isAvailable) {
+            pubSubReceiver.pullEvents(maxMessages = 10).forEach { sideEffectVerifier.markPubSubEventVerified(it) }
+        }
+    }
+
+    private fun saveUser(username: String): User =
+        sideEffectVerifier.withoutDatabaseTracking {
+            userRepository.save(User(username = username, passwordHash = "hash"))
+        }
+
+    @Suppress("MagicNumber")
+    private fun createProjectAs(token: String, name: String): String =
+        validatedRequest(token = token).contentType(ContentType.JSON)
+            .body("""{"name":"$name","description":"Desc"}""")
+            .post("/api/projects").then().statusCode(201).extract().path("id")
+
+    @Suppress("MagicNumber")
+    private fun addAndVerifyProjectMembers(projectId: String, memberToken: String, memberId: UUID) {
+        validatedRequest().get("/api/projects/$MISSING_TODO_ID/members").then().statusCode(404)
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"MEMBER"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(201)
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(409)
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"no_such_user"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(404)
+        validatedRequest(token = memberToken).contentType(ContentType.JSON).body("""{"username":"no_such_user"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(403)
+        validatedRequest(token = memberToken).get("/api/projects/$projectId/members").then().statusCode(200)
+        validatedRequest(token = memberToken).delete("/api/projects/$projectId/members/$defaultUserId")
+            .then().statusCode(403)
+        validatedRequest().delete("/api/projects/$projectId/members/$defaultUserId").then().statusCode(409)
+        validatedRequest().delete("/api/projects/$projectId/members/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest().delete("/api/projects/$projectId/members/$memberId").then().statusCode(204)
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"OWNER"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(201)
+        validatedRequest().delete("/api/projects/$projectId/members/$memberId").then().statusCode(204)
+    }
+
+    @Suppress("MagicNumber")
+    private fun verifyProjectUpdateAndDeleteAuthorization(projectId: String, memberToken: String) {
+        validatedRequest().contentType(ContentType.JSON).body("""{"username":"project_member","role":"MEMBER"}""")
+            .post("/api/projects/$projectId/members").then().statusCode(201)
+        validatedRequest(token = memberToken).contentType(ContentType.JSON).body("""{"name":"Denied"}""")
+            .put("/api/projects/$projectId").then().statusCode(403)
+        validatedRequest().contentType(ContentType.JSON).body("""{"name":"Denied"}""")
+            .put("/api/projects/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest().contentType(ContentType.JSON).body("""{"name":"Renamed","description":null}""")
+            .put("/api/projects/$projectId").then().statusCode(200)
+        validatedRequest(token = memberToken).delete("/api/projects/$projectId").then().statusCode(403)
+        validatedRequest().delete("/api/projects/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest().delete("/api/projects/$projectId").then().statusCode(204)
     }
 
     @Test

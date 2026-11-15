@@ -3,12 +3,15 @@ package com.example.todo.infrastructure.config
 import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
+import com.example.todo.application.ProjectService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TodoService
 import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.notification.EmailNotificationSender
 import com.example.todo.domain.repository.IdempotencyRecordRepository
+import com.example.todo.domain.repository.ProjectMemberRepository
+import com.example.todo.domain.repository.ProjectRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
@@ -67,18 +70,34 @@ class TodoConfiguration {
     ): TodoCryptoHandler = TodoCryptoHandler(cryptoService, kmsProperties.keyName)
 
     @Bean
+    @Suppress("LongParameterList")
     fun todoService(
         todoRepository: TodoRepository,
         idempotencyRecordRepository: IdempotencyRecordRepository,
         todoEventPublisher: TodoEventPublisher,
         userSettingsRepository: UserSettingsRepository,
         cryptoHandler: TodoCryptoHandler,
+        projectMemberRepository: ProjectMemberRepository,
     ) = TodoService(
         todoRepository = todoRepository,
         idempotencyRecordRepository = idempotencyRecordRepository,
         todoEventPublisher = todoEventPublisher,
         userSettingsRepository = userSettingsRepository,
         cryptoHandler = cryptoHandler,
+        projectMemberRepository = projectMemberRepository,
+    )
+
+    @Bean
+    fun projectService(
+        projectRepository: ProjectRepository,
+        projectMemberRepository: ProjectMemberRepository,
+        userRepository: UserRepository,
+        todoRepository: TodoRepository,
+    ) = ProjectService(
+        projectRepository = projectRepository,
+        projectMemberRepository = projectMemberRepository,
+        userRepository = userRepository,
+        todoRepository = todoRepository,
     )
 
     @Bean

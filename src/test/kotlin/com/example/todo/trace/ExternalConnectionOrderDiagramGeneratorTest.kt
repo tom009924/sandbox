@@ -265,6 +265,7 @@ class ExternalConnectionOrderDiagramGeneratorTest {
                 dueAfter = null,
                 sortBy = null,
                 sortOrder = null,
+                projectId = null,
             )
         }
 
@@ -339,6 +340,18 @@ class ExternalConnectionOrderDiagramGeneratorTest {
                 (tag == null || tag in todo.tags)
         }
 
+        override fun findAllByProjectId(
+            projectId: UUID,
+            completed: Boolean?,
+            priority: TodoPriority?,
+            tag: String?,
+        ): List<Todo> = store.values.filter { todo ->
+            todo.projectId == projectId &&
+                (completed == null || todo.completed == completed) &&
+                (priority == null || todo.priority == priority) &&
+                (tag == null || tag in todo.tags)
+        }
+
         override fun findById(id: UUID): Todo? = store[id]
 
         override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
@@ -361,6 +374,10 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         override fun delete(todo: Todo) {
             todo.id?.let { store.remove(it) }
+        }
+
+        override fun deleteAllByProjectId(projectId: UUID) {
+            store.entries.removeIf { it.value.projectId == projectId }
         }
     }
 

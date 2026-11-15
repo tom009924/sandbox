@@ -395,6 +395,19 @@ class TodoServiceTest {
                     (tag == null || it.tags.contains(tag))
             }
 
+        override fun findAllByProjectId(
+            projectId: UUID,
+            completed: Boolean?,
+            priority: TodoPriority?,
+            tag: String?,
+        ): List<Todo> =
+            todos.values.filter {
+                it.projectId == projectId &&
+                    (completed == null || it.completed == completed) &&
+                    (priority == null || it.priority == priority) &&
+                    (tag == null || it.tags.contains(tag))
+            }
+
         override fun findById(id: UUID): Todo? = todos[id]
 
         override fun findByIdAndUserId(id: UUID, userId: UUID): Todo? =
@@ -416,6 +429,10 @@ class TodoServiceTest {
 
         override fun delete(todo: Todo) {
             todos.remove(requireNotNull(todo.id))
+        }
+
+        override fun deleteAllByProjectId(projectId: UUID) {
+            todos.entries.removeIf { it.value.projectId == projectId }
         }
     }
 

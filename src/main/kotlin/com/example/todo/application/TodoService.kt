@@ -5,11 +5,13 @@ import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.event.TodoEventType
 import com.example.todo.domain.exception.ActiveTodosLimitExceededException
+import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.UserSettings
 import com.example.todo.domain.repository.IdempotencyRecordRepository
+import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import java.time.Clock
@@ -24,6 +26,7 @@ data class TodoCommand(
     val priority: TodoPriority? = null,
     val estimatedMinutes: Int? = null,
     val tags: List<String> = emptyList(),
+    val projectId: UUID? = null,
 )
 
 data class PatchTodoCommand(
@@ -75,8 +78,10 @@ data class TodoListQuery(
     val dueAfter: LocalDate? = null,
     val sortBy: TodoSortField? = null,
     val sortOrder: SortOrder = SortOrder.ASC,
+    val projectId: UUID? = null,
 )
 
+@Suppress("LongParameterList", "TooManyFunctions")
 class TodoService(
     private val todoRepository: TodoRepository,
     idempotencyRecordRepository: IdempotencyRecordRepository,
@@ -84,13 +89,21 @@ class TodoService(
     private val clock: Clock = Clock.systemUTC(),
     private val userSettingsRepository: UserSettingsRepository? = null,
     private val cryptoHandler: TodoCryptoHandler = TodoCryptoHandler(),
+    private val projectMemberRepository: ProjectMemberRepository? = null,
 ) {
     private val idempotencyHandler = TodoIdempotencyHandler(idempotencyRecordRepository, clock)
 
     fun list(userId: UUID, query: TodoListQuery = TodoListQuery()): List<Todo> {
         val keyword = query.keyword?.trim()?.takeIf { it.isNotEmpty() }
-        val filtered = todoRepository
-            .findAllByUserId(userId, query.completed, query.priority, query.tag)
+        val sourceTodos = if (query.projectId != null) {
+            requireProjectMembership(query.projectId, userId)
+            todoRepository.findAllByProjectId(query.projectId, query.completed, query.priority, query.tag)
+        } else {
+            todoRepository
+                .findAllByUserId(userId, query.completed, query.priority, query.tag)
+                .filter { it.projectId == null }
+        }
+        val filtered = sourceTodos
             .map(cryptoHandler::decryptTodo)
             .filter { todo ->
                 (keyword == null || todo.title.contains(keyword, ignoreCase = true)) &&
@@ -104,8 +117,13 @@ class TodoService(
     fun get(id: UUID, userId: UUID): Todo = cryptoHandler.decryptTodo(findTodo(id, userId))
 
     fun create(userId: UUID, command: TodoCommand): Todo {
+        if (command.projectId != null) {
+            requireProjectMembership(command.projectId, userId)
+        }
         val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
-        ensureActiveTodoLimitNotExceeded(userId, checkRequired = !command.completed, settings = settings)
+        if (command.projectId == null) {
+            ensureActiveTodoLimitNotExceeded(userId, checkRequired = !command.completed, settings = settings)
+        }
         val effectivePriority = command.priority ?: settings.defaultPriority
         val effectiveEstimatedMinutes = command.estimatedMinutes ?: settings.defaultEstimatedMinutes
         val saved = todoRepository.save(
@@ -118,6 +136,7 @@ class TodoService(
                 priority = effectivePriority,
                 estimatedMinutes = effectiveEstimatedMinutes,
                 tags = command.tags,
+                projectId = command.projectId,
             ),
         )
         val decrypted = cryptoHandler.decryptTodo(saved)
@@ -130,7 +149,9 @@ class TodoService(
 
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id, userId)
-        ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !command.completed)
+        if (todo.projectId == null) {
+            ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !command.completed)
+        }
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
@@ -150,7 +171,9 @@ class TodoService(
     fun patch(id: UUID, userId: UUID, command: PatchTodoCommand): Todo {
         val todo = findTodo(id, userId)
         val newCompleted = command.completed ?: todo.completed
-        ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !newCompleted)
+        if (todo.projectId == null) {
+            ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !newCompleted)
+        }
         val newDescription = command.description?.let { cryptoHandler.encrypt(it) } ?: todo.description
         val updated = todoRepository.save(
             todo.copy(
@@ -201,6 +224,23 @@ class TodoService(
         )
     }
 
-    private fun findTodo(id: UUID, userId: UUID): Todo =
-        todoRepository.findByIdAndUserId(id, userId) ?: throw TodoNotFoundException(id)
+    private fun findTodo(id: UUID, userId: UUID): Todo {
+        val todo = todoRepository.findById(id) ?: throw TodoNotFoundException(id)
+        val projectId = todo.projectId
+        val hasAccess = if (projectId != null) {
+            projectMemberRepository?.findByProjectIdAndUserId(projectId, userId) != null
+        } else {
+            todo.userId == userId
+        }
+        if (!hasAccess) {
+            throw TodoNotFoundException(id)
+        }
+        return todo
+    }
+
+    private fun requireProjectMembership(projectId: UUID, userId: UUID) {
+        if (projectMemberRepository?.findByProjectIdAndUserId(projectId, userId) == null) {
+            throw ProjectNotFoundException(projectId)
+        }
+    }
 }

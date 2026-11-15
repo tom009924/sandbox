@@ -35,4 +35,7 @@ class TodoSpannerEntity(
 
     @Column(name = "tags")
     var tags: List<String>? = null,
+
+    @Column(name = "project_id")
+    var projectId: String? = null,
 )

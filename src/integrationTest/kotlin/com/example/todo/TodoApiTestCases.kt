@@ -43,6 +43,7 @@ data class NotFoundTestCase(
  * Central specification and acceptance criteria definitions for Todo API integration tests.
  * Separated from test execution infrastructure for straightforward code reviews and OAS alignment.
  */
+@Suppress("LargeClass")
 object TodoApiTestCases {
 
     /**
@@ -147,6 +148,14 @@ object TodoApiTestCases {
             summary = "Missing or invalid Bearer authentication token",
             scenarios = listOf(
                 "Reject unauthenticated request without token",
+            ),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodo",
+            statusCode = 404,
+            summary = "Specified project not found or user is not a member",
+            scenarios = listOf(
+                "Reject creating todo in a non-existent or inaccessible project",
             ),
         ),
         AcceptanceCriterion(
@@ -370,6 +379,192 @@ object TodoApiTestCases {
                 "Reject request with invalid X-Admin-Key",
             ),
         ),
+        AcceptanceCriterion(
+            operationId = "listProjects",
+            statusCode = 200,
+            summary = "Project list retrieved",
+            scenarios = listOf("List projects for authenticated member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listProjects",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated listProjects request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createProject",
+            statusCode = 201,
+            summary = "Project created",
+            scenarios = listOf("Create project and register creator as OWNER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createProject",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf("Blank name", "Missing name"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createProject",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated createProject request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "getProject",
+            statusCode = 200,
+            summary = "Project retrieved",
+            scenarios = listOf("Get project as member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "getProject",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated getProject request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "getProject",
+            statusCode = 404,
+            summary = "Project not found or user is not a member",
+            scenarios = listOf("Return 404 for missing project or non-member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateProject",
+            statusCode = 200,
+            summary = "Project updated",
+            scenarios = listOf("Update project as OWNER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateProject",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf("Blank name", "Missing name"),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateProject",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated updateProject request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateProject",
+            statusCode = 403,
+            summary = "Forbidden for non-owner",
+            scenarios = listOf("Reject updateProject by MEMBER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "updateProject",
+            statusCode = 404,
+            summary = "Project not found or user is not a member",
+            scenarios = listOf("Return 404 for missing project"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteProject",
+            statusCode = 204,
+            summary = "Project deleted",
+            scenarios = listOf("Delete project as OWNER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteProject",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated deleteProject request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteProject",
+            statusCode = 403,
+            summary = "Forbidden for non-owner",
+            scenarios = listOf("Reject deleteProject by MEMBER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteProject",
+            statusCode = 404,
+            summary = "Project not found or user is not a member",
+            scenarios = listOf("Return 404 for missing project"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listProjectMembers",
+            statusCode = 200,
+            summary = "Project member list retrieved",
+            scenarios = listOf("List members as project member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listProjectMembers",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated listProjectMembers request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listProjectMembers",
+            statusCode = 404,
+            summary = "Project not found or user is not a member",
+            scenarios = listOf("Return 404 for missing project"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 201,
+            summary = "Project member added",
+            scenarios = listOf("Add member as OWNER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 400,
+            summary = "Invalid request body",
+            scenarios = listOf("Blank username", "Missing username"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated addProjectMember request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 403,
+            summary = "Forbidden for non-owner",
+            scenarios = listOf("Reject addProjectMember by MEMBER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 404,
+            summary = "Project or target user not found",
+            scenarios = listOf("Return 404 for missing project or unknown username"),
+        ),
+        AcceptanceCriterion(
+            operationId = "addProjectMember",
+            statusCode = 409,
+            summary = "User is already a member",
+            scenarios = listOf("Return 409 when user is already a member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "removeProjectMember",
+            statusCode = 204,
+            summary = "Member removed from project",
+            scenarios = listOf("Remove member as OWNER or leave as MEMBER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "removeProjectMember",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer token",
+            scenarios = listOf("Reject unauthenticated removeProjectMember request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "removeProjectMember",
+            statusCode = 403,
+            summary = "Forbidden for non-owner",
+            scenarios = listOf("Reject removing another member by MEMBER"),
+        ),
+        AcceptanceCriterion(
+            operationId = "removeProjectMember",
+            statusCode = 404,
+            summary = "Project or member not found",
+            scenarios = listOf("Return 404 for missing project or member"),
+        ),
+        AcceptanceCriterion(
+            operationId = "removeProjectMember",
+            statusCode = 409,
+            summary = "Cannot remove last owner",
+            scenarios = listOf("Return 409 when removing last owner"),
+        ),
     )
 
     val acceptanceCriteriaMap: Map<Pair<String, Int>, List<String>>
@@ -380,6 +575,7 @@ object TodoApiTestCases {
         postValidationErrorCases() +
             putValidationErrorCases() +
             patchValidationErrorCases() +
+            projectValidationErrorCases() +
             authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
@@ -530,6 +726,51 @@ object TodoApiTestCases {
             pathProvider = { id -> "/api/todos/$id" },
             requestBody = """{"estimatedMinutes":-1}""",
             needsExistingTodo = true,
+        ),
+    )
+
+    private fun projectValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
+        ValidationErrorTestCase(
+            operationId = "createProject",
+            description = "Blank name",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/projects" },
+            requestBody = """{"name":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "createProject",
+            description = "Missing name",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/projects" },
+            requestBody = """{"description":"desc"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateProject",
+            description = "Blank name",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/projects/00000000-0000-0000-0000-000000000099" },
+            requestBody = """{"name":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "updateProject",
+            description = "Missing name",
+            method = PathItem.HttpMethod.PUT,
+            pathProvider = { "/api/projects/00000000-0000-0000-0000-000000000099" },
+            requestBody = """{"description":"desc"}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "addProjectMember",
+            description = "Blank username",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/projects/00000000-0000-0000-0000-000000000099/members" },
+            requestBody = """{"username":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "addProjectMember",
+            description = "Missing username",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/projects/00000000-0000-0000-0000-000000000099/members" },
+            requestBody = """{"role":"MEMBER"}""",
         ),
     )
 

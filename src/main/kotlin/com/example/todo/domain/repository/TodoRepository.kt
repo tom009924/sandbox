@@ -4,11 +4,19 @@ import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import java.util.UUID
 
+@Suppress("TooManyFunctions")
 interface TodoRepository {
     fun findAll(): List<Todo>
 
     fun findAllByUserId(
         userId: UUID,
+        completed: Boolean? = null,
+        priority: TodoPriority? = null,
+        tag: String? = null,
+    ): List<Todo>
+
+    fun findAllByProjectId(
+        projectId: UUID,
         completed: Boolean? = null,
         priority: TodoPriority? = null,
         tag: String? = null,
@@ -27,4 +35,6 @@ interface TodoRepository {
     fun save(todo: Todo): Todo
 
     fun delete(todo: Todo)
+
+    fun deleteAllByProjectId(projectId: UUID)
 }

@@ -67,6 +67,7 @@ class TodoIdempotencyHandler(
             priority?.name,
             estimatedMinutes?.toString(),
             tags.sorted().joinToString(",").ifEmpty { null },
+            projectId?.toString(),
         )
         val digest = MessageDigest.getInstance("SHA-256")
         fields.forEach { field ->

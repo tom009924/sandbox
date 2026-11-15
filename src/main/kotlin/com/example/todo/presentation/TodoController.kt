@@ -40,6 +40,7 @@ class TodoController(
         dueAfter: LocalDate?,
         sortBy: ApiTodoSortField?,
         sortOrder: ApiSortOrder?,
+        projectId: UUID?,
     ): ResponseEntity<List<TodoResponse>> {
         val userId = userContext.currentUserId()
         val todos = todoService.list(
@@ -53,6 +54,7 @@ class TodoController(
                 dueAfter = dueAfter,
                 sortBy = sortBy?.let { TodoSortField.valueOf(it.name) },
                 sortOrder = sortOrder?.let { SortOrder.valueOf(it.name) } ?: SortOrder.ASC,
+                projectId = projectId,
             ),
         )
         return ResponseEntity.ok(todos.map { it.toResponse() })
@@ -80,6 +82,7 @@ class TodoController(
                 priority = createTodoRequest.priority?.toDomain(),
                 estimatedMinutes = createTodoRequest.estimatedMinutes,
                 tags = createTodoRequest.tags.orEmpty(),
+                projectId = createTodoRequest.projectId,
             ),
         )
         return ResponseEntity.status(HttpStatus.CREATED).body(created.toResponse())
@@ -146,6 +149,7 @@ class TodoController(
         priority = ApiTodoPriority.valueOf(priority.name),
         estimatedMinutes = estimatedMinutes,
         tags = tags,
+        projectId = projectId,
     )
 
     private fun ApiTodoPriority.toDomain(): TodoPriority =
