@@ -4,6 +4,7 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoAccessChecker
 import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TodoSubtaskService
@@ -106,26 +107,31 @@ class TodoConfiguration {
     )
 
     @Bean
-    fun todoSubtaskService(
+    fun todoAccessChecker(
         todoRepository: TodoRepository,
-        todoSubtaskRepository: TodoSubtaskRepository,
         projectMemberRepository: ProjectMemberRepository,
-    ) = TodoSubtaskService(
+    ) = TodoAccessChecker(
         todoRepository = todoRepository,
-        todoSubtaskRepository = todoSubtaskRepository,
         projectMemberRepository = projectMemberRepository,
     )
 
     @Bean
+    fun todoSubtaskService(
+        todoAccessChecker: TodoAccessChecker,
+        todoSubtaskRepository: TodoSubtaskRepository,
+    ) = TodoSubtaskService(
+        todoAccessChecker = todoAccessChecker,
+        todoSubtaskRepository = todoSubtaskRepository,
+    )
+
+    @Bean
     fun todoCommentService(
-        todoRepository: TodoRepository,
+        todoAccessChecker: TodoAccessChecker,
         todoCommentRepository: TodoCommentRepository,
-        projectMemberRepository: ProjectMemberRepository,
         userRepository: UserRepository,
     ) = TodoCommentService(
-        todoRepository = todoRepository,
+        todoAccessChecker = todoAccessChecker,
         todoCommentRepository = todoCommentRepository,
-        projectMemberRepository = projectMemberRepository,
         userRepository = userRepository,
     )
 

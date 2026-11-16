@@ -2,11 +2,8 @@ package com.example.todo.application
 
 import com.example.todo.domain.exception.TodoCommentForbiddenException
 import com.example.todo.domain.exception.TodoCommentNotFoundException
-import com.example.todo.domain.exception.TodoNotFoundException
 import com.example.todo.domain.model.TodoComment
-import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.TodoCommentRepository
-import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
 import java.time.Clock
 import java.time.Instant
@@ -22,21 +19,24 @@ data class TodoCommentInfo(
 )
 
 class TodoCommentService(
-    private val todoRepository: TodoRepository,
+    private val todoAccessChecker: TodoAccessChecker,
     private val todoCommentRepository: TodoCommentRepository,
-    private val projectMemberRepository: ProjectMemberRepository,
     private val userRepository: UserRepository,
     private val clock: Clock = Clock.systemUTC(),
 ) {
     fun list(todoId: UUID, userId: UUID): List<TodoCommentInfo> {
-        requireTodoAccess(todoId, userId)
-        return todoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc(todoId).map { comment ->
-            val username = userRepository.findById(comment.userId)?.username ?: comment.userId.toString()
+        todoAccessChecker.requireAccess(todoId, userId)
+        val comments = todoCommentRepository.findAllByTodoIdOrderByCreatedAtAsc(todoId)
+        val usernamesById = comments
+            .map { it.userId }
+            .distinct()
+            .associateWith { id -> userRepository.findById(id)?.username ?: id.toString() }
+        return comments.map { comment ->
             TodoCommentInfo(
                 id = requireNotNull(comment.id),
                 todoId = comment.todoId,
                 userId = comment.userId,
-                username = username,
+                username = usernamesById.getValue(comment.userId),
                 content = comment.content,
                 createdAt = comment.createdAt,
             )
@@ -44,7 +44,7 @@ class TodoCommentService(
     }
 
     fun add(todoId: UUID, userId: UUID, content: String): TodoCommentInfo {
-        requireTodoAccess(todoId, userId)
+        todoAccessChecker.requireAccess(todoId, userId)
         val saved = todoCommentRepository.save(
             TodoComment(
                 todoId = todoId,
@@ -65,7 +65,7 @@ class TodoCommentService(
     }
 
     fun delete(todoId: UUID, commentId: UUID, userId: UUID) {
-        requireTodoAccess(todoId, userId)
+        todoAccessChecker.requireAccess(todoId, userId)
         val comment = todoCommentRepository.findById(commentId)
         if (comment == null || comment.todoId != todoId) {
             throw TodoCommentNotFoundException(commentId)
@@ -74,18 +74,5 @@ class TodoCommentService(
             throw TodoCommentForbiddenException("Only the comment author can delete this comment")
         }
         todoCommentRepository.deleteById(commentId)
-    }
-
-    private fun requireTodoAccess(todoId: UUID, userId: UUID) {
-        val todo = todoRepository.findById(todoId) ?: throw TodoNotFoundException(todoId)
-        val projectId = todo.projectId
-        val hasAccess = if (projectId != null) {
-            projectMemberRepository.findByProjectIdAndUserId(projectId, userId) != null
-        } else {
-            todo.userId == userId
-        }
-        if (!hasAccess) {
-            throw TodoNotFoundException(todoId)
-        }
     }
 }
