@@ -69,11 +69,11 @@ import java.util.UUID
 import com.example.todo.presentation.model.ProjectRole as ApiProjectRole
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
-class ExternalConnectionOrderDiagramGeneratorTest {
+class ExternalCallSequenceDiagramGeneratorTest {
 
     @Test
-    fun `trace all endpoints and generate external connection diagrams`() {
-        val tracer = ExternalConnectionTracer()
+    fun `trace all endpoints and generate external call sequence diagrams`() {
+        val tracer = ExternalCallTracer()
         val harness = TracedControllerHarness(tracer)
 
         val userId = harness.traceRegister()
@@ -124,8 +124,8 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         val outputPath = Path.of(
             System.getProperty(
-                "externalConnectionDiagramOut",
-                "build/reports/external-connection-order.md",
+                "externalCallDiagramOut",
+                "build/reports/external-call-sequence.md",
             ),
         )
         tracer.writeReport(outputPath)
@@ -152,12 +152,12 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         assertEquals(
             emptyList<String>(),
             missing,
-            "OpenAPI endpoints missing from ExternalConnectionOrderDiagramGeneratorTest: $missing",
+            "OpenAPI endpoints missing from ExternalCallSequenceDiagramGeneratorTest: $missing",
         )
     }
 
     @Suppress("TooManyFunctions")
-    private class TracedControllerHarness(private val tracer: ExternalConnectionTracer) {
+    private class TracedControllerHarness(private val tracer: ExternalCallTracer) {
         private var activeUserId: UUID = UUID.randomUUID()
 
         private val todoRepo = tracer.wrap(
