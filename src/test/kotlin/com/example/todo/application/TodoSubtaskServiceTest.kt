@@ -21,9 +21,8 @@ class TodoSubtaskServiceTest {
     private val subtaskRepository = InMemoryTodoSubtaskRepository()
     private val projectMemberRepository = InMemoryProjectMemberRepository()
     private val service = TodoSubtaskService(
-        todoRepository = todoRepository,
+        todoAccessChecker = TodoAccessChecker(todoRepository, projectMemberRepository),
         todoSubtaskRepository = subtaskRepository,
-        projectMemberRepository = projectMemberRepository,
     )
 
     @Test
@@ -46,9 +45,11 @@ class TodoSubtaskServiceTest {
             todoId = todoId,
             subtaskId = requireNotNull(first.id),
             userId = ownerId,
-            title = "Buy oat milk",
-            completed = true,
-            position = 2,
+            command = PatchTodoSubtaskCommand(
+                title = "Buy oat milk",
+                completed = true,
+                position = 2,
+            ),
         )
         assertEquals("Buy oat milk", patched.title)
         assertTrue(patched.completed)

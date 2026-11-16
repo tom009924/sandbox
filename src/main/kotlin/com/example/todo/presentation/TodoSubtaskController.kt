@@ -1,5 +1,6 @@
 package com.example.todo.presentation
 
+import com.example.todo.application.PatchTodoSubtaskCommand
 import com.example.todo.application.TodoSubtaskService
 import com.example.todo.application.UserContext
 import com.example.todo.domain.model.TodoSubtask
@@ -45,9 +46,11 @@ class TodoSubtaskController(
             todoId = id,
             subtaskId = subtaskId,
             userId = userId,
-            title = patchTodoSubtaskRequest.title,
-            completed = patchTodoSubtaskRequest.completed,
-            position = patchTodoSubtaskRequest.position,
+            command = PatchTodoSubtaskCommand(
+                title = patchTodoSubtaskRequest.title,
+                completed = patchTodoSubtaskRequest.completed,
+                position = patchTodoSubtaskRequest.position,
+            ),
         )
         return ResponseEntity.ok(updated.toResponse())
     }

@@ -4,6 +4,7 @@ import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
+import com.example.todo.application.TodoAccessChecker
 import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TodoSubtaskService
@@ -287,9 +288,8 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         private val todoSubtaskController = TodoSubtaskController(
             TodoSubtaskService(
-                todoRepository = todoRepo,
+                todoAccessChecker = TodoAccessChecker(todoRepo, projectMemberRepo),
                 todoSubtaskRepository = todoSubtaskRepo,
-                projectMemberRepository = projectMemberRepo,
             ),
             userContext,
         )
@@ -318,9 +318,8 @@ class ExternalConnectionOrderDiagramGeneratorTest {
 
         private val todoCommentController = TodoCommentController(
             TodoCommentService(
-                todoRepository = todoRepo,
+                todoAccessChecker = TodoAccessChecker(todoRepo, projectMemberRepo),
                 todoCommentRepository = todoCommentRepo,
-                projectMemberRepository = projectMemberRepo,
                 userRepository = userRepo,
             ),
             userContext,

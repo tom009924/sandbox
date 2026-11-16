@@ -28,9 +28,8 @@ class TodoCommentServiceTest {
     private val userRepository = InMemoryUserRepository()
     private val clock = Clock.fixed(Instant.parse("2025-04-18T12:00:00Z"), ZoneOffset.UTC)
     private val service = TodoCommentService(
-        todoRepository = todoRepository,
+        todoAccessChecker = TodoAccessChecker(todoRepository, projectMemberRepository),
         todoCommentRepository = commentRepository,
-        projectMemberRepository = projectMemberRepository,
         userRepository = userRepository,
         clock = clock,
     )
@@ -68,6 +67,24 @@ class TodoCommentServiceTest {
 
         service.delete(todoId, added.id, memberId)
         assertEquals(0, service.list(todoId, ownerId).size)
+    }
+
+    @Test
+    fun `list deduplicates user lookups per distinct author`() {
+        val alice = userRepository.save(User(username = "alice", passwordHash = "h"))
+        val aliceId = requireNotNull(alice.id)
+        val todo = todoRepository.save(Todo(userId = aliceId, title = "Task"))
+        val todoId = requireNotNull(todo.id)
+
+        service.add(todoId, aliceId, "First comment")
+        service.add(todoId, aliceId, "Second comment")
+        service.add(todoId, aliceId, "Third comment")
+        userRepository.findByIdCalls = 0
+
+        val comments = service.list(todoId, aliceId)
+
+        assertEquals(3, comments.size)
+        assertEquals(1, userRepository.findByIdCalls)
     }
 
     private class InMemoryTodoCommentRepository : TodoCommentRepository {
@@ -143,7 +160,11 @@ class TodoCommentServiceTest {
 
     private class InMemoryUserRepository : UserRepository {
         private val storage = linkedMapOf<UUID, User>()
-        override fun findById(id: UUID): User? = storage[id]
+        var findByIdCalls = 0
+        override fun findById(id: UUID): User? {
+            findByIdCalls++
+            return storage[id]
+        }
         override fun findAll(): List<User> = storage.values.toList()
         override fun findByUsername(username: String): User? = storage.values.find { it.username == username }
         override fun existsByUsername(username: String): Boolean = false
