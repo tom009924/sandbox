@@ -343,6 +343,7 @@ tasks.check {
     dependsOn(integrationTest)
     dependsOn(tasks.named("openApiValidate"))
     dependsOn("lintOpenApi")
+    dependsOn("lintAsyncApi")
     dependsOn(jacocoTestReport)
     dependsOn(jacocoTestCoverageVerification)
 }
@@ -436,6 +437,18 @@ val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     inputs.file("docs/overlays/ja.yaml")
     inputs.file(".spectral.yaml")
     inputs.dir("docs/workflows")
+    inputs.file("package.json")
+    inputs.file("package-lock.json")
+}
+
+val lintAsyncApi = tasks.register<Exec>("lintAsyncApi") {
+    description = "Lints AsyncAPI specification using Stoplight Spectral."
+    group = "verification"
+    dependsOn(npmInstall)
+    setupNodeEnvironment()
+    commandLine(npmExecutable, "run", "lint:asyncapi")
+    inputs.file("docs/asyncapi.yaml")
+    inputs.file(".spectral.asyncapi.yaml")
     inputs.file("package.json")
     inputs.file("package-lock.json")
 }
