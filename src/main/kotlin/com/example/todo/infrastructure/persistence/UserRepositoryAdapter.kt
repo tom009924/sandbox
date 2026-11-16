@@ -14,6 +14,11 @@ class UserRepositoryAdapter(
     override fun findById(id: UUID): User? =
         springDataUserRepository.findById(id.toString()).map { it.toDomain() }.orElse(null)
 
+    override fun findAllByIdIn(ids: Collection<UUID>): List<User> {
+        if (ids.isEmpty()) return emptyList()
+        return springDataUserRepository.findAllById(ids.map { it.toString() }).map { it.toDomain() }
+    }
+
     override fun findAll(): List<User> =
         springDataUserRepository.findAll().map { it.toDomain() }
 

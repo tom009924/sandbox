@@ -611,6 +611,8 @@ class ExternalConnectionOrderDiagramGeneratorTest {
         private val store = linkedMapOf<UUID, User>()
 
         override fun findById(id: UUID): User? = store[id]
+        override fun findAllByIdIn(ids: Collection<UUID>): List<User> =
+            ids.mapNotNull { store[it] }
         override fun findAll(): List<User> = store.values.toList()
         override fun findByUsername(username: String): User? = store.values.firstOrNull { it.username == username }
         override fun existsByUsername(username: String): Boolean = store.values.any { it.username == username }
