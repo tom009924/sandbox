@@ -963,6 +963,10 @@ class TodoApiIntegrationTest @Autowired constructor(
         validatedRequest(token = null).contentType(ContentType.JSON).body("""{"name":"P"}""")
             .post("/api/projects").then().statusCode(unauth)
         validatedRequest(token = null).get("/api/projects/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).get("/api/todos/$pid/subtasks").then().statusCode(unauth)
+        validatedRequest(token = null).post("/api/todos/$pid/subtasks").then().statusCode(unauth)
+        validatedRequest(token = null).patch("/api/todos/$pid/subtasks/$pid").then().statusCode(unauth)
+        validatedRequest(token = null).delete("/api/todos/$pid/subtasks/$pid").then().statusCode(unauth)
         validatedRequest(token = null).get("/api/todos/$pid/comments").then().statusCode(unauth)
         validatedRequest(token = null).post("/api/todos/$pid/comments").then().statusCode(unauth)
         validatedRequest(token = null).delete("/api/todos/$pid/comments/$pid").then().statusCode(unauth)
@@ -1025,6 +1029,7 @@ class TodoApiIntegrationTest @Autowired constructor(
             .post("/api/todos").then().statusCode(400)
         validatedRequest(token = memberToken).get("/api/todos?projectId=$projectId")
             .then().statusCode(200).body("size()", equalTo(1)).body("[0].id", equalTo(todoId))
+        verifyTodoSubtasksFlow(todoId, memberToken)
 
         val commentId = validatedRequest(token = memberToken).contentType(ContentType.JSON)
             .body("""{"content":"Looks good!"}""")
@@ -1059,6 +1064,29 @@ class TodoApiIntegrationTest @Autowired constructor(
         sideEffectVerifier.withoutDatabaseTracking {
             userRepository.save(User(username = username, passwordHash = "hash"))
         }
+
+    @Suppress("MagicNumber")
+    private fun verifyTodoSubtasksFlow(todoId: String, memberToken: String) {
+        val subtaskId = validatedRequest(token = memberToken).contentType(ContentType.JSON)
+            .body("""{"title":"Step 1"}""")
+            .post("/api/todos/$todoId/subtasks").then().statusCode(201).extract().path<String>("id")
+        validatedRequest().get("/api/todos/$todoId/subtasks").then().statusCode(200)
+            .body("size()", equalTo(1)).body("[0].title", equalTo("Step 1"))
+        validatedRequest().get("/api/todos/$MISSING_TODO_ID/subtasks").then().statusCode(404)
+        validatedRequest().contentType(ContentType.JSON).body("""{"title":"Missing"}""")
+            .post("/api/todos/$MISSING_TODO_ID/subtasks").then().statusCode(404)
+        validatedRequest(token = memberToken).contentType(ContentType.JSON).body("""{"completed":true,"position":0}""")
+            .patch("/api/todos/$todoId/subtasks/$subtaskId").then().statusCode(200)
+            .body("completed", equalTo(true))
+            .body("position", equalTo(0))
+        validatedRequest(token = memberToken).contentType(ContentType.JSON).body("""{"completed":true}""")
+            .patch("/api/todos/$todoId/subtasks/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest(token = memberToken)
+            .delete("/api/todos/$todoId/subtasks/$MISSING_TODO_ID").then().statusCode(404)
+        validatedRequest(token = memberToken)
+            .delete("/api/todos/$todoId/subtasks/$subtaskId").then().statusCode(204)
+        sideEffectVerifier.verifyDatabaseTable("todo_subtasks")
+    }
 
     @Suppress("MagicNumber")
     private fun createProjectAs(token: String, name: String): String =

@@ -287,6 +287,24 @@ object TodoApiTestCases {
             ),
         ),
         AcceptanceCriterion(
+            operationId = "listTodoSubtasks",
+            statusCode = 200,
+            summary = "Todo subtask list",
+            scenarios = listOf("List subtasks for accessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listTodoSubtasks",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated listTodoSubtasks request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "listTodoSubtasks",
+            statusCode = 404,
+            summary = "Todo not found",
+            scenarios = listOf("Return 404 for missing or inaccessible todo"),
+        ),
+        AcceptanceCriterion(
             operationId = "listTodoComments",
             statusCode = 200,
             summary = "Todo comment list",
@@ -303,6 +321,72 @@ object TodoApiTestCases {
             statusCode = 404,
             summary = "Todo not found",
             scenarios = listOf("Return 404 for missing or inaccessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoSubtask",
+            statusCode = 201,
+            summary = "Subtask created",
+            scenarios = listOf("Add subtask to accessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoSubtask",
+            statusCode = 400,
+            summary = "Invalid subtask request",
+            scenarios = listOf("Blank title", "Missing title"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoSubtask",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated createTodoSubtask request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "createTodoSubtask",
+            statusCode = 404,
+            summary = "Todo not found",
+            scenarios = listOf("Return 404 when adding subtask to missing todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodoSubtask",
+            statusCode = 200,
+            summary = "Subtask updated",
+            scenarios = listOf("Patch subtask title, completion, or position"),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodoSubtask",
+            statusCode = 400,
+            summary = "Invalid subtask request",
+            scenarios = listOf("Blank title", "Negative position"),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodoSubtask",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated patchTodoSubtask request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "patchTodoSubtask",
+            statusCode = 404,
+            summary = "Todo or subtask not found",
+            scenarios = listOf("Return 404 for missing todo or subtask"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoSubtask",
+            statusCode = 204,
+            summary = "Subtask deleted",
+            scenarios = listOf("Delete subtask from accessible todo"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoSubtask",
+            statusCode = 401,
+            summary = "Missing or invalid Bearer authentication token",
+            scenarios = listOf("Reject unauthenticated deleteTodoSubtask request"),
+        ),
+        AcceptanceCriterion(
+            operationId = "deleteTodoSubtask",
+            statusCode = 404,
+            summary = "Todo or subtask not found",
+            scenarios = listOf("Return 404 for missing todo or subtask"),
         ),
         AcceptanceCriterion(
             operationId = "createTodoComment",
@@ -642,6 +726,7 @@ object TodoApiTestCases {
             putValidationErrorCases() +
             patchValidationErrorCases() +
             projectValidationErrorCases() +
+            subtaskValidationErrorCases() +
             authValidationErrorCases()
 
     private fun authValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
@@ -851,6 +936,41 @@ object TodoApiTestCases {
             method = PathItem.HttpMethod.POST,
             pathProvider = { "/api/todos/00000000-0000-0000-0000-000000000099/comments" },
             requestBody = """{}""",
+        ),
+    )
+
+    private fun subtaskValidationErrorCases(): List<ValidationErrorTestCase> = listOf(
+        ValidationErrorTestCase(
+            operationId = "createTodoSubtask",
+            description = "Blank title",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/todos/00000000-0000-0000-0000-000000000099/subtasks" },
+            requestBody = """{"title":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "createTodoSubtask",
+            description = "Missing title",
+            method = PathItem.HttpMethod.POST,
+            pathProvider = { "/api/todos/00000000-0000-0000-0000-000000000099/subtasks" },
+            requestBody = """{}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "patchTodoSubtask",
+            description = "Blank title",
+            method = PathItem.HttpMethod.PATCH,
+            pathProvider = {
+                "/api/todos/00000000-0000-0000-0000-000000000099/subtasks/00000000-0000-0000-0000-000000000099"
+            },
+            requestBody = """{"title":"   "}""",
+        ),
+        ValidationErrorTestCase(
+            operationId = "patchTodoSubtask",
+            description = "Negative position",
+            method = PathItem.HttpMethod.PATCH,
+            pathProvider = {
+                "/api/todos/00000000-0000-0000-0000-000000000099/subtasks/00000000-0000-0000-0000-000000000099"
+            },
+            requestBody = """{"position":-1}""",
         ),
     )
 

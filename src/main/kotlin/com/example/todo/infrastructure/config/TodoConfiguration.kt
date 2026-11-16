@@ -6,6 +6,7 @@ import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
 import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
+import com.example.todo.application.TodoSubtaskService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.crypto.CryptoService
@@ -17,6 +18,7 @@ import com.example.todo.domain.repository.ProjectMemberRepository
 import com.example.todo.domain.repository.ProjectRepository
 import com.example.todo.domain.repository.TodoCommentRepository
 import com.example.todo.domain.repository.TodoRepository
+import com.example.todo.domain.repository.TodoSubtaskRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
@@ -101,6 +103,17 @@ class TodoConfiguration {
         projectMemberRepository = projectMemberRepository,
         userRepository = userRepository,
         todoRepository = todoRepository,
+    )
+
+    @Bean
+    fun todoSubtaskService(
+        todoRepository: TodoRepository,
+        todoSubtaskRepository: TodoSubtaskRepository,
+        projectMemberRepository: ProjectMemberRepository,
+    ) = TodoSubtaskService(
+        todoRepository = todoRepository,
+        todoSubtaskRepository = todoSubtaskRepository,
+        projectMemberRepository = projectMemberRepository,
     )
 
     @Bean

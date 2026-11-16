@@ -15,6 +15,8 @@ security:
 tags:
   - name: Todos
     description: Todo management
+  - name: Todo Subtasks
+    description: Todo subtask checklist management
   - name: Todo Comments
     description: Todo comment management
   - name: Projects
@@ -433,6 +435,184 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}/subtasks:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Todo identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - Todo Subtasks
+      summary: List subtasks for a todo
+      description: Retrieve subtasks for a todo ordered by position. Accessible to the todo owner or project members.
+      operationId: listTodoSubtasks
+      responses:
+        '200':
+          description: Todo subtask list
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 1000
+                items:
+                  $ref: '#/components/schemas/TodoSubtaskResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Todo Subtasks
+      summary: Add a subtask to a todo
+      description: Add a subtask item to a todo checklist. Accessible to the todo owner or project members.
+      operationId: createTodoSubtask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoSubtaskRequest'
+      responses:
+        '201':
+          description: Subtask created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoSubtaskResponse'
+        '400':
+          description: Invalid subtask request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/todos/{id}/subtasks/{subtaskId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Todo identifier
+        schema:
+          type: string
+          format: uuid
+      - name: subtaskId
+        in: path
+        required: true
+        description: Subtask identifier
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags:
+        - Todo Subtasks
+      summary: Partially update a subtask
+      description: Update title, completion status, or position of a subtask.
+      operationId: patchTodoSubtask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTodoSubtaskRequest'
+      responses:
+        '200':
+          description: Subtask updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoSubtaskResponse'
+        '400':
+          description: Invalid subtask request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo or subtask not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Todo Subtasks
+      summary: Delete a subtask
+      description: Delete a subtask from a todo checklist.
+      operationId: deleteTodoSubtask
+      responses:
+        '204':
+          description: Subtask deleted
+        '401':
+          description: Missing or invalid Bearer authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Todo or subtask not found
           content:
             application/json:
               schema:
@@ -1505,6 +1685,66 @@ components:
           example: bob
         role:
           $ref: '#/components/schemas/ProjectRole'
+    TodoSubtaskResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - todoId
+        - title
+        - completed
+        - position
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        todoId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        title:
+          type: string
+          maxLength: 100
+          example: Check expiration date
+        completed:
+          type: boolean
+          example: false
+        position:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 0
+    CreateTodoSubtaskRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Subtask title. Must contain at least one non-whitespace character.
+          example: Check expiration date
+    PatchTodoSubtaskRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Subtask title. Must contain at least one non-whitespace character.
+          example: Verify organic label
+        completed:
+          type: boolean
+          example: true
+        position:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 1
     TodoCommentResponse:
       type: object
       additionalProperties: false

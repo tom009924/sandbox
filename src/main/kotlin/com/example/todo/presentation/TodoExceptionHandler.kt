@@ -12,6 +12,7 @@ import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoCommentForbiddenException
 import com.example.todo.domain.exception.TodoCommentNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
+import com.example.todo.domain.exception.TodoSubtaskNotFoundException
 import com.example.todo.domain.exception.UserAlreadyExistsException
 import com.example.todo.domain.exception.UserNotFoundException
 import jakarta.validation.ConstraintViolationException
@@ -56,6 +57,7 @@ class TodoExceptionHandler {
     @ExceptionHandler(
         ProjectNotFoundException::class,
         ProjectMemberNotFoundException::class,
+        TodoSubtaskNotFoundException::class,
         TodoCommentNotFoundException::class,
         UserNotFoundException::class,
     )
