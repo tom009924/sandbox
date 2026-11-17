@@ -157,12 +157,16 @@ CI では JetBrains Qodana（設定: [`qodana.yaml`](qodana.yaml)）による静
 docker run --rm -v "$(pwd):/data/project" jetbrains/qodana-jvm-community:latest
 ```
 
-また、Aqua Security Trivy（設定: [`trivy.yaml`](trivy.yaml)、トリアージ定義: [`.trivyignore`](.trivyignore)）によるファイルシステム・依存関係・設定ミスの脆弱性スキャンが `.github/workflows/trivy.yml` で実行されます（CRITICAL/HIGH 脆弱性の検出時はビルドが失敗します）。ローカルで実行する場合は Docker を利用できます:
+また、Aqua Security Trivy（設定: [`trivy.yaml`](trivy.yaml)、トリアージ定義: [`.trivyignore`](.trivyignore)）によるファイルシステム・依存関係・設定ミスの脆弱性スキャンが `.github/workflows/trivy.yml` で実行されます（CRITICAL/HIGH 脆弱性の検出時はビルドが失敗します）。さらに、OWASP dep-scan（`.github/workflows/dep-scan.yml`、[`scripts/dep-scan.sh`](scripts/dep-scan.sh)）により、脆弱な関数・クラスへの到達可能性解析（Reachability Analysis）、EPSS/KEV ベースの優先度評価、および CycloneDX VEX / SBOM レポート生成を補完的に実行できます。ローカルで実行する場合は Docker を利用できます:
 
 ```bash
 npm run trivy:scan
 # または直接Dockerで実行（キャッシュ指定により高速化）:
 docker run --rm -v /tmp/trivy-cache:/root/.cache/ -v "$(pwd):/project" -w /project aquasec/trivy:latest fs .
+
+# OWASP dep-scan による到達可能性解析（Reachability）と VEX 生成:
+npm run depscan
+npm run depscan:reachability
 ```
 
 MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/dist/openapi.admin.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
