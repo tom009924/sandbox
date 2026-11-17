@@ -1,0 +1,69 @@
+name: OWASP dep-scan (Reachability & VEX)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 1 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dep-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dep-scan:
+    name: OWASP dep-scan Reachability & VEX Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OWASP dep-scan (Gradle & Node.js with Reachability / VEX)
+        run: |
+          mkdir -p build/reports/depscan
+          chmod -R 777 build/reports/depscan
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/app" \
+            ghcr.io/owasp-dep-scan/dep-scan:latest \
+            depscan \
+            --src /app \
+            --reports-dir /app/build/reports/depscan \
+            --type gradle,nodejs \
+            --explain \
+            --profile research || true
+
+      - name: Summarize OWASP dep-scan reports in Job Summary
+        if: always()
+        run: |
+          echo "### 🔍 OWASP dep-scan (Reachability & EPSS/KEV Analysis)" >> $GITHUB_STEP_SUMMARY
+          if compgen -G "build/reports/depscan/*.txt" > /dev/null; then
+            for report in build/reports/depscan/*.txt; do
+              echo "#### $(basename "$report")" >> $GITHUB_STEP_SUMMARY
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              cat "$report" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "Generated VEX / CycloneDX BOM and SARIF reports in \`build/reports/depscan/\`." >> $GITHUB_STEP_SUMMARY
+            ls -la build/reports/depscan/ || true
+          fi
+
+      - name: Upload OWASP dep-scan VEX, BOM & SARIF artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-depscan-reports
+          path: build/reports/depscan/
+          if-no-files-found: ignore
+          retention-days: 14
