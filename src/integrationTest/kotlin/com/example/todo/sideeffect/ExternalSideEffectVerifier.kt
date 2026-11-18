@@ -25,11 +25,16 @@ internal class ExternalSideEffectVerifier(
     wireMockServer: WireMockServer,
     pubSubReceiver: PubSubTestReceiver,
     initialAllowedDatabaseTables: Set<String> = emptySet(),
+    requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
 ) {
     private val verifiedDatabaseMutations: MutableSet<DatabaseMutation> =
         Collections.newSetFromMap(IdentityHashMap())
     private val allowedDatabaseTables = initialAllowedDatabaseTables.map { it.lowercase() }.toMutableSet()
-    private val endpointVerifier = ExternalEndpointSideEffectVerifier(wireMockServer, pubSubReceiver)
+    private val endpointVerifier = ExternalEndpointSideEffectVerifier(
+        wireMockServer = wireMockServer,
+        pubSubReceiver = pubSubReceiver,
+        requirePubSub = requirePubSub,
+    )
 
     /**
      * テストケースの実行前に呼び出し、追跡状態を初期化して副作用の監視を開始します。

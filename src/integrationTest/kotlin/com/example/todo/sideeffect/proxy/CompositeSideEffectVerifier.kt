@@ -20,8 +20,13 @@ internal class CompositeSideEffectVerifier(
     private val spannerProxy: SpannerSideEffectProxy,
     wireMockServer: WireMockServer,
     pubSubReceiver: PubSubTestReceiver,
+    requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
 ) {
-    private val endpointVerifier = ExternalEndpointSideEffectVerifier(wireMockServer, pubSubReceiver)
+    private val endpointVerifier = ExternalEndpointSideEffectVerifier(
+        wireMockServer = wireMockServer,
+        pubSubReceiver = pubSubReceiver,
+        requirePubSub = requirePubSub,
+    )
 
     /**
      * テストケース開始時に呼び出し、Spanner プロキシおよび各クライアントの追跡を開始します。
