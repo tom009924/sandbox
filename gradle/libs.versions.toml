@@ -6,6 +6,7 @@ detekt = "1.23.8"
 dependencyAnalysis = "3.19.2"
 openapiGenerator = "7.10.0"
 jacoco = "0.8.12"
+cyclonedx = "3.6.1"
 
 spannerJdbc = "2.29.1"
 springCloudGcp = "8.2.2"
@@ -60,4 +61,5 @@ spring-dependency-management = { id = "io.spring.dependency-management", version
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 dependency-analysis = { id = "com.autonomousapps.dependency-analysis", version.ref = "dependencyAnalysis" }
 openapi-generator = { id = "org.openapi.generator", version.ref = "openapiGenerator" }
+cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx" }
 

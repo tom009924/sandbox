@@ -67,6 +67,17 @@ jobs:
           PUBSUB_REQUIRED: "true"
         run: ./gradlew check bootJar --no-daemon -PdetektAutoCorrect=false
 
+      - name: Generate CycloneDX SBOM
+        run: ./gradlew cyclonedxBom --no-daemon
+
+      - name: Upload CycloneDX SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-cyclonedx-sbom
+          path: build/reports/cyclonedx/bom.json
+          retention-days: 14
+
       - name: Verify generated docs and diagrams are up-to-date
         run: |
           ./gradlew generateExternalCallDiagrams --no-daemon
