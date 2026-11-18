@@ -10,6 +10,8 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Duration
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.UUID
 
 /**
@@ -25,7 +27,8 @@ internal class ExternalSideEffectVerifier(
     private val pubSubReceiver: PubSubTestReceiver,
     initialAllowedDatabaseTables: Set<String> = emptySet(),
 ) {
-    private val verifiedDatabaseMutations = mutableListOf<DatabaseMutation>()
+    private val verifiedDatabaseMutations: MutableSet<DatabaseMutation> =
+        Collections.newSetFromMap(IdentityHashMap())
     private val allowedDatabaseTables = initialAllowedDatabaseTables.map { it.lowercase() }.toMutableSet()
     private val verifiedHttpRequests = mutableListOf<LoggedRequest>()
     private val verifiedPubSubEvents = mutableListOf<ReceivedTodoEvent>()
