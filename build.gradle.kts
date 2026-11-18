@@ -6,16 +6,30 @@ plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.dependency.analysis)
     alias(libs.plugins.openapi.generator)
+    alias(libs.plugins.cyclonedx)
     jacoco
 }
 
 import java.nio.file.Files
+import org.cyclonedx.gradle.CyclonedxAggregateTask
+import org.cyclonedx.gradle.CyclonedxDirectTask
+import org.gradle.api.file.RegularFile
 
 group = "com.example"
 version = "1.0.0"
 
 jacoco {
     toolVersion = libs.versions.jacoco.get()
+}
+
+tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
+    includeConfigs.set(listOf("runtimeClasspath"))
+    xmlOutput.convention(null as RegularFile?)
+}
+
+tasks.named<CyclonedxAggregateTask>("cyclonedxBom") {
+    jsonOutput.set(layout.buildDirectory.file("reports/cyclonedx/bom.json"))
+    xmlOutput.convention(null as RegularFile?)
 }
 
 dependencyLocking {
