@@ -24,6 +24,8 @@
     "deploy:apigee": "scripts/deploy-apigee-proxy.sh",
     "check:oss-health": "node scripts/check-oss-health.mjs",
     "sbom:generate": "scripts/generate-sbom.sh",
+    "depscan": "scripts/dep-scan.sh",
+    "depscan:reachability": "scripts/dep-scan.sh --profile research",
     "trivy:scan": "scripts/trivy-scan.sh",
     "trivy:suppressed": "scripts/trivy-scan.sh --show-suppressed",
     "usage": "ccusage -O",

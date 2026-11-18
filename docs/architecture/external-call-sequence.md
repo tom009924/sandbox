@@ -1,8 +1,8 @@
-# 外部接続順ダイアグラム（動的トレース自動生成）
+# 外部呼び出しシーケンス図（動的トレース自動生成）
 
-> **自動生成ドキュメント**: 本ドキュメントは `./gradlew generateExternalConnectionDiagrams` により動的トレースから自動生成されています。手動編集は行わないでください。
+> **自動生成ドキュメント**: 本ドキュメントは `./gradlew generateExternalCallDiagrams` により動的トレースから自動生成されています。手動編集は行わないでください。
 
-| エンドポイント | トランザクション | 外部接続順 |
+| エンドポイント | トランザクション | 外部呼び出しシーケンス |
 |---|---|---|
 | `POST /api/auth/register` | readWrite | Spanner.UserRepository.existsByUsername → Spanner.UserRepository.save → Email.POST /api/v1/emails |
 | `POST /api/auth/login` | readOnly | Spanner.UserRepository.findByUsername |

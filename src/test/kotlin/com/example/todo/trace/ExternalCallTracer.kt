@@ -25,7 +25,7 @@ data class EndpointTrace(
     val events: List<ExternalCallEvent>,
 )
 
-class ExternalConnectionTracer {
+class ExternalCallTracer {
     private val activeEvents = ThreadLocal<MutableList<ExternalCallEvent>?>()
     private val recordedTraces = mutableListOf<EndpointTrace>()
 
@@ -103,14 +103,14 @@ class ExternalConnectionTracer {
     }
 
     fun renderMarkdownReport(traces: List<EndpointTrace> = recordedTraces): String = buildString {
-        appendLine("# 外部接続順ダイアグラム（動的トレース自動生成）")
+        appendLine("# 外部呼び出しシーケンス図（動的トレース自動生成）")
         appendLine()
         appendLine(
-            "> **自動生成ドキュメント**: 本ドキュメントは `./gradlew generateExternalConnectionDiagrams` " +
+            "> **自動生成ドキュメント**: 本ドキュメントは `./gradlew generateExternalCallDiagrams` " +
                 "により動的トレースから自動生成されています。手動編集は行わないでください。",
         )
         appendLine()
-        appendLine("| エンドポイント | トランザクション | 外部接続順 |")
+        appendLine("| エンドポイント | トランザクション | 外部呼び出しシーケンス |")
         appendLine("|---|---|---|")
         traces.forEach { trace ->
             val txLabel = when (trace.transactionalReadOnly) {
@@ -119,7 +119,7 @@ class ExternalConnectionTracer {
                 null -> "-"
             }
             val flow = if (trace.events.isEmpty()) {
-                "(外部接続なし)"
+                "(外部呼び出しなし)"
             } else {
                 trace.events.joinToString(" → ") { "${it.system.alias}.${it.operation}" }
             }
