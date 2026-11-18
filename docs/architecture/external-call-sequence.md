@@ -29,7 +29,7 @@
 | `GET /api/projects/{projectId}` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById |
 | `PUT /api/projects/{projectId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.ProjectRepository.save |
 | `POST /api/projects/{projectId}/members` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.UserRepository.findByUsername → Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.save |
-| `GET /api/projects/{projectId}/members` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findAllByProjectId → Spanner.UserRepository.findById → Spanner.UserRepository.findById |
+| `GET /api/projects/{projectId}/members` | readOnly | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findAllByProjectId → Spanner.UserRepository.findAllByIdIn |
 | `DELETE /api/projects/{projectId}/members/{userId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectMemberRepository.deleteByProjectIdAndUserId |
 | `DELETE /api/projects/{projectId}` | readWrite | Spanner.ProjectMemberRepository.findByProjectIdAndUserId → Spanner.ProjectRepository.findById → Spanner.TodoRepository.deleteAllByProjectId → Spanner.ProjectMemberRepository.deleteAllByProjectId → Spanner.ProjectRepository.deleteById |
 
@@ -440,8 +440,7 @@ sequenceDiagram
     Client->>App: GET /api/projects/{projectId}/members
     App->>Spanner: ProjectMemberRepository.findByProjectIdAndUserId
     App->>Spanner: ProjectMemberRepository.findAllByProjectId
-    App->>Spanner: UserRepository.findById
-    App->>Spanner: UserRepository.findById
+    App->>Spanner: UserRepository.findAllByIdIn
     App-->>Client: Response
 ```
 

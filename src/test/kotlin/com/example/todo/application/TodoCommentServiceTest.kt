@@ -165,6 +165,8 @@ class TodoCommentServiceTest {
             findByIdCalls++
             return storage[id]
         }
+        override fun findAllByIdIn(ids: Collection<UUID>): List<User> =
+            ids.mapNotNull { storage[it] }
         override fun findAll(): List<User> = storage.values.toList()
         override fun findByUsername(username: String): User? = storage.values.find { it.username == username }
         override fun existsByUsername(username: String): Boolean = false

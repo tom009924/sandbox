@@ -81,10 +81,7 @@ class ProjectService(
     }
 
     fun delete(projectId: UUID, userId: UUID) {
-        val member = requireMembership(projectId, userId)
-        if (member.role != ProjectRole.OWNER) {
-            throw ProjectForbiddenException("Only project owners can delete the project")
-        }
+        requireOwner(projectId, userId, "Only project owners can delete the project")
         if (projectRepository.findById(projectId) == null) {
             throw ProjectNotFoundException(projectId)
         }
@@ -95,8 +92,11 @@ class ProjectService(
 
     fun listMembers(projectId: UUID, userId: UUID): List<ProjectMemberInfo> {
         requireMembership(projectId, userId)
-        return projectMemberRepository.findAllByProjectId(projectId).map { member ->
-            val username = userRepository.findById(member.userId)?.username ?: member.userId.toString()
+        val members = projectMemberRepository.findAllByProjectId(projectId)
+        val usersById = userRepository.findAllByIdIn(members.map { it.userId }.distinct())
+            .associateBy { requireNotNull(it.id) }
+        return members.map { member ->
+            val username = usersById[member.userId]?.username ?: member.userId.toString()
             ProjectMemberInfo(
                 projectId = member.projectId,
                 userId = member.userId,
@@ -142,8 +142,12 @@ class ProjectService(
         if (actorUserId != targetUserId && actor.role != ProjectRole.OWNER) {
             throw ProjectForbiddenException("Only project owners can remove other members")
         }
-        val target = projectMemberRepository.findByProjectIdAndUserId(projectId, targetUserId)
-            ?: throw ProjectMemberNotFoundException(projectId, targetUserId)
+        val target = if (actorUserId == targetUserId) {
+            actor
+        } else {
+            projectMemberRepository.findByProjectIdAndUserId(projectId, targetUserId)
+                ?: throw ProjectMemberNotFoundException(projectId, targetUserId)
+        }
         ensureNotLastOwner(projectId, target)
         projectMemberRepository.deleteByProjectIdAndUserId(projectId, targetUserId)
     }
