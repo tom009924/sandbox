@@ -5,7 +5,6 @@ import com.example.todo.ReceivedTodoEvent
 import com.example.todo.domain.event.TodoEventType
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.http.RequestMethod
-import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,16 +22,19 @@ import java.util.UUID
  */
 @Suppress("TooManyFunctions")
 internal class ExternalSideEffectVerifier(
-    private val wireMockServer: WireMockServer,
-    private val pubSubReceiver: PubSubTestReceiver,
+    wireMockServer: WireMockServer,
+    pubSubReceiver: PubSubTestReceiver,
     initialAllowedDatabaseTables: Set<String> = emptySet(),
-    private val requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
+    requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
 ) {
-    private val verifiedDatabaseMutations = mutableListOf<DatabaseMutation>()
-    private val allowedDatabaseTables = initialAllowedDatabaseTables.map { it.lowercase() }.toMutableSet()
-    private val verifiedHttpRequests = mutableListOf<LoggedRequest>()
-    private val verifiedPubSubEvents: MutableSet<ReceivedTodoEvent> =
+    private val verifiedDatabaseMutations: MutableSet<DatabaseMutation> =
         Collections.newSetFromMap(IdentityHashMap())
+    private val allowedDatabaseTables = initialAllowedDatabaseTables.map { it.lowercase() }.toMutableSet()
+    private val endpointVerifier = ExternalEndpointSideEffectVerifier(
+        wireMockServer = wireMockServer,
+        pubSubReceiver = pubSubReceiver,
+        requirePubSub = requirePubSub,
+    )
 
     /**
      * テストケースの実行前に呼び出し、追跡状態を初期化して副作用の監視を開始します。
@@ -41,9 +43,7 @@ internal class ExternalSideEffectVerifier(
     fun startTracking() {
         DatabaseSideEffectInspector.startTracking()
         verifiedDatabaseMutations.clear()
-        verifiedHttpRequests.clear()
-        verifiedPubSubEvents.clear()
-        pubSubReceiver.clearPulledEvents()
+        endpointVerifier.startTracking()
     }
 
     /**
@@ -119,39 +119,12 @@ internal class ExternalSideEffectVerifier(
         method: RequestMethod,
         urlPattern: String,
         count: Int = 1,
-    ): List<LoggedRequest> {
-        val mutatingMethods = setOf(RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE)
-        require(method in mutatingMethods) {
-            "Method $method is not a mutating HTTP request. Only ${mutatingMethods.joinToString()} are tracked."
-        }
-
-        val allRequests = wireMockServer.findAll(RequestPatternBuilder.allRequests())
-        val unverified = allRequests.filter { it.method == method && it !in verifiedHttpRequests }
-        val matching = unverified.filter { it.url.matches(Regex(urlPattern.replace("?", "\\?"))) }
-
-        assertEquals(
-            count,
-            matching.size,
-            "Expected $count $method requests matching '$urlPattern', but found ${matching.size}. " +
-                "All unverified requests: ${unverified.map { "${it.method} ${it.url}" }}",
-        )
-        val verified = matching.take(count)
-        verifiedHttpRequests.addAll(verified)
-        return verified
-    }
+    ): List<LoggedRequest> = endpointVerifier.verifyHttpRequest(method, urlPattern, count)
 
     /**
      * 外部 HTTP に対する更新系副作用が一切発生していないことを検証します。
      */
-    fun assertNoHttpSideEffects() {
-        val mutatingMethods = setOf(RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE)
-        val unverified = wireMockServer.findAll(RequestPatternBuilder.allRequests())
-            .filter { it.method in mutatingMethods && it !in verifiedHttpRequests }
-        assertTrue(
-            unverified.isEmpty(),
-            "Expected no external HTTP mutating requests, but found: ${unverified.map { "${it.method} ${it.url}" }}",
-        )
-    }
+    fun assertNoHttpSideEffects() = endpointVerifier.assertNoHttpSideEffects()
 
     /**
      * Pub/Sub へのイベント発行副作用を検証・承認します。
@@ -160,86 +133,30 @@ internal class ExternalSideEffectVerifier(
         expectedType: TodoEventType,
         expectedTodoId: UUID? = null,
         maxWait: Duration = Duration.ofMillis(DEFAULT_VERIFY_PUBSUB_TIMEOUT_MS),
-    ): ReceivedTodoEvent? {
-        if (!pubSubReceiver.isAvailable) return null
-
-        val pulled = pubSubReceiver.pullEvents(maxMessages = 1, maxWait = maxWait)
-        assertEquals(1, pulled.size, "Expected 1 $expectedType event to be published to Pub/Sub")
-        val received = pulled.first()
-
-        assertEquals(expectedType.name, received.attributes["eventType"])
-        assertEquals(expectedType, received.event.eventType)
-        if (expectedTodoId != null) {
-            assertEquals(expectedTodoId.toString(), received.attributes["todoId"])
-            assertEquals(expectedTodoId, received.event.todoId)
-        }
-        verifiedPubSubEvents.add(received)
-        return received
-    }
+    ): ReceivedTodoEvent? = endpointVerifier.verifyPubSub(expectedType, expectedTodoId, maxWait)
 
     /**
      * テスト内で別途 pull / 検証された Pub/Sub イベントを検証済みとしてマークします。
      */
     fun markPubSubEventVerified(event: ReceivedTodoEvent) {
-        verifiedPubSubEvents.add(event)
+        endpointVerifier.markPubSubEventVerified(event)
     }
 
     /**
      * Pub/Sub に対するイベント発行副作用が一切発生していないことを検証します。
      */
-    fun assertNoPubSubSideEffects() {
-        if (!pubSubReceiver.isAvailable) {
-            if (requirePubSub) {
-                throw AssertionError(
-                    "Pub/Sub emulator is required for side-effect verification, " +
-                        "but PubSubTestReceiver is not available",
-                )
-            }
-            return
-        }
-
-        val unverifiedPulled = pubSubReceiver.getPulledEvents().filter { it !in verifiedPubSubEvents }
-        assertTrue(
-            unverifiedPulled.isEmpty(),
-            "Expected no unverified pulled Pub/Sub events, but found: " +
-                "${unverifiedPulled.map { it.event.eventType }}",
-        )
-
-        val remaining = mutableListOf<ReceivedTodoEvent>()
-        do {
-            val batch = pubSubReceiver.pullEvents(
-                maxMessages = MAX_PENDING_PUBSUB_CHECK_BATCH,
-                maxWait = Duration.ofMillis(DEFAULT_ASSERT_NO_PUBSUB_TIMEOUT_MS),
-            )
-            remaining.addAll(batch)
-        } while (batch.size == MAX_PENDING_PUBSUB_CHECK_BATCH)
-        assertTrue(
-            remaining.isEmpty(),
-            "Expected no Pub/Sub events, but received: ${remaining.map { it.event.eventType }}",
-        )
-    }
+    fun assertNoPubSubSideEffects() = endpointVerifier.assertNoPubSubSideEffects()
 
     /**
      * テスト終了時（@AfterEach）に実行し、すべての外部接続について
      * テストコードで検証（verify）されていない副作用が残っていないかを強制検証します。
      */
     fun assertNoUnverifiedSideEffects() {
-        // 1. WireMock の未マッチリクエスト検証（スタブ定義されていないリクエストがあれば即失敗）
-        wireMockServer.checkForUnmatchedRequests()
-
-        // 2. WireMock の更新系リクエストの未検証チェック
-        assertNoHttpSideEffects()
-
-        // 3. Pub/Sub の未検証メッセージ残余チェック（キューに残っていれば即失敗）
-        assertNoPubSubSideEffects()
-
-        // 4. データベース（Spanner）の未検証更新チェック
+        endpointVerifier.assertNoUnverifiedEndpointSideEffects()
         assertNoDatabaseSideEffects()
     }
 
     private companion object {
         const val DEFAULT_VERIFY_PUBSUB_TIMEOUT_MS = 500L
-        const val DEFAULT_ASSERT_NO_PUBSUB_TIMEOUT_MS = 200L
-        const val MAX_PENDING_PUBSUB_CHECK_BATCH = 10
     }
 }

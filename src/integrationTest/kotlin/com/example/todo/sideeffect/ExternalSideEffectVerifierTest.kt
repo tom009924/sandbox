@@ -71,7 +71,11 @@ class ExternalSideEffectVerifierTest {
         val mockReceiver = mock(PubSubTestReceiver::class.java)
         `when`(mockReceiver.isAvailable).thenReturn(false)
 
-        val verifier = ExternalSideEffectVerifier(wireMockServer, mockReceiver)
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = mockReceiver,
+            requirePubSub = false,
+        )
         verifier.startTracking()
 
         DatabaseSideEffectInspector.inspect("INSERT INTO todos (id, title) VALUES ('id1', 'Test')")
@@ -91,7 +95,11 @@ class ExternalSideEffectVerifierTest {
         val mockReceiver = mock(PubSubTestReceiver::class.java)
         `when`(mockReceiver.isAvailable).thenReturn(false)
 
-        val verifier = ExternalSideEffectVerifier(wireMockServer, mockReceiver)
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = mockReceiver,
+            requirePubSub = false,
+        )
         wireMockServer.resetRequests()
         verifier.startTracking()
 
@@ -129,7 +137,11 @@ class ExternalSideEffectVerifierTest {
         )
         `when`(mockReceiver.pullEvents(10, Duration.ofMillis(200))).thenReturn(listOf(dummyEvent))
 
-        val verifier = ExternalSideEffectVerifier(wireMockServer, mockReceiver)
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = mockReceiver,
+            requirePubSub = false,
+        )
         wireMockServer.resetRequests()
         verifier.startTracking()
 
@@ -176,7 +188,11 @@ class ExternalSideEffectVerifierTest {
         `when`(mockReceiver.getPulledEvents()).thenReturn(listOf(dummyEvent))
         `when`(mockReceiver.pullEvents(10, Duration.ofMillis(200))).thenReturn(emptyList())
 
-        val verifier = ExternalSideEffectVerifier(wireMockServer, mockReceiver)
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = mockReceiver,
+            requirePubSub = false,
+        )
         verifier.startTracking()
 
         val exception = assertThrows(AssertionError::class.java) {
@@ -204,5 +220,30 @@ class ExternalSideEffectVerifierTest {
             verifier.assertNoUnverifiedSideEffects()
         }
         assertTrue(exception.message!!.contains("Pub/Sub emulator is required"))
+    }
+
+    @Test
+    fun identicalDatabaseMutationsAreVerifiedIndividually() {
+        val pubSubReceiver = mock(PubSubTestReceiver::class.java)
+        `when`(pubSubReceiver.isAvailable).thenReturn(false)
+
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = pubSubReceiver,
+            requirePubSub = false,
+        )
+        verifier.startTracking()
+
+        DatabaseSideEffectInspector.inspect("INSERT INTO todos (id, title) VALUES ('id-1', 'Same')")
+        verifier.verifyDatabase(DbOperation.INSERT, "todos", count = 1)
+        verifier.assertNoDatabaseSideEffects()
+
+        DatabaseSideEffectInspector.inspect("INSERT INTO todos (id, title) VALUES ('id-1', 'Same')")
+        assertThrows(AssertionError::class.java) {
+            verifier.assertNoDatabaseSideEffects()
+        }
+
+        verifier.verifyDatabase(DbOperation.INSERT, "todos", count = 1)
+        verifier.assertNoDatabaseSideEffects()
     }
 }
