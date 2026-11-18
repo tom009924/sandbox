@@ -159,4 +159,25 @@ class ExternalSideEffectVerifierTest {
             wireMockServer.stop()
         }
     }
+
+    @Test
+    fun identicalDatabaseMutationsAreVerifiedIndividually() {
+        val pubSubReceiver = mock(PubSubTestReceiver::class.java)
+        `when`(pubSubReceiver.isAvailable).thenReturn(false)
+
+        val verifier = ExternalSideEffectVerifier(wireMockServer, pubSubReceiver)
+        verifier.startTracking()
+
+        DatabaseSideEffectInspector.inspect("INSERT INTO todos (id, title) VALUES ('id-1', 'Same')")
+        verifier.verifyDatabase(DbOperation.INSERT, "todos", count = 1)
+        verifier.assertNoDatabaseSideEffects()
+
+        DatabaseSideEffectInspector.inspect("INSERT INTO todos (id, title) VALUES ('id-1', 'Same')")
+        assertThrows(AssertionError::class.java) {
+            verifier.assertNoDatabaseSideEffects()
+        }
+
+        verifier.verifyDatabase(DbOperation.INSERT, "todos", count = 1)
+        verifier.assertNoDatabaseSideEffects()
+    }
 }
