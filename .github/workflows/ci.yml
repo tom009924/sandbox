@@ -64,12 +64,13 @@ jobs:
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_REQUIRED: "true"
         run: ./gradlew check bootJar --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated docs and diagrams are up-to-date
         run: |
-          ./gradlew generateExternalConnectionDiagrams --no-daemon
-          git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-connection-order.md
+          ./gradlew generateExternalCallDiagrams --no-daemon
+          git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-call-sequence.md
 
       - name: Run Arazzo E2E workflow tests
         env:

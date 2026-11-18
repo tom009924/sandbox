@@ -106,10 +106,10 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 
 ### 外部連携・ドキュメント管理
 
-外部システムとの連携仕様および接続順ドキュメントは、コードや仕様ファイルと同期する Docs-as-Code 構成で管理しています。
+外部システムとの連携仕様および呼び出しシーケンスドキュメントは、コードや仕様ファイルと同期する Docs-as-Code 構成で管理しています。
 
-- **外部接続順ダイアグラム（自動生成）**: [`docs/architecture/external-connection-order.md`](docs/architecture/external-connection-order.md)
-  - `./gradlew generateExternalConnectionDiagrams` で動的トレース（`ExternalConnectionTracer`）から Mermaid シーケンス図を自動生成し、CI で差分チェック（`git diff --exit-code`）を行います。
+- **外部呼び出しシーケンス図（自動生成）**: [`docs/architecture/external-call-sequence.md`](docs/architecture/external-call-sequence.md)
+  - `./gradlew generateExternalCallDiagrams` で動的トレース（`ExternalCallTracer`）から Mermaid シーケンス図を自動生成し、CI で差分チェック（`git diff --exit-code`）を行います。
 - **非同期イベント仕様（AsyncAPI 3.0.0）**: [`docs/asyncapi.yaml`](docs/asyncapi.yaml)
   - Cloud Pub/Sub トピック（`todo-events`）へ発行する `TodoEvent`（`CREATED` / `UPDATED` / `DELETED`）のスキーマを定義しています。
 - **同期 REST API / E2E ワークフロー**: [`docs/openapi.yaml`](docs/openapi.yaml)（Spectral 検証）、[`docs/workflows/README.md`](docs/workflows/README.md)（Arazzo から `npm run generate:diagrams` で自動生成）
@@ -157,12 +157,16 @@ CI では JetBrains Qodana（設定: [`qodana.yaml`](qodana.yaml)）による静
 docker run --rm -v "$(pwd):/data/project" jetbrains/qodana-jvm-community:latest
 ```
 
-また、Aqua Security Trivy（設定: [`trivy.yaml`](trivy.yaml)、トリアージ定義: [`.trivyignore`](.trivyignore)）によるファイルシステム・依存関係・設定ミスの脆弱性スキャンが `.github/workflows/trivy.yml` で実行されます（CRITICAL/HIGH 脆弱性の検出時はビルドが失敗します）。ローカルで実行する場合は Docker を利用できます:
+また、Aqua Security Trivy（設定: [`trivy.yaml`](trivy.yaml)、トリアージ定義: [`.trivyignore`](.trivyignore)）によるファイルシステム・依存関係・設定ミスの脆弱性スキャンが `.github/workflows/trivy.yml` で実行されます（CRITICAL/HIGH 脆弱性の検出時はビルドが失敗します）。さらに、OWASP dep-scan（`.github/workflows/dep-scan.yml`、[`scripts/dep-scan.sh`](scripts/dep-scan.sh)）により、脆弱な関数・クラスへの到達可能性解析（Reachability Analysis）、EPSS/KEV ベースの優先度評価、および CycloneDX VEX / SBOM レポート生成を補完的に実行できます。ローカルで実行する場合は Docker を利用できます:
 
 ```bash
 npm run trivy:scan
 # または直接Dockerで実行（キャッシュ指定により高速化）:
 docker run --rm -v /tmp/trivy-cache:/root/.cache/ -v "$(pwd):/project" -w /project aquasec/trivy:latest fs .
+
+# OWASP dep-scan による到達可能性解析（Reachability）と VEX 生成:
+npm run depscan
+npm run depscan:reachability
 ```
 
 MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/dist/openapi.admin.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。

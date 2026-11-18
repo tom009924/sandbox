@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 
@@ -40,7 +42,8 @@ internal class SpannerSideEffectProxy(
 ) : AutoCloseable {
 
     private val recordedMutations = ConcurrentLinkedQueue<DatabaseMutation>()
-    private val verifiedMutations = ConcurrentLinkedQueue<DatabaseMutation>()
+    private val verifiedMutations: MutableSet<DatabaseMutation> =
+        Collections.synchronizedSet(Collections.newSetFromMap(IdentityHashMap()))
     private val allowedTables = ConcurrentLinkedQueue(initialAllowedTables.map { it.lowercase() })
 
     @Volatile
