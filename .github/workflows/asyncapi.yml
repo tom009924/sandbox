@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate docs/asyncapi.yaml
-        uses: asyncapi/cli@v2.16.0
+        uses: asyncapi/cli@v6.3.1
         with:
           command: custom
           custom_command: "validate docs/asyncapi.yaml"
