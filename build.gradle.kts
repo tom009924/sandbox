@@ -220,18 +220,18 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     }
 }
 
-tasks.register<Test>("generateExternalConnectionDiagrams") {
-    description = "Generates Mermaid external connection order diagrams from dynamic traces."
+tasks.register<Test>("generateExternalCallDiagrams") {
+    description = "Generates Mermaid external call sequence diagrams from dynamic traces."
     group = "documentation"
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
     useJUnitPlatform()
     filter {
-        includeTestsMatching("com.example.todo.trace.ExternalConnectionOrderDiagramGeneratorTest")
+        includeTestsMatching("com.example.todo.trace.ExternalCallSequenceDiagramGeneratorTest")
     }
     systemProperty(
-        "externalConnectionDiagramOut",
-        "$projectDir/docs/architecture/external-connection-order.md",
+        "externalCallDiagramOut",
+        "$projectDir/docs/architecture/external-call-sequence.md",
     )
     outputs.upToDateWhen { false }
 }

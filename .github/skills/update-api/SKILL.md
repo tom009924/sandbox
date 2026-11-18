@@ -37,8 +37,8 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
      - スキーマに `pattern`（例: `pattern: '.*\S.*'`）や `enum`、`minimum` 等を追加・変更した場合、必ず `src/integrationTest/kotlin/com/example/todo/TodoApiTestCases.kt` の `validationErrorTestCases()`（および `acceptanceCriteria`）に該当制約の違反リクエスト（400 Bad Request を期待するテストケース）を追加してください。
      - 制約違反テストが不足している場合、`verifyAllOpenApiConstraintsCovered()` によりテストが失敗します。
 
-### Step 4: 外部接続順序図と最終検証
-1. 新規エンドポイントを追加した場合は、`src/test/kotlin/com/example/todo/trace/ExternalConnectionOrderDiagramGeneratorTest.kt` にトレースシナリオを追加し、`./gradlew generateExternalConnectionDiagrams` で `docs/architecture/external-connection-order.md` を更新します（全 OpenAPI エンドポイントの網羅が自動検証されます）。
+### Step 4: 外部呼び出しシーケンス図と最終検証
+1. 新規エンドポイントを追加した場合は、`src/test/kotlin/com/example/todo/trace/ExternalCallSequenceDiagramGeneratorTest.kt` にトレースシナリオを追加し、`./gradlew generateExternalCallDiagrams` で `docs/architecture/external-call-sequence.md` を更新します（全 OpenAPI エンドポイントの網羅が自動検証されます）。
 2. 以下のコマンドですべてのテストと Detekt 静的解析がパスすることを確認します:
 ```bash
 ./gradlew check
