@@ -11,6 +11,8 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Duration
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.UUID
 
 /**
@@ -22,9 +24,11 @@ internal class CompositeSideEffectVerifier(
     private val spannerProxy: SpannerSideEffectProxy,
     private val wireMockServer: WireMockServer,
     private val pubSubReceiver: PubSubTestReceiver,
+    private val requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
 ) {
     private val verifiedHttpRequests = mutableListOf<LoggedRequest>()
-    private val verifiedPubSubEvents = mutableListOf<ReceivedTodoEvent>()
+    private val verifiedPubSubEvents: MutableSet<ReceivedTodoEvent> =
+        Collections.newSetFromMap(IdentityHashMap())
 
     /**
      * テストケース開始時に呼び出し、Spanner プロキシおよび各クライアントの追跡を開始します。
@@ -33,6 +37,7 @@ internal class CompositeSideEffectVerifier(
         spannerProxy.startTracking()
         verifiedHttpRequests.clear()
         verifiedPubSubEvents.clear()
+        pubSubReceiver.clearPulledEvents()
     }
 
     /**
@@ -131,16 +136,35 @@ internal class CompositeSideEffectVerifier(
         )
 
         // 3. Pub/Sub の未検証メッセージ残余検出
-        if (pubSubReceiver.isAvailable) {
-            val remaining = pubSubReceiver.pullEvents(
+        if (!pubSubReceiver.isAvailable) {
+            if (requirePubSub) {
+                throw AssertionError(
+                    "Pub/Sub emulator is required for side-effect verification, " +
+                        "but PubSubTestReceiver is not available",
+                )
+            }
+            return
+        }
+
+        val unverifiedPulled = pubSubReceiver.getPulledEvents().filter { it !in verifiedPubSubEvents }
+        assertTrue(
+            unverifiedPulled.isEmpty(),
+            "Expected no unverified pulled Pub/Sub events, but found: " +
+                "${unverifiedPulled.map { it.event.eventType }}",
+        )
+
+        val remaining = mutableListOf<ReceivedTodoEvent>()
+        do {
+            val batch = pubSubReceiver.pullEvents(
                 maxMessages = MAX_PENDING_PUBSUB_CHECK_BATCH,
                 maxWait = Duration.ofMillis(DEFAULT_ASSERT_NO_PUBSUB_TIMEOUT_MS),
             )
-            assertTrue(
-                remaining.isEmpty(),
-                "Expected no Pub/Sub events, but received: ${remaining.map { it.event.eventType }}",
-            )
-        }
+            remaining.addAll(batch)
+        } while (batch.size == MAX_PENDING_PUBSUB_CHECK_BATCH)
+        assertTrue(
+            remaining.isEmpty(),
+            "Expected no Pub/Sub events, but received: ${remaining.map { it.event.eventType }}",
+        )
     }
 
     private companion object {

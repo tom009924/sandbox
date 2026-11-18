@@ -10,6 +10,8 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.Duration
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.UUID
 
 /**
@@ -24,11 +26,13 @@ internal class ExternalSideEffectVerifier(
     private val wireMockServer: WireMockServer,
     private val pubSubReceiver: PubSubTestReceiver,
     initialAllowedDatabaseTables: Set<String> = emptySet(),
+    private val requirePubSub: Boolean = System.getenv("PUBSUB_REQUIRED")?.toBooleanStrictOrNull() ?: false,
 ) {
     private val verifiedDatabaseMutations = mutableListOf<DatabaseMutation>()
     private val allowedDatabaseTables = initialAllowedDatabaseTables.map { it.lowercase() }.toMutableSet()
     private val verifiedHttpRequests = mutableListOf<LoggedRequest>()
-    private val verifiedPubSubEvents = mutableListOf<ReceivedTodoEvent>()
+    private val verifiedPubSubEvents: MutableSet<ReceivedTodoEvent> =
+        Collections.newSetFromMap(IdentityHashMap())
 
     /**
      * テストケースの実行前に呼び出し、追跡状態を初期化して副作用の監視を開始します。
@@ -39,6 +43,7 @@ internal class ExternalSideEffectVerifier(
         verifiedDatabaseMutations.clear()
         verifiedHttpRequests.clear()
         verifiedPubSubEvents.clear()
+        pubSubReceiver.clearPulledEvents()
     }
 
     /**
@@ -183,11 +188,31 @@ internal class ExternalSideEffectVerifier(
      * Pub/Sub に対するイベント発行副作用が一切発生していないことを検証します。
      */
     fun assertNoPubSubSideEffects() {
-        if (!pubSubReceiver.isAvailable) return
-        val remaining = pubSubReceiver.pullEvents(
-            maxMessages = MAX_PENDING_PUBSUB_CHECK_BATCH,
-            maxWait = Duration.ofMillis(DEFAULT_ASSERT_NO_PUBSUB_TIMEOUT_MS),
+        if (!pubSubReceiver.isAvailable) {
+            if (requirePubSub) {
+                throw AssertionError(
+                    "Pub/Sub emulator is required for side-effect verification, " +
+                        "but PubSubTestReceiver is not available",
+                )
+            }
+            return
+        }
+
+        val unverifiedPulled = pubSubReceiver.getPulledEvents().filter { it !in verifiedPubSubEvents }
+        assertTrue(
+            unverifiedPulled.isEmpty(),
+            "Expected no unverified pulled Pub/Sub events, but found: " +
+                "${unverifiedPulled.map { it.event.eventType }}",
         )
+
+        val remaining = mutableListOf<ReceivedTodoEvent>()
+        do {
+            val batch = pubSubReceiver.pullEvents(
+                maxMessages = MAX_PENDING_PUBSUB_CHECK_BATCH,
+                maxWait = Duration.ofMillis(DEFAULT_ASSERT_NO_PUBSUB_TIMEOUT_MS),
+            )
+            remaining.addAll(batch)
+        } while (batch.size == MAX_PENDING_PUBSUB_CHECK_BATCH)
         assertTrue(
             remaining.isEmpty(),
             "Expected no Pub/Sub events, but received: ${remaining.map { it.event.eventType }}",

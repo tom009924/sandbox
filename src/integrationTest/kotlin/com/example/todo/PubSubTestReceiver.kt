@@ -24,6 +24,7 @@ import tools.jackson.databind.ObjectMapper
 import java.io.Closeable
 import java.io.IOException
 import java.time.Duration
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 /**
@@ -50,6 +51,7 @@ class PubSubTestReceiver(
     private val channel: ManagedChannel?
     private val subscriberStub: GrpcSubscriberStub?
     private val subscriptionName: ProjectSubscriptionName = ProjectSubscriptionName.of(projectId, subscriptionId)
+    private val pulledEvents = Collections.synchronizedList(mutableListOf<ReceivedTodoEvent>())
 
     init {
         val host = emulatorHost?.trim().orEmpty()
@@ -163,7 +165,22 @@ class PubSubTestReceiver(
                 Thread.sleep(POLL_INTERVAL_MS)
             }
         }
+        if (result.isNotEmpty()) {
+            pulledEvents.addAll(result)
+        }
         return result
+    }
+
+    /**
+     * Returns all events pulled since the last [clearPulledEvents] or [drain] call.
+     */
+    fun getPulledEvents(): List<ReceivedTodoEvent> = synchronized(pulledEvents) { pulledEvents.toList() }
+
+    /**
+     * Clears the history of pulled events.
+     */
+    fun clearPulledEvents() {
+        pulledEvents.clear()
     }
 
     /**
@@ -171,6 +188,7 @@ class PubSubTestReceiver(
      */
     @Suppress("DEPRECATION")
     fun drain() {
+        clearPulledEvents()
         val stub = subscriberStub ?: return
         while (true) {
             val request = PullRequest.newBuilder()

@@ -159,4 +159,50 @@ class ExternalSideEffectVerifierTest {
             wireMockServer.stop()
         }
     }
+
+    @Test
+    fun verifierThrowsWhenPulledPubSubEventIsNotVerified() {
+        val mockReceiver = mock(PubSubTestReceiver::class.java)
+        `when`(mockReceiver.isAvailable).thenReturn(true)
+        val dummyEvent = ReceivedTodoEvent(
+            event = TodoEvent(
+                eventType = TodoEventType.CREATED,
+                timestamp = Instant.now(),
+                todoId = UUID.randomUUID(),
+                todo = null,
+            ),
+            attributes = mapOf("eventType" to "CREATED"),
+        )
+        `when`(mockReceiver.getPulledEvents()).thenReturn(listOf(dummyEvent))
+        `when`(mockReceiver.pullEvents(10, Duration.ofMillis(200))).thenReturn(emptyList())
+
+        val verifier = ExternalSideEffectVerifier(wireMockServer, mockReceiver)
+        verifier.startTracking()
+
+        val exception = assertThrows(AssertionError::class.java) {
+            verifier.assertNoUnverifiedSideEffects()
+        }
+        assertTrue(exception.message!!.contains("unverified pulled Pub/Sub events"))
+
+        verifier.markPubSubEventVerified(dummyEvent)
+        verifier.assertNoUnverifiedSideEffects()
+    }
+
+    @Test
+    fun verifierThrowsWhenPubSubIsRequiredButUnavailable() {
+        val mockReceiver = mock(PubSubTestReceiver::class.java)
+        `when`(mockReceiver.isAvailable).thenReturn(false)
+
+        val verifier = ExternalSideEffectVerifier(
+            wireMockServer = wireMockServer,
+            pubSubReceiver = mockReceiver,
+            requirePubSub = true,
+        )
+        verifier.startTracking()
+
+        val exception = assertThrows(AssertionError::class.java) {
+            verifier.assertNoUnverifiedSideEffects()
+        }
+        assertTrue(exception.message!!.contains("Pub/Sub emulator is required"))
+    }
 }
