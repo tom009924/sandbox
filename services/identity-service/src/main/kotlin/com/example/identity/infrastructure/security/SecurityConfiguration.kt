@@ -75,6 +75,7 @@ class SecurityConfiguration(
             }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/auth/**").permitAll()
+                it.requestMatchers("/internal/**").permitAll()
                 it.requestMatchers("/error").permitAll()
                 it.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 it.requestMatchers("/actuator/**").hasRole("ADMIN")

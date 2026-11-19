@@ -25,11 +25,15 @@ import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
+import com.example.todo.infrastructure.identity.HttpIdentityUserRepository
+import com.example.todo.infrastructure.identity.HttpIdentityUserSettingsRepository
+import com.example.todo.infrastructure.identity.IdentityServiceProperties
 import com.example.todo.infrastructure.notification.EmailNotificationProperties
 import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -42,9 +46,22 @@ import tools.jackson.databind.ObjectMapper
     PubSubProperties::class,
     EmailNotificationProperties::class,
     GrpcKeyManagementProperties::class,
+    IdentityServiceProperties::class,
 )
 @Suppress("TooManyFunctions")
 class TodoConfiguration {
+
+    @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    fun httpIdentityUserRepository(
+        properties: IdentityServiceProperties,
+    ): UserRepository = HttpIdentityUserRepository(properties)
+
+    @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    fun httpIdentityUserSettingsRepository(
+        properties: IdentityServiceProperties,
+    ): UserSettingsRepository = HttpIdentityUserSettingsRepository(properties)
 
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(CryptoService::class)
