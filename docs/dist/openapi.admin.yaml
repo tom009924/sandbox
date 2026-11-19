@@ -1359,7 +1359,7 @@ components:
           description: Username of the registered account.
           example: alice
           maxLength: 255
-          pattern: ^[\s\S]*$
+          pattern: ^\S+$
         password:
           type: string
           description: Password of the account.
@@ -1504,7 +1504,7 @@ components:
           maxLength: 500
           nullable: true
           example: Buy before the weekend
-          pattern: ^[\s\S]*$
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
         dueDate:
           type: string
           format: date
@@ -1562,7 +1562,7 @@ components:
           maxLength: 500
           nullable: true
           example: Purchased
-          pattern: ^[\s\S]*$
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
         dueDate:
           type: string
           format: date
@@ -1613,7 +1613,7 @@ components:
           maxLength: 500
           nullable: true
           example: Purchased
-          pattern: ^[\s\S]*$
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
         dueDate:
           type: string
           format: date
@@ -1809,7 +1809,7 @@ components:
           maxLength: 500
           nullable: true
           example: Tasks for migrating to Spanner
-          pattern: ^[\s\S]*$
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
     UpdateProjectRequest:
       type: object
       additionalProperties: false
@@ -1827,7 +1827,7 @@ components:
           maxLength: 500
           nullable: true
           example: Updated scope
-          pattern: ^[\s\S]*$
+          pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
     ProjectRole:
       type: string
       enum:

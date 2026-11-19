@@ -14,7 +14,7 @@ properties:
     maxLength: 500
     nullable: true
     example: Purchased
-    pattern: ^[\s\S]*$
+    pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$
   dueDate:
     type: string
     format: date

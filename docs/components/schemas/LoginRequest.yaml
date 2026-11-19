@@ -8,7 +8,7 @@ properties:
     description: Username of the registered account.
     example: alice
     maxLength: 255
-    pattern: ^[\s\S]*$
+    pattern: ^\S+$
   password:
     type: string
     description: Password of the account.
