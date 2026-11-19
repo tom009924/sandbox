@@ -14,9 +14,8 @@ properties:
     type: string
     description: Token type prefix for Authorization header.
     example: Bearer
-    maxLength: 2048
-    enum:
-      - Bearer
+    maxLength: 16
+    pattern: ^Bearer$
   expiresIn:
     type: integer
     format: int64
