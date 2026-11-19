@@ -63,7 +63,6 @@ components:
           todoId:
             type: string
             format: uuid
-            maxLength: 36
         additionalProperties: false
       payload:
         $ref: "#/components/schemas/TodoEvent"
@@ -103,7 +102,6 @@ components:
         eventId:
           type: string
           format: uuid
-          maxLength: 36
         eventType:
           type: string
           enum:
@@ -114,11 +112,9 @@ components:
         timestamp:
           type: string
           format: date-time
-          maxLength: 64
         todoId:
           type: string
           format: uuid
-          maxLength: 36
         todo:
           oneOf:
             - $ref: "#/components/schemas/TodoPayload"
@@ -137,11 +133,9 @@ components:
         id:
           type: string
           format: uuid
-          maxLength: 36
         userId:
           type: string
           format: uuid
-          maxLength: 36
         title:
           type: string
           maxLength: 255
@@ -160,7 +154,6 @@ components:
             - string
             - "null"
           format: date
-          maxLength: 10
         priority:
           type: string
           enum:
@@ -187,12 +180,10 @@ components:
             - "null"
           format: uuid
           description: Optional shared project ID associated with the Todo
-          maxLength: 36
         assigneeId:
           type:
             - string
             - "null"
           format: uuid
           description: Optional user ID of the project member assigned to this Todo
-          maxLength: 36
       additionalProperties: false

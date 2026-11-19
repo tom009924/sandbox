@@ -12,17 +12,14 @@ properties:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
   todoId:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440001
-    maxLength: 36
   userId:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440002
-    maxLength: 36
   username:
     type: string
     example: alice
@@ -37,4 +34,3 @@ properties:
     type: string
     format: date-time
     example: 2025-04-18T10:00:00Z
-    maxLength: 64

@@ -6,7 +6,6 @@ parameters:
     schema:
       type: string
       format: uuid
-      maxLength: 36
   - name: commentId
     in: path
     required: true
@@ -14,7 +13,6 @@ parameters:
     schema:
       type: string
       format: uuid
-      maxLength: 36
 delete:
   tags:
     - Todo Comments

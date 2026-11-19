@@ -6,7 +6,6 @@ parameters:
     schema:
       type: string
       format: uuid
-      maxLength: 36
 get:
   tags:
     - Projects

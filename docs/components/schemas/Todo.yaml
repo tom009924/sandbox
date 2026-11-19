@@ -15,12 +15,10 @@ properties:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
   userId:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
   title:
     type: string
     maxLength: 100
@@ -40,7 +38,6 @@ properties:
     format: date
     nullable: true
     example: 2025-04-18
-    maxLength: 10
   priority:
     $ref: ./TodoPriority.yaml
   estimatedMinutes:
@@ -67,12 +64,10 @@ properties:
     nullable: true
     description: Optional project ID if this todo belongs to a shared project.
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
   assigneeId:
     type: string
     format: uuid
     nullable: true
     description: Optional user ID of the project member assigned to this todo.
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
 additionalProperties: false

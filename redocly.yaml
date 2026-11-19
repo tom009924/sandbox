@@ -43,6 +43,11 @@ rules:
         assertions:
           defined: true
           const: string
+      - subject:
+          type: Schema
+          property: format
+        assertions:
+          notPattern: '^(uuid|date|date-time)$'
     message: String schemas must specify maxLength (OWASP API4:2023).
     severity: error
     assertions:

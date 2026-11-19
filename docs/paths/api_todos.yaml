@@ -40,7 +40,6 @@ get:
       schema:
         type: string
         format: date
-        maxLength: 10
     - name: dueAfter
       in: query
       required: false
@@ -48,7 +47,6 @@ get:
       schema:
         type: string
         format: date
-        maxLength: 10
     - name: sortBy
       in: query
       required: false
@@ -68,7 +66,6 @@ get:
       schema:
         type: string
         format: uuid
-        maxLength: 36
     - name: assigneeId
       in: query
       required: false
@@ -76,7 +73,6 @@ get:
       schema:
         type: string
         format: uuid
-        maxLength: 36
   responses:
     "200":
       description: Todo list

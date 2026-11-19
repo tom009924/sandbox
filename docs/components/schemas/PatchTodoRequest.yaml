@@ -20,7 +20,6 @@ properties:
     format: date
     nullable: true
     example: 2025-04-18
-    maxLength: 10
   priority:
     $ref: ./TodoPriority.yaml
   estimatedMinutes:
@@ -48,5 +47,4 @@ properties:
     nullable: true
     description: Optional user ID of a project member to assign this todo to (project todos only).
     example: 550e8400-e29b-41d4-a716-446655440000
-    maxLength: 36
 additionalProperties: false

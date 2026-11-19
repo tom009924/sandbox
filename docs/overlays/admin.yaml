@@ -136,12 +136,11 @@ actions:
           id:
             type: string
             format: uuid
-            maxLength: 36
             description: Unique user identifier.
             example: 550e8400-e29b-41d4-a716-446655440000
           username:
             type: string
             maxLength: 255
-            pattern: "^[\\s\\S]*$"
+            pattern: ^[\s\S]*$
             description: Registered username.
             example: alice
