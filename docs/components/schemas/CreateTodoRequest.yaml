@@ -1,0 +1,53 @@
+type: object
+required:
+  - title
+properties:
+  title:
+    type: string
+    maxLength: 100
+    pattern: .*\S.*
+    description: >-
+      Must contain at least one non-whitespace character. Leading and trailing
+      whitespace is trimmed.
+    example: Buy milk
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+    example: Buy before the weekend
+  dueDate:
+    type: string
+    format: date
+    nullable: true
+    example: '2025-04-18'
+  priority:
+    $ref: ./TodoPriority.yaml
+  estimatedMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+    example: 30
+  tags:
+    type: array
+    description: List of tags associated with the todo.
+    items:
+      type: string
+      maxLength: 32
+    maxItems: 10
+    example:
+      - shopping
+      - groceries
+  projectId:
+    type: string
+    format: uuid
+    nullable: true
+    description: Optional project ID to create the todo inside a shared project.
+    example: 550e8400-e29b-41d4-a716-446655440000
+  assigneeId:
+    type: string
+    format: uuid
+    nullable: true
+    description: >-
+      Optional user ID of a project member to assign this todo to (requires
+      projectId).
+    example: 550e8400-e29b-41d4-a716-446655440000

@@ -1,0 +1,135 @@
+parameters:
+  - name: projectId
+    in: path
+    required: true
+    description: Project identifier
+    schema:
+      type: string
+      format: uuid
+get:
+  tags:
+    - Projects
+  summary: Get a project
+  description: Retrieve a project by its ID. Only accessible to project members.
+  operationId: getProject
+  responses:
+    '200':
+      description: Project found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ProjectResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Project not found or user is not a member
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+put:
+  tags:
+    - Projects
+  summary: Update a project
+  description: Update project name and description. Only project owners are allowed.
+  operationId: updateProject
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UpdateProjectRequest.yaml
+        example:
+          name: Backend Migration Phase 2
+          description: Updated scope
+  responses:
+    '200':
+      description: Project updated
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ProjectResponse.yaml
+    '400':
+      description: Invalid request body
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '403':
+      description: Only project owners can update the project
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Project not found or user is not a member
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+delete:
+  tags:
+    - Projects
+  summary: Delete a project
+  description: >-
+    Delete a project, its memberships, and its todos. Only project owners are
+    allowed.
+  operationId: deleteProject
+  responses:
+    '204':
+      description: Project deleted
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '403':
+      description: Only project owners can delete the project
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Project not found or user is not a member
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

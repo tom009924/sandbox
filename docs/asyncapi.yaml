@@ -107,8 +107,9 @@ components:
           type: string
           format: uuid
         todo:
-          nullable: true
-          $ref: '#/components/schemas/TodoPayload'
+          oneOf:
+            - $ref: '#/components/schemas/TodoPayload'
+            - type: 'null'
     TodoPayload:
       type: object
       required:
@@ -130,30 +131,35 @@ components:
         completed:
           type: boolean
         description:
-          type: string
-          nullable: true
+          type:
+            - string
+            - 'null'
           description: Decrypted plaintext description (when available)
         dueDate:
-          type: string
+          type:
+            - string
+            - 'null'
           format: date
-          nullable: true
         priority:
           type: string
           enum: [LOW, MEDIUM, HIGH]
         estimatedMinutes:
-          type: integer
-          nullable: true
+          type:
+            - integer
+            - 'null'
         tags:
           type: array
           items:
             type: string
         projectId:
-          type: string
+          type:
+            - string
+            - 'null'
           format: uuid
-          nullable: true
           description: Optional shared project ID associated with the Todo
         assigneeId:
-          type: string
+          type:
+            - string
+            - 'null'
           format: uuid
-          nullable: true
           description: Optional user ID of the project member assigned to this Todo

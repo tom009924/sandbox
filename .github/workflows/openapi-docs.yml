@@ -1,0 +1,59 @@
+name: OpenAPI Docs Artifact
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/openapi.yaml"
+      - "docs/paths/**"
+      - "docs/components/**"
+      - "docs/overlays/**"
+      - "redocly.yaml"
+      - "package.json"
+      - ".github/workflows/openapi-docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/openapi.yaml"
+      - "docs/paths/**"
+      - "docs/components/**"
+      - "docs/overlays/**"
+      - "redocly.yaml"
+      - "package.json"
+      - ".github/workflows/openapi-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openapi-docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-openapi-docs:
+    name: Build OpenAPI HTML Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build OpenAPI HTML documentation
+        run: npm run build:docs
+
+      - name: Upload OpenAPI HTML docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-docs-html
+          path: build/docs/*.html
+          if-no-files-found: error
+          retention-days: 30

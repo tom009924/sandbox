@@ -1,0 +1,13 @@
+type: object
+required:
+  - username
+  - password
+properties:
+  username:
+    type: string
+    description: Username of the registered account.
+    example: alice
+  password:
+    type: string
+    description: Password of the account.
+    example: password123

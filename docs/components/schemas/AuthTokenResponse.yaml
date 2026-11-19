@@ -1,0 +1,19 @@
+type: object
+required:
+  - token
+  - tokenType
+  - expiresIn
+properties:
+  token:
+    type: string
+    description: Signed JWT access token.
+    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+  tokenType:
+    type: string
+    description: Token type prefix for Authorization header.
+    example: Bearer
+  expiresIn:
+    type: integer
+    format: int64
+    description: Token expiration period in seconds.
+    example: 86400

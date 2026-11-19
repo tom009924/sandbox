@@ -1,0 +1,20 @@
+type: object
+required:
+  - defaultPriority
+properties:
+  defaultPriority:
+    $ref: ./TodoPriority.yaml
+  defaultEstimatedMinutes:
+    type: integer
+    format: int32
+    nullable: true
+    minimum: 0
+    description: Default estimated duration in minutes applied when not specified.
+    example: 30
+  maxActiveTodos:
+    type: integer
+    format: int32
+    nullable: true
+    minimum: 1
+    description: Maximum number of active (uncompleted) todos allowed.
+    example: 10

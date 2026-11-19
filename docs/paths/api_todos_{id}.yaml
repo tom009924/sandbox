@@ -1,0 +1,167 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    description: Todo identifier
+    schema:
+      type: string
+      format: uuid
+get:
+  tags:
+    - Todos
+  summary: Get a todo
+  description: Retrieve a single todo by its ID.
+  operationId: getTodo
+  responses:
+    '200':
+      description: Todo found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Todo.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+put:
+  tags:
+    - Todos
+  summary: Update a todo
+  description: Update an existing todo by its ID.
+  operationId: updateTodo
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UpdateTodoRequest.yaml
+        example:
+          title: Buy milk
+          completed: true
+          description: Purchased
+          dueDate: '2025-04-18'
+          priority: LOW
+          estimatedMinutes: 30
+  responses:
+    '200':
+      description: Todo updated
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Todo.yaml
+    '400':
+      description: Invalid request body, including a blank title
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+patch:
+  tags:
+    - Todos
+  summary: Partially update a todo
+  description: Partially update an existing todo by its ID.
+  operationId: patchTodo
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/PatchTodoRequest.yaml
+        example:
+          completed: true
+  responses:
+    '200':
+      description: Todo updated
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/Todo.yaml
+    '400':
+      description: Invalid request body, including a blank title
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+delete:
+  tags:
+    - Todos
+  summary: Delete a todo
+  description: Delete an existing todo by its ID.
+  operationId: deleteTodo
+  responses:
+    '204':
+      description: Todo deleted
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

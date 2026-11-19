@@ -11,7 +11,7 @@ import tools.jackson.databind.ObjectMapper
 class OpenApiSchemaMatchersTest {
     private val openApi = requireNotNull(
         OpenAPIV3Parser().read(
-            "docs/openapi.yaml",
+            "docs/dist/openapi.yaml",
             null,
             ParseOptions().apply {
                 isResolve = true

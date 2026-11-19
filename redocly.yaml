@@ -1,0 +1,16 @@
+extends:
+  - recommended
+
+apis:
+  public@v1:
+    root: docs/openapi.yaml
+  dist-public@v1:
+    root: docs/dist/openapi.yaml
+  dist-admin@v1:
+    root: docs/dist/openapi.admin.yaml
+  dist-ja@v1:
+    root: docs/dist/openapi.ja.yaml
+  workflows@v1:
+    root: docs/workflows/todo-workflows.arazzo.yaml
+  asyncapi@v1:
+    root: docs/asyncapi.yaml

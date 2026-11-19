@@ -1302,6 +1302,40 @@ components:
           maxLength: 100
           description: Password for the account.
           example: password123
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        username:
+          type: string
+          description: Registered username.
+          example: alice
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message describing the cause of the failure.
+          example: Invalid request parameters
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code.
+          example: 401
+        error:
+          type: string
+          description: HTTP status reason phrase.
+          example: Unauthorized
+      additionalProperties: false
     LoginRequest:
       type: object
       required:
@@ -1336,21 +1370,23 @@ components:
           format: int64
           description: Token expiration period in seconds.
           example: 86400
-    UserResponse:
-      type: object
-      required:
-        - id
-        - username
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique user identifier.
-          example: 550e8400-e29b-41d4-a716-446655440000
-        username:
-          type: string
-          description: Registered username.
-          example: alice
+    TodoPriority:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+    TodoSortField:
+      type: string
+      enum:
+        - DUE_DATE
+        - PRIORITY
+        - TITLE
+    SortOrder:
+      type: string
+      enum:
+        - ASC
+        - DESC
     Todo:
       type: object
       required:
@@ -1420,25 +1456,6 @@ components:
           nullable: true
           description: Optional user ID of the project member assigned to this todo.
           example: 550e8400-e29b-41d4-a716-446655440000
-    ErrorResponse:
-      type: object
-      required:
-        - message
-      properties:
-        message:
-          type: string
-          description: Error message describing the cause of the failure.
-          example: Invalid request parameters
-        status:
-          type: integer
-          format: int32
-          description: HTTP status code.
-          example: 401
-        error:
-          type: string
-          description: HTTP status reason phrase.
-          example: Unauthorized
-      additionalProperties: false
     CreateTodoRequest:
       type: object
       required:
@@ -1586,183 +1603,6 @@ components:
           nullable: true
           description: Optional user ID of a project member to assign this todo to (project todos only).
           example: 550e8400-e29b-41d4-a716-446655440000
-    TodoPriority:
-      type: string
-      enum:
-        - LOW
-        - MEDIUM
-        - HIGH
-    TodoSortField:
-      type: string
-      enum:
-        - DUE_DATE
-        - PRIORITY
-        - TITLE
-    SortOrder:
-      type: string
-      enum:
-        - ASC
-        - DESC
-    UserSettingsResponse:
-      type: object
-      required:
-        - userId
-        - defaultPriority
-      properties:
-        userId:
-          type: string
-          format: uuid
-          description: User identifier.
-          example: 550e8400-e29b-41d4-a716-446655440000
-        defaultPriority:
-          $ref: '#/components/schemas/TodoPriority'
-        defaultEstimatedMinutes:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 0
-          description: Default estimated duration in minutes applied when not specified.
-          example: 30
-        maxActiveTodos:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 1
-          description: Maximum number of active (uncompleted) todos allowed.
-          example: 10
-    UpdateUserSettingsRequest:
-      type: object
-      required:
-        - defaultPriority
-      properties:
-        defaultPriority:
-          $ref: '#/components/schemas/TodoPriority'
-        defaultEstimatedMinutes:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 0
-          description: Default estimated duration in minutes applied when not specified.
-          example: 30
-        maxActiveTodos:
-          type: integer
-          format: int32
-          nullable: true
-          minimum: 1
-          description: Maximum number of active (uncompleted) todos allowed.
-          example: 10
-    ProjectRole:
-      type: string
-      enum:
-        - OWNER
-        - MEMBER
-    ProjectResponse:
-      type: object
-      additionalProperties: false
-      required:
-        - id
-        - name
-        - description
-        - createdBy
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
-        name:
-          type: string
-          maxLength: 100
-          example: Backend Migration
-        description:
-          type: string
-          maxLength: 500
-          nullable: true
-          example: Tasks for migrating to Spanner
-        createdBy:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
-        createdAt:
-          type: string
-          format: date-time
-          example: '2025-04-18T10:00:00Z'
-    CreateProjectRequest:
-      type: object
-      additionalProperties: false
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          maxLength: 100
-          pattern: .*\S.*
-          description: Project name. Must contain at least one non-whitespace character.
-          example: Backend Migration
-        description:
-          type: string
-          maxLength: 500
-          nullable: true
-          example: Tasks for migrating to Spanner
-    UpdateProjectRequest:
-      type: object
-      additionalProperties: false
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          maxLength: 100
-          pattern: .*\S.*
-          description: Project name. Must contain at least one non-whitespace character.
-          example: Backend Migration Phase 2
-        description:
-          type: string
-          maxLength: 500
-          nullable: true
-          example: Updated scope
-    ProjectMemberResponse:
-      type: object
-      additionalProperties: false
-      required:
-        - projectId
-        - userId
-        - username
-        - role
-        - joinedAt
-      properties:
-        projectId:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
-        userId:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440001
-        username:
-          type: string
-          example: bob
-        role:
-          $ref: '#/components/schemas/ProjectRole'
-        joinedAt:
-          type: string
-          format: date-time
-          example: '2025-04-18T10:00:00Z'
-    AddProjectMemberRequest:
-      type: object
-      additionalProperties: false
-      required:
-        - username
-      properties:
-        username:
-          type: string
-          minLength: 1
-          maxLength: 255
-          pattern: .*\S.*
-          description: Username of the user to add to the project.
-          example: bob
-        role:
-          $ref: '#/components/schemas/ProjectRole'
     TodoSubtaskResponse:
       type: object
       additionalProperties: false
@@ -1869,6 +1709,166 @@ components:
           pattern: .*\S.*
           description: Comment text. Must contain at least one non-whitespace character.
           example: Please review this before Friday.
+    ProjectResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - createdBy
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          maxLength: 100
+          example: Backend Migration
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Tasks for migrating to Spanner
+        createdBy:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-04-18T10:00:00Z'
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Project name. Must contain at least one non-whitespace character.
+          example: Backend Migration
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Tasks for migrating to Spanner
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          pattern: .*\S.*
+          description: Project name. Must contain at least one non-whitespace character.
+          example: Backend Migration Phase 2
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Updated scope
+    ProjectRole:
+      type: string
+      enum:
+        - OWNER
+        - MEMBER
+    ProjectMemberResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - projectId
+        - userId
+        - username
+        - role
+        - joinedAt
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+        username:
+          type: string
+          example: bob
+        role:
+          $ref: '#/components/schemas/ProjectRole'
+        joinedAt:
+          type: string
+          format: date-time
+          example: '2025-04-18T10:00:00Z'
+    AddProjectMemberRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: .*\S.*
+          description: Username of the user to add to the project.
+          example: bob
+        role:
+          $ref: '#/components/schemas/ProjectRole'
+    UserSettingsResponse:
+      type: object
+      required:
+        - userId
+        - defaultPriority
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User identifier.
+          example: 550e8400-e29b-41d4-a716-446655440000
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10
+    UpdateUserSettingsRequest:
+      type: object
+      required:
+        - defaultPriority
+      properties:
+        defaultPriority:
+          $ref: '#/components/schemas/TodoPriority'
+        defaultEstimatedMinutes:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 0
+          description: Default estimated duration in minutes applied when not specified.
+          example: 30
+        maxActiveTodos:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+          description: Maximum number of active (uncompleted) todos allowed.
+          example: 10
     AdminStatsResponse:
       type: object
       required:

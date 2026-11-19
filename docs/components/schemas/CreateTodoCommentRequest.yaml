@@ -1,0 +1,11 @@
+type: object
+additionalProperties: false
+required:
+  - content
+properties:
+  content:
+    type: string
+    maxLength: 1000
+    pattern: .*\S.*
+    description: Comment text. Must contain at least one non-whitespace character.
+    example: Please review this before Friday.

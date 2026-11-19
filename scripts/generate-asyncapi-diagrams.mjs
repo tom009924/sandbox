@@ -94,10 +94,27 @@ export function generateMarkdown(spec) {
     sections.push('| Property | Type | Format | Required | Nullable |');
     sections.push('| :--- | :--- | :--- | :---: | :---: |');
     for (const [propName, prop] of Object.entries(schema.properties || {})) {
-      const refName = prop.$ref ? `\`$ref: ${resolveRefName(prop.$ref)}\`` : `\`${prop.type || 'any'}\``;
+      const oneOf = Array.isArray(prop.oneOf) ? prop.oneOf : null;
+      const nonNullOneOf = oneOf ? oneOf.find((s) => s.type !== 'null') : null;
+      const hasNullOneOf = oneOf ? oneOf.some((s) => s.type === 'null') : false;
+      const isTypeArray = Array.isArray(prop.type);
+      const hasNullType = isTypeArray ? prop.type.includes('null') : false;
+
+      let refName;
+      if (prop.$ref) {
+        refName = `\`$ref: ${resolveRefName(prop.$ref)}\``;
+      } else if (nonNullOneOf?.$ref) {
+        refName = `\`$ref: ${resolveRefName(nonNullOneOf.$ref)}\``;
+      } else if (isTypeArray) {
+        const types = prop.type.filter((t) => t !== 'null');
+        refName = `\`${types.join(' | ') || 'any'}\``;
+      } else {
+        refName = `\`${prop.type || nonNullOneOf?.type || 'any'}\``;
+      }
+
       const format = prop.format ? `\`${prop.format}\`` : '-';
       const req = requiredSet.has(propName) ? 'Yes' : 'No';
-      const nullable = prop.nullable ? 'Yes' : 'No';
+      const nullable = prop.nullable || hasNullOneOf || hasNullType ? 'Yes' : 'No';
       sections.push(`| \`${propName}\` | ${refName} | ${format} | ${req} | ${nullable} |`);
     }
     sections.push('');

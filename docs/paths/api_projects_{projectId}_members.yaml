@@ -1,0 +1,109 @@
+parameters:
+  - name: projectId
+    in: path
+    required: true
+    description: Project identifier
+    schema:
+      type: string
+      format: uuid
+get:
+  tags:
+    - Projects
+  summary: List project members
+  description: Retrieve all members of a project. Only accessible to project members.
+  operationId: listProjectMembers
+  responses:
+    '200':
+      description: Project member list
+      content:
+        application/json:
+          schema:
+            type: array
+            maxItems: 1000
+            items:
+              $ref: ../components/schemas/ProjectMemberResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Project not found or user is not a member
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+post:
+  tags:
+    - Projects
+  summary: Add a project member
+  description: Add a user to the project by username. Only project owners are allowed.
+  operationId: addProjectMember
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/AddProjectMemberRequest.yaml
+        example:
+          username: bob
+          role: MEMBER
+  responses:
+    '201':
+      description: Project member added
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ProjectMemberResponse.yaml
+    '400':
+      description: Invalid request body
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '403':
+      description: Only project owners can add members
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Project or target user not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '409':
+      description: User is already a member of this project
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

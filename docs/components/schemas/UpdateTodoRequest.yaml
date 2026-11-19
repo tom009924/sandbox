@@ -1,0 +1,53 @@
+type: object
+required:
+  - title
+  - completed
+properties:
+  title:
+    type: string
+    maxLength: 100
+    pattern: .*\S.*
+    description: >-
+      Must contain at least one non-whitespace character. Leading and trailing
+      whitespace is trimmed.
+    example: Buy milk
+  completed:
+    type: boolean
+    example: true
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+    example: Purchased
+  dueDate:
+    type: string
+    format: date
+    nullable: true
+    example: '2025-04-18'
+  priority:
+    allOf:
+      - $ref: ./TodoPriority.yaml
+    default: MEDIUM
+  estimatedMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+    example: 30
+  tags:
+    type: array
+    description: List of tags associated with the todo.
+    items:
+      type: string
+      maxLength: 32
+    maxItems: 10
+    example:
+      - shopping
+      - groceries
+  assigneeId:
+    type: string
+    format: uuid
+    nullable: true
+    description: >-
+      Optional user ID of a project member to assign this todo to (project todos
+      only).
+    example: 550e8400-e29b-41d4-a716-446655440000

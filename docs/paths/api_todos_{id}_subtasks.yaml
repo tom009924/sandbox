@@ -1,0 +1,92 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    description: Todo identifier
+    schema:
+      type: string
+      format: uuid
+get:
+  tags:
+    - Todo Subtasks
+  summary: List subtasks for a todo
+  description: >-
+    Retrieve subtasks for a todo ordered by position. Accessible to the todo
+    owner or project members.
+  operationId: listTodoSubtasks
+  responses:
+    '200':
+      description: Todo subtask list
+      content:
+        application/json:
+          schema:
+            type: array
+            maxItems: 1000
+            items:
+              $ref: ../components/schemas/TodoSubtaskResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+post:
+  tags:
+    - Todo Subtasks
+  summary: Add a subtask to a todo
+  description: >-
+    Add a subtask item to a todo checklist. Accessible to the todo owner or
+    project members.
+  operationId: createTodoSubtask
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/CreateTodoSubtaskRequest.yaml
+  responses:
+    '201':
+      description: Subtask created
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/TodoSubtaskResponse.yaml
+    '400':
+      description: Invalid subtask request
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '401':
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    '404':
+      description: Todo not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
