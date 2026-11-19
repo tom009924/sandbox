@@ -2,3 +2,4 @@ type: string
 enum:
   - OWNER
   - MEMBER
+maxLength: 6

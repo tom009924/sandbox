@@ -6,6 +6,7 @@ parameters:
     schema:
       type: string
       format: uuid
+      maxLength: 36
   - name: commentId
     in: path
     required: true
@@ -13,6 +14,7 @@ parameters:
     schema:
       type: string
       format: uuid
+      maxLength: 36
 delete:
   tags:
     - Todo Comments
@@ -20,9 +22,9 @@ delete:
   description: Delete a comment from a todo. Only the comment author is allowed.
   operationId: deleteTodoComment
   responses:
-    '204':
+    "204":
       description: Comment deleted
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -31,7 +33,7 @@ delete:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '403':
+    "403":
       description: Forbidden (only the comment author can delete)
       content:
         application/json:
@@ -40,7 +42,7 @@ delete:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo or comment not found
       content:
         application/json:

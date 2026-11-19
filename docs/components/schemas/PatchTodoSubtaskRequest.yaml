@@ -15,3 +15,4 @@ properties:
     format: int32
     minimum: 0
     example: 1
+    maximum: 2147483647

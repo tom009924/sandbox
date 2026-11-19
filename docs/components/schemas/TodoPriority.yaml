@@ -3,3 +3,4 @@ enum:
   - LOW
   - MEDIUM
   - HIGH
+maxLength: 6

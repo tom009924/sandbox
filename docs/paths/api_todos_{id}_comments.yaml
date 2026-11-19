@@ -6,16 +6,15 @@ parameters:
     schema:
       type: string
       format: uuid
+      maxLength: 36
 get:
   tags:
     - Todo Comments
   summary: List comments for a todo
-  description: >-
-    Retrieve comments for a todo ordered chronologically. Accessible to the todo
-    owner or project members.
+  description: Retrieve comments for a todo ordered chronologically. Accessible to the todo owner or project members.
   operationId: listTodoComments
   responses:
-    '200':
+    "200":
       description: Todo comment list
       content:
         application/json:
@@ -24,7 +23,7 @@ get:
             maxItems: 1000
             items:
               $ref: ../components/schemas/TodoCommentResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -33,7 +32,7 @@ get:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:
@@ -55,13 +54,13 @@ post:
         schema:
           $ref: ../components/schemas/CreateTodoCommentRequest.yaml
   responses:
-    '201':
+    "201":
       description: Comment created
       content:
         application/json:
           schema:
             $ref: ../components/schemas/TodoCommentResponse.yaml
-    '400':
+    "400":
       description: Invalid comment request
       content:
         application/json:
@@ -70,7 +69,7 @@ post:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -79,7 +78,7 @@ post:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:

@@ -14,3 +14,91 @@ apis:
     root: docs/workflows/todo-workflows.arazzo.yaml
   asyncapi@v1:
     root: docs/asyncapi.yaml
+
+rules:
+  rule/owasp-array-limit:
+    subject:
+      type: Schema
+      property: maxItems
+    where:
+      - subject:
+          type: Schema
+          property: type
+        assertions:
+          defined: true
+          const: array
+    message: Array schemas must specify maxItems (OWASP API4:2023).
+    severity: error
+    assertions:
+      defined: true
+
+  rule/owasp-string-limit:
+    subject:
+      type: Schema
+      property: maxLength
+    where:
+      - subject:
+          type: Schema
+          property: type
+        assertions:
+          defined: true
+          const: string
+    message: String schemas must specify maxLength (OWASP API4:2023).
+    severity: error
+    assertions:
+      defined: true
+
+  rule/owasp-string-restricted:
+    subject:
+      type: Schema
+    where:
+      - subject:
+          type: Schema
+          property: type
+        assertions:
+          defined: true
+          const: string
+    message: String schemas must specify format, pattern, or enum (OWASP API4:2023).
+    severity: error
+    assertions:
+      requireAny:
+        - format
+        - pattern
+        - enum
+
+  rule/owasp-number-limit:
+    subject:
+      type: Schema
+      property:
+        - minimum
+        - maximum
+    where:
+      - subject:
+          type: Schema
+          property: type
+        assertions:
+          defined: true
+          enum:
+            - integer
+            - number
+    message: Numeric schemas must specify minimum and maximum (OWASP API4:2023).
+    severity: error
+    assertions:
+      defined: true
+
+  rule/owasp-no-additional-properties:
+    subject:
+      type: Schema
+      property: additionalProperties
+    where:
+      - subject:
+          type: Schema
+          property: type
+        assertions:
+          defined: true
+          const: object
+    message: Object schemas must set additionalProperties to false (OWASP API3:2023).
+    severity: error
+    assertions:
+      defined: true
+      const: false

@@ -6,13 +6,19 @@ properties:
     type: string
     description: Error message describing the cause of the failure.
     example: Invalid request parameters
+    maxLength: 1024
+    pattern: ^[\s\S]*$
   status:
     type: integer
     format: int32
     description: HTTP status code.
     example: 401
+    minimum: 100
+    maximum: 599
   error:
     type: string
     description: HTTP status reason phrase.
     example: Unauthorized
+    maxLength: 255
+    pattern: ^[\s\S]*$
 additionalProperties: false

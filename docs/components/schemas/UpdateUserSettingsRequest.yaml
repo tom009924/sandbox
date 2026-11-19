@@ -11,6 +11,7 @@ properties:
     minimum: 0
     description: Default estimated duration in minutes applied when not specified.
     example: 30
+    maximum: 2147483647
   maxActiveTodos:
     type: integer
     format: int32
@@ -18,3 +19,5 @@ properties:
     minimum: 1
     description: Maximum number of active (uncompleted) todos allowed.
     example: 10
+    maximum: 2147483647
+additionalProperties: false

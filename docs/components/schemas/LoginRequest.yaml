@@ -7,7 +7,12 @@ properties:
     type: string
     description: Username of the registered account.
     example: alice
+    maxLength: 255
+    pattern: ^[\s\S]*$
   password:
     type: string
     description: Password of the account.
     example: password123
+    maxLength: 255
+    format: password
+additionalProperties: false

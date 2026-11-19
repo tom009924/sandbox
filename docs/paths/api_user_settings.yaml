@@ -2,18 +2,16 @@ get:
   tags:
     - Settings
   summary: Get user settings
-  description: >-
-    Retrieve settings and preferences for the authenticated user. If no settings
-    exist yet, returns default settings.
+  description: Retrieve settings and preferences for the authenticated user. If no settings exist yet, returns default settings.
   operationId: getUserSettings
   responses:
-    '200':
+    "200":
       description: User settings retrieved successfully
       content:
         application/json:
           schema:
             $ref: ../components/schemas/UserSettingsResponse.yaml
-    '401':
+    "401":
       description: Bearer authentication token is missing or invalid
       content:
         application/json:
@@ -39,13 +37,13 @@ put:
           defaultEstimatedMinutes: 45
           maxActiveTodos: 10
   responses:
-    '200':
+    "200":
       description: User settings updated successfully
       content:
         application/json:
           schema:
             $ref: ../components/schemas/UserSettingsResponse.yaml
-    '400':
+    "400":
       description: Invalid request body
       content:
         application/json:
@@ -54,7 +52,7 @@ put:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Bearer authentication token is missing or invalid
       content:
         application/json:

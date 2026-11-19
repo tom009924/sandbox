@@ -3,3 +3,4 @@ enum:
   - DUE_DATE
   - PRIORITY
   - TITLE
+maxLength: 8

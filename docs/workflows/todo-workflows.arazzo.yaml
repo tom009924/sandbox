@@ -19,12 +19,17 @@ workflows:
       updating settings, creating an idempotent todo, fetching, updating, listing, and deleting it.
     inputs:
       type: object
+      additionalProperties: false
       properties:
         username:
           type: string
+          maxLength: 255
+          pattern: "^[\\s\\S]*$"
           default: arazzo-user
         password:
           type: string
+          format: password
+          maxLength: 100
           default: Password123!
     steps:
       - stepId: registerUser
@@ -307,9 +312,12 @@ workflows:
     description: Inspect system statistics and registered users using administrator API key.
     inputs:
       type: object
+      additionalProperties: false
       properties:
         adminApiKey:
           type: string
+          format: password
+          maxLength: 255
           default: admin-secret-key
     steps:
       - stepId: getAdminStats
@@ -339,12 +347,17 @@ workflows:
       project-scoped Todos, removing a member, and deleting the project.
     inputs:
       type: object
+      additionalProperties: false
       properties:
         username:
           type: string
+          maxLength: 255
+          pattern: "^[\\s\\S]*$"
           default: arazzo-user
         password:
           type: string
+          format: password
+          maxLength: 100
           default: Password123!
     steps:
       - stepId: registerProjectOwner

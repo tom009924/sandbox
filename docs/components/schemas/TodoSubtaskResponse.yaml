@@ -11,14 +11,17 @@ properties:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440000
+    maxLength: 36
   todoId:
     type: string
     format: uuid
     example: 550e8400-e29b-41d4-a716-446655440001
+    maxLength: 36
   title:
     type: string
     maxLength: 100
     example: Check expiration date
+    pattern: ^[\s\S]*$
   completed:
     type: boolean
     example: false
@@ -27,3 +30,4 @@ properties:
     format: int32
     minimum: 0
     example: 0
+    maximum: 2147483647

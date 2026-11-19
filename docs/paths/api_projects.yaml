@@ -5,7 +5,7 @@ get:
   description: Retrieve a list of projects that the authenticated user is a member of.
   operationId: listProjects
   responses:
-    '200':
+    "200":
       description: Project list
       content:
         application/json:
@@ -14,7 +14,7 @@ get:
             maxItems: 1000
             items:
               $ref: ../components/schemas/ProjectResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -27,9 +27,7 @@ post:
   tags:
     - Projects
   summary: Create a project
-  description: >-
-    Create a new shared project. The creator is automatically registered as
-    OWNER.
+  description: Create a new shared project. The creator is automatically registered as OWNER.
   operationId: createProject
   requestBody:
     required: true
@@ -41,13 +39,13 @@ post:
           name: Backend Migration
           description: Tasks for migrating to Spanner
   responses:
-    '201':
+    "201":
       description: Project created
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ProjectResponse.yaml
-    '400':
+    "400":
       description: Invalid request body
       content:
         application/json:
@@ -56,7 +54,7 @@ post:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:

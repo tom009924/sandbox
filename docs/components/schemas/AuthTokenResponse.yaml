@@ -8,12 +8,20 @@ properties:
     type: string
     description: Signed JWT access token.
     example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+    maxLength: 2048
+    pattern: ^[A-Za-z0-9._-]+$
   tokenType:
     type: string
     description: Token type prefix for Authorization header.
     example: Bearer
+    maxLength: 2048
+    enum:
+      - Bearer
   expiresIn:
     type: integer
     format: int64
     description: Token expiration period in seconds.
     example: 86400
+    minimum: 0
+    maximum: 2147483647
+additionalProperties: false

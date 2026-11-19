@@ -4,9 +4,7 @@ properties:
     type: string
     maxLength: 100
     pattern: .*\S.*
-    description: >-
-      Must contain at least one non-whitespace character. Leading and trailing
-      whitespace is trimmed.
+    description: Must contain at least one non-whitespace character. Leading and trailing whitespace is trimmed.
     example: Buy milk
   completed:
     type: boolean
@@ -16,11 +14,13 @@ properties:
     maxLength: 500
     nullable: true
     example: Purchased
+    pattern: ^[\s\S]*$
   dueDate:
     type: string
     format: date
     nullable: true
-    example: '2025-04-18'
+    example: 2025-04-18
+    maxLength: 10
   priority:
     $ref: ./TodoPriority.yaml
   estimatedMinutes:
@@ -29,12 +29,14 @@ properties:
     minimum: 0
     nullable: true
     example: 30
+    maximum: 2147483647
   tags:
     type: array
     description: List of tags associated with the todo.
     items:
       type: string
       maxLength: 32
+      pattern: ^[\s\S]*$
     maxItems: 10
     nullable: true
     example:
@@ -44,7 +46,7 @@ properties:
     type: string
     format: uuid
     nullable: true
-    description: >-
-      Optional user ID of a project member to assign this todo to (project todos
-      only).
+    description: Optional user ID of a project member to assign this todo to (project todos only).
     example: 550e8400-e29b-41d4-a716-446655440000
+    maxLength: 36
+additionalProperties: false

@@ -15,13 +15,13 @@ post:
           username: alice
           password: password123
   responses:
-    '201':
+    "201":
       description: User registered successfully
       content:
         application/json:
           schema:
             $ref: ../components/schemas/UserResponse.yaml
-    '400':
+    "400":
       description: Invalid request body
       content:
         application/json:
@@ -30,7 +30,7 @@ post:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '409':
+    "409":
       description: Username is already registered
       content:
         application/json:

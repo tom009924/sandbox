@@ -15,13 +15,13 @@ post:
           username: alice
           password: password123
   responses:
-    '200':
+    "200":
       description: Authentication successful
       content:
         application/json:
           schema:
             $ref: ../components/schemas/AuthTokenResponse.yaml
-    '400':
+    "400":
       description: Invalid request body
       content:
         application/json:
@@ -30,7 +30,7 @@ post:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Invalid username or password
       content:
         application/json:

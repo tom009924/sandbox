@@ -14,3 +14,4 @@ properties:
     maxLength: 500
     nullable: true
     example: Tasks for migrating to Spanner
+    pattern: ^[\s\S]*$

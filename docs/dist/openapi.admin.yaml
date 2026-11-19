@@ -139,6 +139,7 @@ paths:
           schema:
             type: string
             maxLength: 32
+            pattern: ^[\s\S]*$
         - name: q
           in: query
           required: false
@@ -146,6 +147,7 @@ paths:
           schema:
             type: string
             maxLength: 100
+            pattern: ^[\s\S]*$
         - name: dueBefore
           in: query
           required: false
@@ -153,6 +155,7 @@ paths:
           schema:
             type: string
             format: date
+            maxLength: 10
         - name: dueAfter
           in: query
           required: false
@@ -160,6 +163,7 @@ paths:
           schema:
             type: string
             format: date
+            maxLength: 10
         - name: sortBy
           in: query
           required: false
@@ -179,6 +183,7 @@ paths:
           schema:
             type: string
             format: uuid
+            maxLength: 36
         - name: assigneeId
           in: query
           required: false
@@ -186,6 +191,7 @@ paths:
           schema:
             type: string
             format: uuid
+            maxLength: 36
       responses:
         '200':
           description: Todo list
@@ -285,6 +291,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     get:
       tags:
         - Todos
@@ -453,6 +460,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     get:
       tags:
         - Todo Subtasks
@@ -542,6 +550,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
       - name: subtaskId
         in: path
         required: true
@@ -549,6 +558,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     patch:
       tags:
         - Todo Subtasks
@@ -631,6 +641,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     get:
       tags:
         - Todo Comments
@@ -720,6 +731,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
       - name: commentId
         in: path
         required: true
@@ -727,6 +739,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     delete:
       tags:
         - Todo Comments
@@ -838,6 +851,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     get:
       tags:
         - Projects
@@ -972,6 +986,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     get:
       tags:
         - Projects
@@ -1082,6 +1097,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
       - name: userId
         in: path
         required: true
@@ -1089,6 +1105,7 @@ paths:
         schema:
           type: string
           format: uuid
+          maxLength: 36
     delete:
       tags:
         - Projects
@@ -1302,6 +1319,7 @@ components:
           maxLength: 100
           description: Password for the account.
           example: password123
+      additionalProperties: false
     UserResponse:
       type: object
       required:
@@ -1313,10 +1331,14 @@ components:
           format: uuid
           description: Unique user identifier.
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         username:
           type: string
           description: Registered username.
           example: alice
+          maxLength: 255
+          pattern: ^[\s\S]*$
+      additionalProperties: false
     ErrorResponse:
       type: object
       required:
@@ -1326,15 +1348,21 @@ components:
           type: string
           description: Error message describing the cause of the failure.
           example: Invalid request parameters
+          maxLength: 1024
+          pattern: ^[\s\S]*$
         status:
           type: integer
           format: int32
           description: HTTP status code.
           example: 401
+          minimum: 100
+          maximum: 599
         error:
           type: string
           description: HTTP status reason phrase.
           example: Unauthorized
+          maxLength: 255
+          pattern: ^[\s\S]*$
       additionalProperties: false
     LoginRequest:
       type: object
@@ -1346,10 +1374,15 @@ components:
           type: string
           description: Username of the registered account.
           example: alice
+          maxLength: 255
+          pattern: ^[\s\S]*$
         password:
           type: string
           description: Password of the account.
           example: password123
+          maxLength: 255
+          format: password
+      additionalProperties: false
     AuthTokenResponse:
       type: object
       required:
@@ -1361,32 +1394,43 @@ components:
           type: string
           description: Signed JWT access token.
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+          maxLength: 2048
+          pattern: ^[A-Za-z0-9._-]+$
         tokenType:
           type: string
           description: Token type prefix for Authorization header.
           example: Bearer
+          maxLength: 2048
+          enum:
+            - Bearer
         expiresIn:
           type: integer
           format: int64
           description: Token expiration period in seconds.
           example: 86400
+          minimum: 0
+          maximum: 2147483647
+      additionalProperties: false
     TodoPriority:
       type: string
       enum:
         - LOW
         - MEDIUM
         - HIGH
+      maxLength: 6
     TodoSortField:
       type: string
       enum:
         - DUE_DATE
         - PRIORITY
         - TITLE
+      maxLength: 8
     SortOrder:
       type: string
       enum:
         - ASC
         - DESC
+      maxLength: 4
     Todo:
       type: object
       required:
@@ -1405,14 +1449,17 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         userId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         title:
           type: string
           maxLength: 100
           example: Buy milk
+          pattern: ^[\s\S]*$
         completed:
           type: boolean
           example: false
@@ -1421,11 +1468,13 @@ components:
           maxLength: 500
           nullable: true
           example: Buy before the weekend
+          pattern: ^[\s\S]*$
         dueDate:
           type: string
           format: date
           nullable: true
           example: '2025-04-18'
+          maxLength: 10
         priority:
           $ref: '#/components/schemas/TodoPriority'
         estimatedMinutes:
@@ -1434,12 +1483,14 @@ components:
           nullable: true
           minimum: 0
           example: 30
+          maximum: 2147483647
         tags:
           type: array
           description: List of tags associated with the todo.
           items:
             type: string
             maxLength: 32
+            pattern: ^[\s\S]*$
           maxItems: 10
           example:
             - shopping
@@ -1450,12 +1501,15 @@ components:
           nullable: true
           description: Optional project ID if this todo belongs to a shared project.
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         assigneeId:
           type: string
           format: uuid
           nullable: true
           description: Optional user ID of the project member assigned to this todo.
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
+      additionalProperties: false
     CreateTodoRequest:
       type: object
       required:
@@ -1472,11 +1526,13 @@ components:
           maxLength: 500
           nullable: true
           example: Buy before the weekend
+          pattern: ^[\s\S]*$
         dueDate:
           type: string
           format: date
           nullable: true
           example: '2025-04-18'
+          maxLength: 10
         priority:
           $ref: '#/components/schemas/TodoPriority'
         estimatedMinutes:
@@ -1484,12 +1540,14 @@ components:
           format: int32
           minimum: 0
           example: 30
+          maximum: 2147483647
         tags:
           type: array
           description: List of tags associated with the todo.
           items:
             type: string
             maxLength: 32
+            pattern: ^[\s\S]*$
           maxItems: 10
           example:
             - shopping
@@ -1500,12 +1558,15 @@ components:
           nullable: true
           description: Optional project ID to create the todo inside a shared project.
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         assigneeId:
           type: string
           format: uuid
           nullable: true
           description: Optional user ID of a project member to assign this todo to (requires projectId).
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
+      additionalProperties: false
     UpdateTodoRequest:
       type: object
       required:
@@ -1526,11 +1587,13 @@ components:
           maxLength: 500
           nullable: true
           example: Purchased
+          pattern: ^[\s\S]*$
         dueDate:
           type: string
           format: date
           nullable: true
           example: '2025-04-18'
+          maxLength: 10
         priority:
           allOf:
             - $ref: '#/components/schemas/TodoPriority'
@@ -1540,12 +1603,14 @@ components:
           format: int32
           minimum: 0
           example: 30
+          maximum: 2147483647
         tags:
           type: array
           description: List of tags associated with the todo.
           items:
             type: string
             maxLength: 32
+            pattern: ^[\s\S]*$
           maxItems: 10
           example:
             - shopping
@@ -1556,6 +1621,8 @@ components:
           nullable: true
           description: Optional user ID of a project member to assign this todo to (project todos only).
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
+      additionalProperties: false
     PatchTodoRequest:
       type: object
       properties:
@@ -1573,11 +1640,13 @@ components:
           maxLength: 500
           nullable: true
           example: Purchased
+          pattern: ^[\s\S]*$
         dueDate:
           type: string
           format: date
           nullable: true
           example: '2025-04-18'
+          maxLength: 10
         priority:
           $ref: '#/components/schemas/TodoPriority'
         estimatedMinutes:
@@ -1586,12 +1655,14 @@ components:
           minimum: 0
           nullable: true
           example: 30
+          maximum: 2147483647
         tags:
           type: array
           description: List of tags associated with the todo.
           items:
             type: string
             maxLength: 32
+            pattern: ^[\s\S]*$
           maxItems: 10
           nullable: true
           example:
@@ -1603,6 +1674,8 @@ components:
           nullable: true
           description: Optional user ID of a project member to assign this todo to (project todos only).
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
+      additionalProperties: false
     TodoSubtaskResponse:
       type: object
       additionalProperties: false
@@ -1617,14 +1690,17 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         todoId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440001
+          maxLength: 36
         title:
           type: string
           maxLength: 100
           example: Check expiration date
+          pattern: ^[\s\S]*$
         completed:
           type: boolean
           example: false
@@ -1633,6 +1709,7 @@ components:
           format: int32
           minimum: 0
           example: 0
+          maximum: 2147483647
     CreateTodoSubtaskRequest:
       type: object
       additionalProperties: false
@@ -1663,6 +1740,7 @@ components:
           format: int32
           minimum: 0
           example: 1
+          maximum: 2147483647
     TodoCommentResponse:
       type: object
       additionalProperties: false
@@ -1678,25 +1756,32 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         todoId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440001
+          maxLength: 36
         userId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440002
+          maxLength: 36
         username:
           type: string
           example: alice
+          maxLength: 255
+          pattern: ^[\s\S]*$
         content:
           type: string
           maxLength: 1000
           example: Looks good!
+          pattern: ^[\s\S]*$
         createdAt:
           type: string
           format: date-time
           example: '2025-04-18T10:00:00Z'
+          maxLength: 64
     CreateTodoCommentRequest:
       type: object
       additionalProperties: false
@@ -1723,23 +1808,28 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         name:
           type: string
           maxLength: 100
           example: Backend Migration
+          pattern: ^[\s\S]*$
         description:
           type: string
           maxLength: 500
           nullable: true
           example: Tasks for migrating to Spanner
+          pattern: ^[\s\S]*$
         createdBy:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         createdAt:
           type: string
           format: date-time
           example: '2025-04-18T10:00:00Z'
+          maxLength: 64
     CreateProjectRequest:
       type: object
       additionalProperties: false
@@ -1757,6 +1847,7 @@ components:
           maxLength: 500
           nullable: true
           example: Tasks for migrating to Spanner
+          pattern: ^[\s\S]*$
     UpdateProjectRequest:
       type: object
       additionalProperties: false
@@ -1774,11 +1865,13 @@ components:
           maxLength: 500
           nullable: true
           example: Updated scope
+          pattern: ^[\s\S]*$
     ProjectRole:
       type: string
       enum:
         - OWNER
         - MEMBER
+      maxLength: 6
     ProjectMemberResponse:
       type: object
       additionalProperties: false
@@ -1793,19 +1886,24 @@ components:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         userId:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440001
+          maxLength: 36
         username:
           type: string
           example: bob
+          maxLength: 255
+          pattern: ^[\s\S]*$
         role:
           $ref: '#/components/schemas/ProjectRole'
         joinedAt:
           type: string
           format: date-time
           example: '2025-04-18T10:00:00Z'
+          maxLength: 64
     AddProjectMemberRequest:
       type: object
       additionalProperties: false
@@ -1832,6 +1930,7 @@ components:
           format: uuid
           description: User identifier.
           example: 550e8400-e29b-41d4-a716-446655440000
+          maxLength: 36
         defaultPriority:
           $ref: '#/components/schemas/TodoPriority'
         defaultEstimatedMinutes:
@@ -1841,6 +1940,7 @@ components:
           minimum: 0
           description: Default estimated duration in minutes applied when not specified.
           example: 30
+          maximum: 2147483647
         maxActiveTodos:
           type: integer
           format: int32
@@ -1848,6 +1948,8 @@ components:
           minimum: 1
           description: Maximum number of active (uncompleted) todos allowed.
           example: 10
+          maximum: 2147483647
+      additionalProperties: false
     UpdateUserSettingsRequest:
       type: object
       required:
@@ -1862,6 +1964,7 @@ components:
           minimum: 0
           description: Default estimated duration in minutes applied when not specified.
           example: 30
+          maximum: 2147483647
         maxActiveTodos:
           type: integer
           format: int32
@@ -1869,8 +1972,11 @@ components:
           minimum: 1
           description: Maximum number of active (uncompleted) todos allowed.
           example: 10
+          maximum: 2147483647
+      additionalProperties: false
     AdminStatsResponse:
       type: object
+      additionalProperties: false
       required:
         - totalUsers
         - totalTodos
@@ -1881,28 +1987,33 @@ components:
           type: integer
           format: int64
           minimum: 0
+          maximum: 2147483647
           description: Total registered users count.
           example: 10
         totalTodos:
           type: integer
           format: int64
           minimum: 0
+          maximum: 2147483647
           description: Total todos count across all users.
           example: 45
         completedTodos:
           type: integer
           format: int64
           minimum: 0
+          maximum: 2147483647
           description: Total completed todos count.
           example: 20
         activeTodos:
           type: integer
           format: int64
           minimum: 0
+          maximum: 2147483647
           description: Total active todos count.
           example: 25
     AdminUserResponse:
       type: object
+      additionalProperties: false
       required:
         - id
         - username
@@ -1910,9 +2021,12 @@ components:
         id:
           type: string
           format: uuid
+          maxLength: 36
           description: Unique user identifier.
           example: 550e8400-e29b-41d4-a716-446655440000
         username:
           type: string
+          maxLength: 255
+          pattern: ^[\s\S]*$
           description: Registered username.
           example: alice

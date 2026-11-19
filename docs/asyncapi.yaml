@@ -26,7 +26,7 @@ channels:
     description: Google Cloud Pub/Sub topic for Todo lifecycle domain events.
     messages:
       todoEvent:
-        $ref: '#/components/messages/TodoEventMessage'
+        $ref: "#/components/messages/TodoEventMessage"
     parameters:
       projectId:
         description: GCP Project ID (default `todo-project`)
@@ -34,7 +34,7 @@ operations:
   publishTodoEvent:
     action: send
     channel:
-      $ref: '#/channels/todoEvents'
+      $ref: "#/channels/todoEvents"
     summary: Publish Todo lifecycle event (CREATED, UPDATED, DELETED)
     description: |
       Publishes a Todo lifecycle domain event whenever a Todo is created, updated, or deleted.
@@ -42,7 +42,7 @@ operations:
     tags:
       - name: Todos
     messages:
-      - $ref: '#/channels/todoEvents/messages/todoEvent'
+      - $ref: "#/channels/todoEvents/messages/todoEvent"
 components:
   messages:
     TodoEventMessage:
@@ -55,12 +55,18 @@ components:
         properties:
           eventType:
             type: string
-            enum: [CREATED, UPDATED, DELETED]
+            enum:
+              - CREATED
+              - UPDATED
+              - DELETED
+            maxLength: 7
           todoId:
             type: string
             format: uuid
+            maxLength: 36
+        additionalProperties: false
       payload:
-        $ref: '#/components/schemas/TodoEvent'
+        $ref: "#/components/schemas/TodoEvent"
       examples:
         - name: todoCreated
           summary: Example CREATED event
@@ -70,7 +76,7 @@ components:
           payload:
             eventId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
             eventType: CREATED
-            timestamp: '2025-04-18T12:00:00Z'
+            timestamp: 2025-04-18T12:00:00Z
             todoId: 550e8400-e29b-41d4-a716-446655440000
             todo:
               id: 550e8400-e29b-41d4-a716-446655440000
@@ -78,7 +84,7 @@ components:
               title: Buy milk
               completed: false
               description: Get fresh milk
-              dueDate: '2025-04-19'
+              dueDate: 2025-04-19
               priority: HIGH
               estimatedMinutes: 30
               tags:
@@ -97,19 +103,27 @@ components:
         eventId:
           type: string
           format: uuid
+          maxLength: 36
         eventType:
           type: string
-          enum: [CREATED, UPDATED, DELETED]
+          enum:
+            - CREATED
+            - UPDATED
+            - DELETED
+          maxLength: 7
         timestamp:
           type: string
           format: date-time
+          maxLength: 64
         todoId:
           type: string
           format: uuid
+          maxLength: 36
         todo:
           oneOf:
-            - $ref: '#/components/schemas/TodoPayload'
-            - type: 'null'
+            - $ref: "#/components/schemas/TodoPayload"
+            - type: "null"
+      additionalProperties: false
     TodoPayload:
       type: object
       required:
@@ -123,43 +137,62 @@ components:
         id:
           type: string
           format: uuid
+          maxLength: 36
         userId:
           type: string
           format: uuid
+          maxLength: 36
         title:
           type: string
+          maxLength: 255
+          pattern: ^[\s\S]*$
         completed:
           type: boolean
         description:
           type:
             - string
-            - 'null'
+            - "null"
           description: Decrypted plaintext description (when available)
+          maxLength: 2048
+          pattern: ^[\s\S]*$
         dueDate:
           type:
             - string
-            - 'null'
+            - "null"
           format: date
+          maxLength: 10
         priority:
           type: string
-          enum: [LOW, MEDIUM, HIGH]
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+          maxLength: 6
         estimatedMinutes:
           type:
             - integer
-            - 'null'
+            - "null"
+          minimum: 0
+          maximum: 2147483647
         tags:
           type: array
           items:
             type: string
+            maxLength: 255
+            pattern: ^[\s\S]*$
+          maxItems: 1000
         projectId:
           type:
             - string
-            - 'null'
+            - "null"
           format: uuid
           description: Optional shared project ID associated with the Todo
+          maxLength: 36
         assigneeId:
           type:
             - string
-            - 'null'
+            - "null"
           format: uuid
           description: Optional user ID of the project member assigned to this Todo
+          maxLength: 36
+      additionalProperties: false

@@ -8,6 +8,7 @@ properties:
     format: uuid
     description: User identifier.
     example: 550e8400-e29b-41d4-a716-446655440000
+    maxLength: 36
   defaultPriority:
     $ref: ./TodoPriority.yaml
   defaultEstimatedMinutes:
@@ -17,6 +18,7 @@ properties:
     minimum: 0
     description: Default estimated duration in minutes applied when not specified.
     example: 30
+    maximum: 2147483647
   maxActiveTodos:
     type: integer
     format: int32
@@ -24,3 +26,5 @@ properties:
     minimum: 1
     description: Maximum number of active (uncompleted) todos allowed.
     example: 10
+    maximum: 2147483647
+additionalProperties: false

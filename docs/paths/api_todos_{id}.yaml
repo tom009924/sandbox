@@ -6,6 +6,7 @@ parameters:
     schema:
       type: string
       format: uuid
+      maxLength: 36
 get:
   tags:
     - Todos
@@ -13,13 +14,13 @@ get:
   description: Retrieve a single todo by its ID.
   operationId: getTodo
   responses:
-    '200':
+    "200":
       description: Todo found
       content:
         application/json:
           schema:
             $ref: ../components/schemas/Todo.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -28,7 +29,7 @@ get:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:
@@ -53,17 +54,17 @@ put:
           title: Buy milk
           completed: true
           description: Purchased
-          dueDate: '2025-04-18'
+          dueDate: 2025-04-18
           priority: LOW
           estimatedMinutes: 30
   responses:
-    '200':
+    "200":
       description: Todo updated
       content:
         application/json:
           schema:
             $ref: ../components/schemas/Todo.yaml
-    '400':
+    "400":
       description: Invalid request body, including a blank title
       content:
         application/json:
@@ -72,7 +73,7 @@ put:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -81,7 +82,7 @@ put:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:
@@ -105,13 +106,13 @@ patch:
         example:
           completed: true
   responses:
-    '200':
+    "200":
       description: Todo updated
       content:
         application/json:
           schema:
             $ref: ../components/schemas/Todo.yaml
-    '400':
+    "400":
       description: Invalid request body, including a blank title
       content:
         application/json:
@@ -120,7 +121,7 @@ patch:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -129,7 +130,7 @@ patch:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:
@@ -145,9 +146,9 @@ delete:
   description: Delete an existing todo by its ID.
   operationId: deleteTodo
   responses:
-    '204':
+    "204":
       description: Todo deleted
-    '401':
+    "401":
       description: Missing or invalid Bearer authentication token
       content:
         application/json:
@@ -156,7 +157,7 @@ delete:
         application/problem+json:
           schema:
             $ref: ../components/schemas/ErrorResponse.yaml
-    '404':
+    "404":
       description: Todo not found
       content:
         application/json:
