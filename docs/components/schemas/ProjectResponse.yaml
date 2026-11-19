@@ -1,0 +1,32 @@
+type: object
+additionalProperties: false
+required:
+  - id
+  - name
+  - description
+  - createdBy
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+    example: 550e8400-e29b-41d4-a716-446655440000
+  name:
+    type: string
+    maxLength: 100
+    example: Backend Migration
+    pattern: ^[\s\S]*$
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+    example: Tasks for migrating to Spanner
+    pattern: ^[\s\S]*$
+  createdBy:
+    type: string
+    format: uuid
+    example: 550e8400-e29b-41d4-a716-446655440000
+  createdAt:
+    type: string
+    format: date-time
+    example: 2025-04-18T10:00:00Z

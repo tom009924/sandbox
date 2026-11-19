@@ -3,13 +3,10 @@ info:
   title: Admin & Internal API Overlay
   version: 1.0.0
 actions:
-  # Add Admin tag
   - target: $.tags
     update:
       - name: Admin
         description: System administration and metrics
-
-  # Add Admin security scheme
   - target: $.components.securitySchemes
     update:
       adminApiKey:
@@ -17,8 +14,6 @@ actions:
         in: header
         name: X-Admin-Key
         description: Secret API key for administrative operations
-
-  # Add Admin paths
   - target: $.paths
     update:
       /api/admin/stats:
@@ -31,30 +26,30 @@ actions:
           security:
             - adminApiKey: []
           responses:
-            '200':
+            "200":
               description: System statistics retrieved successfully
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/AdminStatsResponse'
-            '401':
+                    $ref: "#/components/schemas/AdminStatsResponse"
+            "401":
               description: Missing or invalid X-Admin-Key header
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
+                    $ref: "#/components/schemas/ErrorResponse"
                 application/problem+json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
-            '403':
+                    $ref: "#/components/schemas/ErrorResponse"
+            "403":
               description: Access denied. Invalid X-Admin-Key.
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
+                    $ref: "#/components/schemas/ErrorResponse"
                 application/problem+json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
+                    $ref: "#/components/schemas/ErrorResponse"
       /api/admin/users:
         get:
           tags:
@@ -65,7 +60,7 @@ actions:
           security:
             - adminApiKey: []
           responses:
-            '200':
+            "200":
               description: Registered users retrieved successfully
               content:
                 application/json:
@@ -73,31 +68,30 @@ actions:
                     type: array
                     maxItems: 1000
                     items:
-                      $ref: '#/components/schemas/AdminUserResponse'
-            '401':
+                      $ref: "#/components/schemas/AdminUserResponse"
+            "401":
               description: Missing or invalid X-Admin-Key header
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
+                    $ref: "#/components/schemas/ErrorResponse"
                 application/problem+json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
-            '403':
+                    $ref: "#/components/schemas/ErrorResponse"
+            "403":
               description: Access denied. Invalid X-Admin-Key.
               content:
                 application/json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
+                    $ref: "#/components/schemas/ErrorResponse"
                 application/problem+json:
                   schema:
-                    $ref: '#/components/schemas/ErrorResponse'
-
-  # Add Admin schemas
+                    $ref: "#/components/schemas/ErrorResponse"
   - target: $.components.schemas
     update:
       AdminStatsResponse:
         type: object
+        additionalProperties: false
         required:
           - totalUsers
           - totalTodos
@@ -108,28 +102,33 @@ actions:
             type: integer
             format: int64
             minimum: 0
+            maximum: 2147483647
             description: Total registered users count.
             example: 10
           totalTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 2147483647
             description: Total todos count across all users.
             example: 45
           completedTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 2147483647
             description: Total completed todos count.
             example: 20
           activeTodos:
             type: integer
             format: int64
             minimum: 0
+            maximum: 2147483647
             description: Total active todos count.
             example: 25
       AdminUserResponse:
         type: object
+        additionalProperties: false
         required:
           - id
           - username
@@ -141,5 +140,7 @@ actions:
             example: 550e8400-e29b-41d4-a716-446655440000
           username:
             type: string
+            maxLength: 255
+            pattern: ^[\s\S]*$
             description: Registered username.
             example: alice

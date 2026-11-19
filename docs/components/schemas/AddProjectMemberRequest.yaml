@@ -1,0 +1,14 @@
+type: object
+additionalProperties: false
+required:
+  - username
+properties:
+  username:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: .*\S.*
+    description: Username of the user to add to the project.
+    example: bob
+  role:
+    $ref: ./ProjectRole.yaml

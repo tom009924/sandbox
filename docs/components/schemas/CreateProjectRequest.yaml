@@ -1,0 +1,17 @@
+type: object
+additionalProperties: false
+required:
+  - name
+properties:
+  name:
+    type: string
+    maxLength: 100
+    pattern: .*\S.*
+    description: Project name. Must contain at least one non-whitespace character.
+    example: Backend Migration
+  description:
+    type: string
+    maxLength: 500
+    nullable: true
+    example: Tasks for migrating to Spanner
+    pattern: ^[^\x00-\x08\x0B\x0C\x0E-\x1F\x7F]*$

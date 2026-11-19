@@ -144,9 +144,17 @@ class AsyncApiContractTest {
             if (!node.has(propName)) {
                 return@forEach
             }
-            val propSchema = resolveSchema(asMap(rawPropSchema), allSchemas)
+            val rawMap = asMap(rawPropSchema)
+            val oneOfList = (rawMap["oneOf"] as? List<*>)?.map { asMap(it) }.orEmpty()
+            val effectiveRaw = oneOfList.firstOrNull { it["type"] != "null" } ?: rawMap
+            val propSchema = resolveSchema(effectiveRaw, allSchemas)
             val propNode = node.get(propName)
-            val nullable = propSchema["nullable"] == true || asMap(rawPropSchema)["nullable"] == true
+            val rawTypes = (propSchema["type"] as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+            val nullable =
+                propSchema["nullable"] == true ||
+                    rawMap["nullable"] == true ||
+                    oneOfList.any { it["type"] == "null" } ||
+                    "null" in rawTypes
             if (propNode.isNull) {
                 assertTrue(nullable, "$context.$propName is null but not marked nullable in AsyncAPI schema")
                 return@forEach
@@ -160,7 +168,13 @@ class AsyncApiContractTest {
         schema: Map<String, Any?>,
         path: String,
     ) {
-        when (val type = schema["type"] as? String) {
+        val rawType = schema["type"]
+        val resolvedType = when (rawType) {
+            is String -> rawType
+            is List<*> -> rawType.mapNotNull { it as? String }.firstOrNull { it != "null" }
+            else -> null
+        }
+        when (resolvedType) {
             "string" -> {
                 assertTrue(node.isString, "$path must be a string")
                 val text = node.asString()
@@ -185,7 +199,7 @@ class AsyncApiContractTest {
                 }
             }
             "object" -> assertTrue(node.isObject, "$path must be an object")
-            else -> error("Unsupported schema type '$type' at $path")
+            else -> error("Unsupported schema type '$resolvedType' at $path")
         }
     }
 

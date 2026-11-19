@@ -1346,6 +1346,59 @@ class TodoApiIntegrationTest @Autowired constructor(
             .body("[0].username", equalTo("default_user"))
     }
 
+    @Test
+    fun patternConstraintsRejectInvalidInputs() {
+        val invalidDesc = "\\u0000"
+
+        validatedRequest(token = null)
+            .contentType(ContentType.JSON)
+            .body("""{"username":" ","password":"Password123!"}""")
+            .`when`()
+            .post("/api/auth/login")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Test","description":"$invalidDesc"}""")
+            .`when`()
+            .post("/api/todos")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Test","completed":false,"description":"$invalidDesc"}""")
+            .`when`()
+            .put("/api/todos/{id}", MISSING_TODO_ID)
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"description":"$invalidDesc"}""")
+            .`when`()
+            .patch("/api/todos/{id}", MISSING_TODO_ID)
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedPostRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"name":"Proj","description":"$invalidDesc"}""")
+            .`when`()
+            .post("/api/projects")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+
+        validatedRequest()
+            .contentType(ContentType.JSON)
+            .body("""{"name":"Proj","description":"$invalidDesc"}""")
+            .`when`()
+            .put("/api/projects/{projectId}", MISSING_TODO_ID)
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+    }
+
     private fun assertStoredTodo(id: UUID, expected: Todo) {
         val stored = requireNotNull(todoRepository.findById(id)) {
             "Expected todo with ID $id to exist in database, but was not found"

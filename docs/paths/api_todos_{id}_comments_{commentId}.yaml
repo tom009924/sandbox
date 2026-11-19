@@ -1,0 +1,51 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    description: Todo identifier
+    schema:
+      type: string
+      format: uuid
+  - name: commentId
+    in: path
+    required: true
+    description: Comment identifier
+    schema:
+      type: string
+      format: uuid
+delete:
+  tags:
+    - Todo Comments
+  summary: Delete a comment
+  description: Delete a comment from a todo. Only the comment author is allowed.
+  operationId: deleteTodoComment
+  responses:
+    "204":
+      description: Comment deleted
+    "401":
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "403":
+      description: Forbidden (only the comment author can delete)
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "404":
+      description: Todo or comment not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

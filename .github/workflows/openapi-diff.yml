@@ -5,8 +5,11 @@ on:
     branches: [main]
     paths:
       - "docs/openapi.yaml"
+      - "docs/paths/**"
+      - "docs/components/**"
       - "docs/dist/openapi.yaml"
       - "docs/overlays/**"
+      - "redocly.yaml"
       - ".github/workflows/openapi-diff.yml"
 
 permissions:

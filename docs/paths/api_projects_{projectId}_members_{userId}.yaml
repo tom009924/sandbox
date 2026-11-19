@@ -1,0 +1,60 @@
+parameters:
+  - name: projectId
+    in: path
+    required: true
+    description: Project identifier
+    schema:
+      type: string
+      format: uuid
+  - name: userId
+    in: path
+    required: true
+    description: Target user identifier
+    schema:
+      type: string
+      format: uuid
+delete:
+  tags:
+    - Projects
+  summary: Remove a project member
+  description: Remove a member from the project (by an owner) or leave the project (by self). Cannot remove the last owner.
+  operationId: removeProjectMember
+  responses:
+    "204":
+      description: Member removed from project
+    "401":
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "403":
+      description: Only project owners can remove other members
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "404":
+      description: Project or member not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "409":
+      description: Cannot remove the last owner of the project
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

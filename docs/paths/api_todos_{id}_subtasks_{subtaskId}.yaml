@@ -1,0 +1,88 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    description: Todo identifier
+    schema:
+      type: string
+      format: uuid
+  - name: subtaskId
+    in: path
+    required: true
+    description: Subtask identifier
+    schema:
+      type: string
+      format: uuid
+patch:
+  tags:
+    - Todo Subtasks
+  summary: Partially update a subtask
+  description: Update title, completion status, or position of a subtask.
+  operationId: patchTodoSubtask
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/PatchTodoSubtaskRequest.yaml
+  responses:
+    "200":
+      description: Subtask updated
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/TodoSubtaskResponse.yaml
+    "400":
+      description: Invalid subtask request
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "401":
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "404":
+      description: Todo or subtask not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+delete:
+  tags:
+    - Todo Subtasks
+  summary: Delete a subtask
+  description: Delete a subtask from a todo checklist.
+  operationId: deleteTodoSubtask
+  responses:
+    "204":
+      description: Subtask deleted
+    "401":
+      description: Missing or invalid Bearer authentication token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+    "404":
+      description: Todo or subtask not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml
+        application/problem+json:
+          schema:
+            $ref: ../components/schemas/ErrorResponse.yaml

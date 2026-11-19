@@ -1,0 +1,28 @@
+type: object
+additionalProperties: false
+required:
+  - projectId
+  - userId
+  - username
+  - role
+  - joinedAt
+properties:
+  projectId:
+    type: string
+    format: uuid
+    example: 550e8400-e29b-41d4-a716-446655440000
+  userId:
+    type: string
+    format: uuid
+    example: 550e8400-e29b-41d4-a716-446655440001
+  username:
+    type: string
+    example: bob
+    maxLength: 255
+    pattern: ^[\s\S]*$
+  role:
+    $ref: ./ProjectRole.yaml
+  joinedAt:
+    type: string
+    format: date-time
+    example: 2025-04-18T10:00:00Z

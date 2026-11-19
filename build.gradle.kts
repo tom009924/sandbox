@@ -363,7 +363,7 @@ tasks.check {
 }
 
 openApiValidate {
-    inputSpec.set("$projectDir/docs/openapi.yaml")
+    inputSpec.set("$projectDir/docs/dist/openapi.yaml")
 }
 
 val nvmBinDir = "/usr/local/share/nvm/current/bin"
@@ -426,6 +426,9 @@ val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
     setupNodeEnvironment()
     commandLine(npmExecutable, "run", "bundle:openapi")
     inputs.file("docs/openapi.yaml")
+    inputs.dir("docs/paths")
+    inputs.dir("docs/components")
+    inputs.file("redocly.yaml")
     inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
     inputs.file("package.json")
@@ -435,34 +438,40 @@ val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
     outputs.file("docs/dist/openapi.ja.yaml")
 }
 
+tasks.named("openApiValidate") {
+    dependsOn(bundleOpenApi)
+}
+
 val bundleOpenApiJa = tasks.register("bundleOpenApiJa") {
     description = "Alias for bundleOpenApi for backwards compatibility."
     dependsOn(bundleOpenApi)
 }
 
 val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
-    description = "Lints OpenAPI specifications using Stoplight Spectral."
+    description = "Lints OpenAPI specifications and Arazzo workflows using Redocly CLI."
     group = "verification"
     dependsOn(npmInstall, bundleOpenApi)
     setupNodeEnvironment()
-    commandLine(npmExecutable, "run", "lint:spectral")
+    commandLine(npmExecutable, "run", "lint:openapi:check")
     inputs.file("docs/openapi.yaml")
+    inputs.dir("docs/paths")
+    inputs.dir("docs/components")
+    inputs.file("redocly.yaml")
     inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
-    inputs.file(".spectral.yaml")
     inputs.dir("docs/workflows")
     inputs.file("package.json")
     inputs.file("package-lock.json")
 }
 
 val lintAsyncApi = tasks.register<Exec>("lintAsyncApi") {
-    description = "Lints AsyncAPI specification using Stoplight Spectral."
+    description = "Lints AsyncAPI specification using Redocly CLI."
     group = "verification"
     dependsOn(npmInstall)
     setupNodeEnvironment()
     commandLine(npmExecutable, "run", "lint:asyncapi")
     inputs.file("docs/asyncapi.yaml")
-    inputs.file(".spectral.asyncapi.yaml")
+    inputs.file("redocly.yaml")
     inputs.file("package.json")
     inputs.file("package-lock.json")
 }

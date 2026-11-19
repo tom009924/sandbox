@@ -1,0 +1,18 @@
+type: object
+additionalProperties: false
+properties:
+  title:
+    type: string
+    maxLength: 100
+    pattern: .*\S.*
+    description: Subtask title. Must contain at least one non-whitespace character.
+    example: Verify organic label
+  completed:
+    type: boolean
+    example: true
+  position:
+    type: integer
+    format: int32
+    minimum: 0
+    example: 1
+    maximum: 2147483647
