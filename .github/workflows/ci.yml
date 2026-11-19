@@ -65,7 +65,7 @@ jobs:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
           PUBSUB_REQUIRED: "true"
-        run: ./gradlew check bootJar --no-daemon -PdetektAutoCorrect=false
+        run: ./gradlew check :services:identity-service:check bootJar :services:identity-service:bootJar --no-daemon -PdetektAutoCorrect=false
 
       - name: Generate CycloneDX SBOM
         run: ./gradlew cyclonedxBom --no-daemon
@@ -112,3 +112,36 @@ jobs:
           fi
 
           npm run test:arazzo
+
+      - name: Run combined microservices E2E test
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          PUBSUB_EMULATOR_HOST: localhost:8085
+        run: |
+          SPANNER_DATABASE=identity-database \
+          java -jar services/identity-service/build/libs/identity-service-*.jar > identity-service.log 2>&1 &
+          IDENTITY_PID=$!
+          trap 'kill "$IDENTITY_PID" "${TODO_PID:-}" 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/actuator/health || true)
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          IDENTITY_SERVICE_ENABLED=true \
+          IDENTITY_SERVICE_BASE_URL=http://localhost:8081 \
+          java -jar build/libs/app.jar > todo-api.log 2>&1 &
+          TODO_PID=$!
+
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || true)
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          node scripts/test-microservices-e2e.mjs
