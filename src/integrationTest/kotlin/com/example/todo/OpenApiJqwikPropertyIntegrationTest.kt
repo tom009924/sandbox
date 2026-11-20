@@ -12,6 +12,7 @@ import net.jqwik.api.Arbitrary
 import net.jqwik.api.ForAll
 import net.jqwik.api.Property
 import net.jqwik.api.Provide
+import net.jqwik.api.Tag
 import net.jqwik.api.lifecycle.AfterContainer
 import net.jqwik.api.lifecycle.BeforeContainer
 import net.jqwik.api.stateful.Action
@@ -27,6 +28,7 @@ import java.util.UUID
  * Pure black-box jqwik property-based & stateful integration tests against the HTTP API.
  * Uses SERVER_URL when targeting an external container stack, or starts an embedded app once per container.
  */
+@Tag("property")
 @Suppress("TooManyFunctions")
 class OpenApiJqwikPropertyIntegrationTest {
     @Property

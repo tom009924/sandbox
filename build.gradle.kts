@@ -230,7 +230,24 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     classpath = integrationTestSourceSet.runtimeClasspath
     dependsOn(tasks.test)
     shouldRunAfter(tasks.test)
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("property")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+}
+
+val propertyTest = tasks.register<Test>("propertyTest") {
+    description = "Runs property-based tests after the integration tests."
+    group = "verification"
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    dependsOn(integrationTest)
+    shouldRunAfter(integrationTest)
+    useJUnitPlatform {
+        includeTags("property")
+    }
     testLogging {
         showStandardStreams = true
     }
@@ -357,6 +374,7 @@ val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("ja
 tasks.check {
     dependsOn("buildHealth")
     dependsOn(integrationTest)
+    dependsOn(propertyTest)
     dependsOn(tasks.named("openApiValidate"))
     dependsOn("lintOpenApi")
     dependsOn("lintAsyncApi")
