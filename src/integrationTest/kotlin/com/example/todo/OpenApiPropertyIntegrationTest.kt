@@ -15,7 +15,9 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.constant
 import io.kotest.property.checkAll
 import io.restassured.RestAssured.given
+import io.restassured.builder.RequestSpecBuilder
 import io.restassured.http.ContentType
+import io.restassured.specification.RequestSpecification
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
 import org.junit.jupiter.api.AfterAll
@@ -50,7 +52,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
     @LocalServerPort
     private var port: Int = 0
 
-    private lateinit var defaultToken: String
+    private lateinit var authorizedSpec: RequestSpecification
 
     @BeforeEach
     fun setup() {
@@ -62,7 +64,13 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
 
         val user = userRepository.save(User(username = "pbt_user", passwordHash = "hash"))
         val userId = requireNotNull(user.id)
-        defaultToken = jwtTokenProvider.generateToken(AuthenticatedUser(userId, user.username))
+        val token = jwtTokenProvider.generateToken(AuthenticatedUser(userId, user.username))
+        authorizedSpec = RequestSpecBuilder()
+            .setPort(port)
+            .addHeader("Authorization", "Bearer $token")
+            .setContentType(ContentType.JSON)
+            .addFilter(openApiValidationFilter)
+            .build()
     }
 
     @Test
@@ -73,11 +81,16 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
             "assigneeId" to Arb.constant(null),
         )
         val arb = OpenApiSchemaArbitrary.validObject(schema, overrides)
+        var createdSinceCleanup = 0
 
         checkAll(PropTestConfig(iterations = validIterations), arb) { payload ->
             val createdId = postTodoAndExpectCreated(payload)
             verifyTodoRoundTrip(createdId, payload)
-            deleteTodo(createdId)
+            createdSinceCleanup++
+            if (createdSinceCleanup >= CLEANUP_BATCH_SIZE) {
+                todoRepository.findAll().forEach(todoRepository::delete)
+                createdSinceCleanup = 0
+            }
         }
     }
 
@@ -92,11 +105,8 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
 
         checkAll(PropTestConfig(iterations = invalidIterations), arb) { invalidPayload ->
             given()
-                .port(port)
-                .header("Authorization", "Bearer $defaultToken")
+                .spec(authorizedSpec)
                 .header("Idempotency-Key", UUID.randomUUID().toString())
-                .filter(openApiValidationFilter)
-                .contentType(ContentType.JSON)
                 .body(objectMapper.writeValueAsString(invalidPayload))
                 .`when`()
                 .post("/api/todos")
@@ -112,10 +122,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
 
         checkAll(PropTestConfig(iterations = validIterations), arb) { payload ->
             val projectId = given()
-                .port(port)
-                .header("Authorization", "Bearer $defaultToken")
-                .filter(openApiValidationFilter)
-                .contentType(ContentType.JSON)
+                .spec(authorizedSpec)
                 .body(objectMapper.writeValueAsString(payload))
                 .`when`()
                 .post("/api/projects")
@@ -125,25 +132,13 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
                 .path<String>("id")
 
             assertNotNull(projectId)
-
-            given()
-                .port(port)
-                .header("Authorization", "Bearer $defaultToken")
-                .filter(openApiValidationFilter)
-                .`when`()
-                .delete("/api/projects/$projectId")
-                .then()
-                .statusCode(HttpStatus.NO_CONTENT.value())
         }
     }
 
     private fun postTodoAndExpectCreated(payload: Map<String, Any?>): String =
         given()
-            .port(port)
-            .header("Authorization", "Bearer $defaultToken")
+            .spec(authorizedSpec)
             .header("Idempotency-Key", UUID.randomUUID().toString())
-            .filter(openApiValidationFilter)
-            .contentType(ContentType.JSON)
             .body(objectMapper.writeValueAsString(payload))
             .`when`()
             .post("/api/todos")
@@ -154,9 +149,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
 
     private fun verifyTodoRoundTrip(todoId: String, payload: Map<String, Any?>) {
         val fetched = given()
-            .port(port)
-            .header("Authorization", "Bearer $defaultToken")
-            .filter(openApiValidationFilter)
+            .spec(authorizedSpec)
             .`when`()
             .get("/api/todos/$todoId")
             .then()
@@ -171,17 +164,6 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         if (payload.containsKey("priority") && payload["priority"] != null) {
             assertEquals(payload["priority"], fetched.getString("priority"))
         }
-    }
-
-    private fun deleteTodo(todoId: String) {
-        given()
-            .port(port)
-            .header("Authorization", "Bearer $defaultToken")
-            .filter(openApiValidationFilter)
-            .`when`()
-            .delete("/api/todos/$todoId")
-            .then()
-            .statusCode(HttpStatus.NO_CONTENT.value())
     }
 
     private fun runProperty(block: suspend () -> Unit) {
@@ -208,6 +190,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
     private companion object {
         const val DEFAULT_VALID_ITERATIONS = 100
         const val DEFAULT_INVALID_ITERATIONS = 200
+        const val CLEANUP_BATCH_SIZE = 25
         val validIterations: Int =
             System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_VALID_ITERATIONS
         val invalidIterations: Int =
