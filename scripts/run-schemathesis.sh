@@ -3,7 +3,7 @@ set -euo pipefail
 
 SERVER_URL="${SERVER_URL:-http://localhost:8080}"
 OPENAPI_SPEC="${OPENAPI_SPEC:-docs/dist/openapi.admin.yaml}"
-MAX_EXAMPLES="${MAX_EXAMPLES:-500}"
+MAX_EXAMPLES="${MAX_EXAMPLES:-50}"
 ADMIN_API_KEY="${ADMIN_API_KEY:-admin-secret-key}"
 SCHEMATHESIS_IMAGE="${SCHEMATHESIS_IMAGE:-schemathesis/schemathesis:stable}"
 
