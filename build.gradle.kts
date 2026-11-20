@@ -167,7 +167,7 @@ dependencies {
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
     add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
-    add(integrationTestSourceSet.implementationConfigurationName, libs.jqwik.api)
+    add(integrationTestSourceSet.apiConfigurationName, libs.jqwik.api)
     add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
     add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.jqwik.engine)
     detektPlugins(libs.detekt.formatting)
