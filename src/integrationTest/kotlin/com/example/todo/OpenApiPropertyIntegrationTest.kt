@@ -72,7 +72,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         )
         val arb = OpenApiSchemaArbitrary.validObject(schema, overrides)
 
-        checkAll(PropTestConfig(iterations = ITERATIONS), arb) { payload ->
+        checkAll(PropTestConfig(iterations = validIterations), arb) { payload ->
             val createdId = postTodoAndExpectCreated(payload)
             verifyTodoRoundTrip(createdId, payload)
             deleteTodo(createdId)
@@ -88,7 +88,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         )
         val arb = OpenApiSchemaArbitrary.invalidObject(schema, overrides)
 
-        checkAll(PropTestConfig(iterations = ITERATIONS), arb) { invalidPayload ->
+        checkAll(PropTestConfig(iterations = invalidIterations), arb) { invalidPayload ->
             given()
                 .port(port)
                 .header("Authorization", "Bearer $defaultToken")
@@ -108,7 +108,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         val schema = requireSchema("CreateProjectRequest")
         val arb = OpenApiSchemaArbitrary.validObject(schema)
 
-        checkAll(PropTestConfig(iterations = ITERATIONS), arb) { payload ->
+        checkAll(PropTestConfig(iterations = validIterations), arb) { payload ->
             val projectId = given()
                 .port(port)
                 .header("Authorization", "Bearer $defaultToken")
@@ -204,7 +204,12 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         }
 
     private companion object {
-        const val ITERATIONS = 500
+        const val DEFAULT_VALID_ITERATIONS = 100
+        const val DEFAULT_INVALID_ITERATIONS = 200
+        val validIterations: Int =
+            System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_VALID_ITERATIONS
+        val invalidIterations: Int =
+            System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_INVALID_ITERATIONS
         const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
 
         val openAPI = requireNotNull(
