@@ -1,5 +1,5 @@
-const IDENTITY_URL = process.env.IDENTITY_SERVICE_BASE_URL ?? 'http://localhost:8081';
-const TODO_URL = process.env.TODO_SERVICE_BASE_URL ?? 'http://localhost:8080';
+const IDENTITY_URL = process.env.IDENTITY_SERVICE_BASE_URL ?? 'http://127.0.0.1:8081';
+const TODO_URL = process.env.TODO_SERVICE_BASE_URL ?? 'http://127.0.0.1:8080';
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY ?? 'admin-secret-key';
 
 async function request(url, options = {}) {
