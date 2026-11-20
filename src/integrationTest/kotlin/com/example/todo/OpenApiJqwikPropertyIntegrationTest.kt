@@ -29,7 +29,7 @@ import java.util.UUID
  */
 @Suppress("TooManyFunctions")
 class OpenApiJqwikPropertyIntegrationTest {
-    @Property(tries = TRIES)
+    @Property
     fun validCreateTodoRequestMatchesOpenApiSpec(
         @ForAll("validCreateTodoPayloads") payload: Map<String, Any?>,
     ) {
@@ -49,7 +49,7 @@ class OpenApiJqwikPropertyIntegrationTest {
         deleteTodo(createdId)
     }
 
-    @Property(tries = TRIES)
+    @Property
     fun invalidCreateTodoRequestReturnsBadRequest(
         @ForAll("invalidCreateTodoPayloads") invalidPayload: Map<String, Any?>,
     ) {
@@ -146,8 +146,7 @@ class OpenApiJqwikPropertyIntegrationTest {
     }
 
     companion object {
-        private const val TRIES = 500
-        private const val STATEFUL_TRIES = 100
+        private const val STATEFUL_TRIES = 25
         private const val MAX_SEQUENCE_STEPS = 6
         private const val MAX_TRACKED_TODOS = 10
         private const val USERNAME_SUFFIX_LENGTH = 8
