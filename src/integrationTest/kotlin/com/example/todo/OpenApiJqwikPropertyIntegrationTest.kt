@@ -4,7 +4,9 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import io.restassured.RestAssured.given
+import io.restassured.builder.RequestSpecBuilder
 import io.restassured.http.ContentType
+import io.restassured.specification.RequestSpecification
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
 import net.jqwik.api.Arbitraries
@@ -23,6 +25,7 @@ import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpStatus
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Pure black-box jqwik property-based & stateful integration tests against the HTTP API.
@@ -35,11 +38,10 @@ class OpenApiJqwikPropertyIntegrationTest {
     fun validCreateTodoRequestMatchesOpenApiSpec(
         @ForAll("validCreateTodoPayloads") payload: Map<String, Any?>,
     ) {
-        val createdId = createTodo(payload)
+        val spec = nextRequestSpec()
+        val createdId = createTodo(payload, spec)
         val fetched = given()
-            .baseUri(baseUrl)
-            .header("Authorization", "Bearer $authToken")
-            .filter(openApiValidationFilter)
+            .spec(spec)
             .`when`()
             .get("/api/todos/$createdId")
             .then()
@@ -48,7 +50,6 @@ class OpenApiJqwikPropertyIntegrationTest {
             .jsonPath()
 
         assertEquals(payload["title"].toString().trim(), fetched.getString("title"))
-        deleteTodo(createdId)
     }
 
     @Property
@@ -56,11 +57,8 @@ class OpenApiJqwikPropertyIntegrationTest {
         @ForAll("invalidCreateTodoPayloads") invalidPayload: Map<String, Any?>,
     ) {
         given()
-            .baseUri(baseUrl)
-            .header("Authorization", "Bearer $authToken")
+            .spec(authSpecs.first())
             .header("Idempotency-Key", UUID.randomUUID().toString())
-            .filter(openApiValidationFilter)
-            .contentType(ContentType.JSON)
             .body(objectMapper.writeValueAsString(invalidPayload))
             .`when`()
             .post("/api/todos")
@@ -72,8 +70,8 @@ class OpenApiJqwikPropertyIntegrationTest {
     fun todoCrudStateMachineFollowsOpenApiSpec(
         @ForAll("todoActionSequences") sequence: ActionSequence<TodoApiModel>,
     ) {
-        val finalModel = sequence.run(TodoApiModel())
-        finalModel.activeTodoIds.toList().forEach(::deleteTodo)
+        val finalModel = sequence.run(TodoApiModel(authSpecs.first()))
+        finalModel.activeTodoIds.toList().forEach { deleteTodo(it, finalModel.spec) }
     }
 
     @Provide
@@ -95,7 +93,7 @@ class OpenApiJqwikPropertyIntegrationTest {
             .ofSize(MAX_SEQUENCE_STEPS)
     }
 
-    class TodoApiModel {
+    class TodoApiModel(val spec: RequestSpecification) {
         val activeTodoIds: MutableList<String> = mutableListOf()
         val titlesById: MutableMap<String, String> = mutableMapOf()
     }
@@ -107,7 +105,7 @@ class OpenApiJqwikPropertyIntegrationTest {
             model.activeTodoIds.size < MAX_TRACKED_TODOS
 
         override fun run(model: TodoApiModel): TodoApiModel {
-            val id = createTodo(payload)
+            val id = createTodo(payload, model.spec)
             model.activeTodoIds.add(id)
             model.titlesById[id] = payload["title"].toString().trim()
             return model
@@ -121,9 +119,7 @@ class OpenApiJqwikPropertyIntegrationTest {
         override fun run(model: TodoApiModel): TodoApiModel {
             val id = model.activeTodoIds.last()
             val title = given()
-                .baseUri(baseUrl)
-                .header("Authorization", "Bearer $authToken")
-                .filter(openApiValidationFilter)
+                .spec(model.spec)
                 .`when`()
                 .get("/api/todos/$id")
                 .then()
@@ -142,7 +138,7 @@ class OpenApiJqwikPropertyIntegrationTest {
         override fun run(model: TodoApiModel): TodoApiModel {
             val id = model.activeTodoIds.removeAt(model.activeTodoIds.lastIndex)
             model.titlesById.remove(id)
-            deleteTodo(id)
+            deleteTodo(id, model.spec)
             return model
         }
     }
@@ -151,13 +147,15 @@ class OpenApiJqwikPropertyIntegrationTest {
         private const val STATEFUL_TRIES = 25
         private const val MAX_SEQUENCE_STEPS = 6
         private const val MAX_TRACKED_TODOS = 10
+        private const val USER_POOL_SIZE = 5
         private const val USERNAME_SUFFIX_LENGTH = 8
         private const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
 
         private var appContext: ConfigurableApplicationContext? = null
         private var wireMockServer: WireMockServer? = null
         private lateinit var baseUrl: String
-        private lateinit var authToken: String
+        private lateinit var authSpecs: List<RequestSpecification>
+        private val specIndex = AtomicInteger(0)
 
         private val objectMapper = ObjectMapper()
 
@@ -183,7 +181,7 @@ class OpenApiJqwikPropertyIntegrationTest {
 
         @JvmStatic
         @BeforeContainer
-        fun startTargetAndRegisterUser() {
+        fun startTargetAndRegisterUsers() {
             val externalUrl = System.getenv("SERVER_URL")
             if (!externalUrl.isNullOrBlank()) {
                 baseUrl = externalUrl.trimEnd('/')
@@ -213,6 +211,10 @@ class OpenApiJqwikPropertyIntegrationTest {
                 baseUrl = "http://localhost:$localPort"
             }
 
+            authSpecs = (1..USER_POOL_SIZE).map { registerAndBuildSpec() }
+        }
+
+        private fun registerAndBuildSpec(): RequestSpecification {
             val username = "jqwik_${UUID.randomUUID().toString().take(USERNAME_SUFFIX_LENGTH)}"
             val credentials = mapOf("username" to username, "password" to "Password123!")
             given()
@@ -224,7 +226,7 @@ class OpenApiJqwikPropertyIntegrationTest {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
 
-            authToken = given()
+            val token: String = given()
                 .baseUri(baseUrl)
                 .contentType(ContentType.JSON)
                 .body(objectMapper.writeValueAsString(credentials))
@@ -234,7 +236,17 @@ class OpenApiJqwikPropertyIntegrationTest {
                 .statusCode(HttpStatus.OK.value())
                 .extract()
                 .path("token")
+
+            return RequestSpecBuilder()
+                .setBaseUri(baseUrl)
+                .addHeader("Authorization", "Bearer $token")
+                .setContentType(ContentType.JSON)
+                .addFilter(openApiValidationFilter)
+                .build()
         }
+
+        private fun nextRequestSpec(): RequestSpecification =
+            authSpecs[specIndex.getAndIncrement() % authSpecs.size]
 
         @JvmStatic
         @AfterContainer
@@ -248,13 +260,10 @@ class OpenApiJqwikPropertyIntegrationTest {
                 "Schema '$name' not found in $OPEN_API_SPEC_PATH"
             }
 
-        private fun createTodo(payload: Map<String, Any?>): String =
+        private fun createTodo(payload: Map<String, Any?>, spec: RequestSpecification): String =
             given()
-                .baseUri(baseUrl)
-                .header("Authorization", "Bearer $authToken")
+                .spec(spec)
                 .header("Idempotency-Key", UUID.randomUUID().toString())
-                .filter(openApiValidationFilter)
-                .contentType(ContentType.JSON)
                 .body(objectMapper.writeValueAsString(payload))
                 .`when`()
                 .post("/api/todos")
@@ -263,11 +272,9 @@ class OpenApiJqwikPropertyIntegrationTest {
                 .extract()
                 .path("id")
 
-        private fun deleteTodo(todoId: String) {
+        private fun deleteTodo(todoId: String, spec: RequestSpecification) {
             given()
-                .baseUri(baseUrl)
-                .header("Authorization", "Bearer $authToken")
-                .filter(openApiValidationFilter)
+                .spec(spec)
                 .`when`()
                 .delete("/api/todos/$todoId")
                 .then()

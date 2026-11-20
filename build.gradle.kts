@@ -241,6 +241,7 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 val propertyTest = tasks.register<Test>("propertyTest") {
     description = "Runs property-based tests after the integration tests."
     group = "verification"
+    maxHeapSize = "512m"
     testClassesDirs = integrationTestSourceSet.output.classesDirs
     classpath = integrationTestSourceSet.runtimeClasspath
     dependsOn(integrationTest)
