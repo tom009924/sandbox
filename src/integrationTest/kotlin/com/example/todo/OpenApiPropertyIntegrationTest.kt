@@ -204,7 +204,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         }
 
     private companion object {
-        const val ITERATIONS = 15
+        const val ITERATIONS = 100
         const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
 
         val openAPI = requireNotNull(
