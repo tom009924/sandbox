@@ -24,6 +24,7 @@
     "lint:openapi:check": "npm run lint:redocly && npm run check:diagrams && node scripts/check-arazzo-coverage.mjs",
     "lint:openapi": "npm run bundle:openapi && npm run lint:openapi:check",
     "test:arazzo": "scripts/run-arazzo.sh",
+    "test:schemathesis": "scripts/run-schemathesis.sh",
     "arazzo:ui": "arazzo-ui docs/workflows/todo-workflows.arazzo.yaml",
     "coverage:spec": "./gradlew --offline integrationTest --tests 'com.example.todo.TodoApiIntegrationTest'",
     "deploy:apigee": "scripts/deploy-apigee-proxy.sh",
