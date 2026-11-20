@@ -167,6 +167,7 @@ dependencies {
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
     add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.kotest.property)
     add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
     detektPlugins(libs.detekt.formatting)
 }

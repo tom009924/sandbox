@@ -17,6 +17,7 @@ jjwt = "0.12.6"
 restAssured = "5.5.1"
 wiremock = "3.12.1"
 bouncycastle = "1.85"
+kotest = "5.9.1"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
@@ -52,6 +53,7 @@ flyway-gcp-spanner = { module = "org.flywaydb:flyway-gcp-spanner" }
 wiremock = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" }
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
