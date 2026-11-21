@@ -139,6 +139,7 @@ dependencies {
         }
     }
 
+    implementation(project(":libs:identity-proto"))
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)
     runtimeOnly(libs.micrometer.tracing.bridge.otel)
@@ -160,6 +161,7 @@ dependencies {
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.grpc.inprocess)
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.wiremock.core)
     testRuntimeOnly(libs.wiremock)

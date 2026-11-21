@@ -41,7 +41,8 @@ IDENTITY_PID=$!
 wait_for_health "identity-service" "http://127.0.0.1:8081/actuator/health" "identity-service.log"
 
 IDENTITY_SERVICE_ENABLED=true \
-IDENTITY_SERVICE_BASE_URL=http://127.0.0.1:8081 \
+IDENTITY_SERVICE_GRPC_HOST=127.0.0.1 \
+IDENTITY_SERVICE_GRPC_PORT=9091 \
   java -jar "$TODO_JAR" > todo-api.log 2>&1 &
 TODO_PID=$!
 wait_for_health "todo-api" "http://127.0.0.1:8080/actuator/health" "todo-api.log"
