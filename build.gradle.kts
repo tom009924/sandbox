@@ -270,7 +270,7 @@ tasks.register<Test>("generateExternalCallDiagrams") {
 }
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.test, integrationTest)
+    dependsOn(tasks.test, integrationTest, propertyTest)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")
@@ -297,7 +297,7 @@ val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
 }
 
 val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(jacocoTestReport)
+    dependsOn(jacocoTestReport, propertyTest)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")
