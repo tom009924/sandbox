@@ -68,6 +68,25 @@ async function main() {
   }
   console.log(`Created todo with inherited priority: ${todo.priority}`);
 
+  // 3b. Add a subtask and comment via gRPC gateway
+  const subtask = await request(`${TODO_URL}/api/todos/${todo.id}/subtasks`, {
+    method: 'POST',
+    headers: authHeader,
+    body: JSON.stringify({ title: 'Verify gRPC subtask' }),
+  });
+  if (subtask.title !== 'Verify gRPC subtask') {
+    throw new Error(`Unexpected subtask title: ${subtask.title}`);
+  }
+  const comment = await request(`${TODO_URL}/api/todos/${todo.id}/comments`, {
+    method: 'POST',
+    headers: authHeader,
+    body: JSON.stringify({ content: 'Verified over gRPC' }),
+  });
+  if (comment.username !== username) {
+    throw new Error(`Expected comment username ${username}, got ${comment.username}`);
+  }
+  console.log(`Verified subtask and comment over gRPC`);
+
   // 4. Create a project and list members -> resolves username via identity-service
   const project = await request(`${TODO_URL}/api/projects`, {
     method: 'POST',

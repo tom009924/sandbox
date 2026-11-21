@@ -43,13 +43,16 @@ wait_for_health "identity-service" "http://127.0.0.1:8081/actuator/health" "iden
 IDENTITY_SERVICE_ENABLED=true \
 IDENTITY_SERVICE_GRPC_HOST=127.0.0.1 \
 IDENTITY_SERVICE_GRPC_PORT=9091 \
+TODO_GRPC_ENABLED=true \
+TODO_GRPC_PORT=9092 \
   java -jar "$TODO_JAR" > todo-api.log 2>&1 &
 TODO_PID=$!
 wait_for_health "todo-api" "http://127.0.0.1:8080/actuator/health" "todo-api.log"
 
 IDENTITY_GRPC_HOST=127.0.0.1 \
 IDENTITY_GRPC_PORT=9091 \
-TODO_SERVICE_BASE_URL=http://127.0.0.1:8080 \
+TODO_GRPC_HOST=127.0.0.1 \
+TODO_GRPC_PORT=9092 \
   java -jar "$GATEWAY_JAR" > api-gateway.log 2>&1 &
 GATEWAY_PID=$!
 wait_for_health "api-gateway" "http://127.0.0.1:8082/actuator/health" "api-gateway.log"

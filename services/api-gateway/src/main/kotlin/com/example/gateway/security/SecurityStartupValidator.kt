@@ -15,6 +15,8 @@ class SecurityStartupValidator(
     private val adminApiKey: String,
     @param:Value("\${gateway.identity.internal-api-key:internal-secret-key}")
     private val internalApiKey: String,
+    @param:Value("\${gateway.todo.internal-api-key:internal-secret-key}")
+    private val todoInternalApiKey: String,
 ) {
     private val logger = LoggerFactory.getLogger(SecurityStartupValidator::class.java)
 
@@ -37,16 +39,23 @@ class SecurityStartupValidator(
                 "Non-local profile detected (${activeProfiles.joinToString()}) " +
                     "but 'gateway.identity.internal-api-key' is set to default insecure value."
             }
-        } else if (jwtSecret == DEFAULT_JWT_SECRET ||
-            adminApiKey == DEFAULT_ADMIN_API_KEY ||
-            internalApiKey == DEFAULT_INTERNAL_API_KEY
-        ) {
+            check(todoInternalApiKey != DEFAULT_INTERNAL_API_KEY) {
+                "Non-local profile detected (${activeProfiles.joinToString()}) " +
+                    "but 'gateway.todo.internal-api-key' is set to default insecure value."
+            }
+        } else if (hasAnyDefaultSecret()) {
             logger.warn(
                 "Running api-gateway with default insecure security keys. " +
                     "Acceptable for local development/testing only.",
             )
         }
     }
+
+    private fun hasAnyDefaultSecret(): Boolean =
+        jwtSecret == DEFAULT_JWT_SECRET ||
+            adminApiKey == DEFAULT_ADMIN_API_KEY ||
+            internalApiKey == DEFAULT_INTERNAL_API_KEY ||
+            todoInternalApiKey == DEFAULT_INTERNAL_API_KEY
 
     companion object {
         const val DEFAULT_JWT_SECRET = "default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256"
