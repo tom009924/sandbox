@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package identity.v1;
+
+option java_multiple_files = true;
+option java_package = "com.example.identity.grpc.v1";
+
+service IdentityService {
+  rpc Register (RegisterRequest) returns (UserMessage);
+  rpc Login (LoginRequest) returns (AuthTokenResponse);
+  rpc GetUserSettings (GetUserSettingsRequest) returns (UserSettingsMessage);
+  rpc UpdateUserSettings (UpdateUserSettingsRequest) returns (UserSettingsMessage);
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUser (GetUserRequest) returns (UserMessage);
+  rpc BatchGetUsers (BatchGetUsersRequest) returns (ListUsersResponse);
+  rpc GetUserByUsername (GetUserByUsernameRequest) returns (UserMessage);
+  rpc CountUsers (CountUsersRequest) returns (CountUsersResponse);
+}
+
+enum TodoPriority {
+  TODO_PRIORITY_UNSPECIFIED = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message UserMessage {
+  string id = 1;
+  string username = 2;
+}
+
+message AuthTokenResponse {
+  string token = 1;
+  string token_type = 2;
+  int64 expires_in = 3;
+}
+
+message GetUserSettingsRequest {
+  string user_id = 1;
+}
+
+message UpdateUserSettingsRequest {
+  string user_id = 1;
+  TodoPriority default_priority = 2;
+  optional int32 default_estimated_minutes = 3;
+  optional int32 max_active_todos = 4;
+}
+
+message UserSettingsMessage {
+  string user_id = 1;
+  TodoPriority default_priority = 2;
+  optional int32 default_estimated_minutes = 3;
+  optional int32 max_active_todos = 4;
+}
+
+message ListUsersRequest {}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message BatchGetUsersRequest {
+  repeated string ids = 1;
+}
+
+message GetUserByUsernameRequest {
+  string username = 1;
+}
+
+message ListUsersResponse {
+  repeated UserMessage users = 1;
+}
+
+message CountUsersRequest {}
+
+message CountUsersResponse {
+  int64 count = 1;
+}

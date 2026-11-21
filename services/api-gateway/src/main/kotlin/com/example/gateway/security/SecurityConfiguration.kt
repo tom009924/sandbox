@@ -1,0 +1,75 @@
+package com.example.gateway.security
+
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.access.AccessDeniedHandler
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import tools.jackson.databind.ObjectMapper
+
+@Configuration
+@EnableWebSecurity
+class SecurityConfiguration(
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val objectMapper: ObjectMapper,
+    @param:Value("\${todo.security.admin-api-key:admin-secret-key}")
+    private val adminApiKey: String,
+) {
+    @Bean
+    fun authenticationEntryPoint(): AuthenticationEntryPoint =
+        AuthenticationEntryPoint { _, response, authException ->
+            response.status = HttpStatus.UNAUTHORIZED.value()
+            response.contentType = MediaType.APPLICATION_JSON_VALUE
+            val body = mapOf(
+                "status" to HttpStatus.UNAUTHORIZED.value(),
+                "error" to "Unauthorized",
+                "message" to (authException.message ?: "Authentication required"),
+            )
+            response.writer.write(objectMapper.writeValueAsString(body))
+        }
+
+    @Bean
+    fun accessDeniedHandler(): AccessDeniedHandler =
+        AccessDeniedHandler { _, response, accessDeniedException ->
+            response.status = HttpStatus.FORBIDDEN.value()
+            response.contentType = MediaType.APPLICATION_JSON_VALUE
+            val body = mapOf(
+                "status" to HttpStatus.FORBIDDEN.value(),
+                "error" to "Forbidden",
+                "message" to (accessDeniedException.message ?: "Access denied"),
+            )
+            response.writer.write(objectMapper.writeValueAsString(body))
+        }
+
+    @Bean
+    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        val jwtFilter = JwtAuthenticationFilter(jwtTokenProvider)
+        val adminFilter = AdminApiKeyFilter(adminApiKey, objectMapper)
+        http
+            .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .exceptionHandling {
+                it.authenticationEntryPoint(authenticationEntryPoint())
+                it.accessDeniedHandler(accessDeniedHandler())
+            }
+            .authorizeHttpRequests {
+                it.requestMatchers("/api/auth/**").permitAll()
+                it.requestMatchers("/error").permitAll()
+                it.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                it.requestMatchers("/actuator/**").hasRole("ADMIN")
+                it.requestMatchers("/api/admin/**").hasRole("ADMIN")
+                it.anyRequest().authenticated()
+            }
+            .addFilterBefore(adminFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter::class.java)
+
+        return http.build()
+    }
+}

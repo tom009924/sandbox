@@ -65,7 +65,7 @@ jobs:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
           PUBSUB_REQUIRED: "true"
-        run: ./gradlew check :services:identity-service:check bootJar :services:identity-service:bootJar --no-daemon -PdetektAutoCorrect=false
+        run: ./gradlew check :libs:identity-proto:check :services:identity-service:check :services:api-gateway:check bootJar :services:identity-service:bootJar :services:api-gateway:bootJar --no-daemon -PdetektAutoCorrect=false
 
       - name: Generate CycloneDX SBOM
         run: ./gradlew cyclonedxBom --no-daemon
@@ -121,7 +121,7 @@ jobs:
           SPANNER_DATABASE=identity-database \
           java -jar services/identity-service/build/libs/app.jar > identity-service.log 2>&1 &
           IDENTITY_PID=$!
-          trap 'kill "$IDENTITY_PID" "${TODO_PID:-}" 2>/dev/null || true' EXIT
+          trap 'kill "$IDENTITY_PID" "${TODO_PID:-}" "${GATEWAY_PID:-}" 2>/dev/null || true' EXIT
 
           IDENTITY_READY=0
           for i in $(seq 1 30); do
@@ -160,10 +160,34 @@ jobs:
             exit 1
           fi
 
-          if ! node scripts/test-microservices-e2e.mjs; then
+          IDENTITY_GRPC_HOST=127.0.0.1 \
+          IDENTITY_GRPC_PORT=9091 \
+          TODO_SERVICE_BASE_URL=http://127.0.0.1:8080 \
+          java -jar services/api-gateway/build/libs/app.jar > api-gateway.log 2>&1 &
+          GATEWAY_PID=$!
+
+          GATEWAY_READY=0
+          for i in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8082/actuator/health || true)
+            if [ "$HTTP_CODE" = "200" ]; then
+              GATEWAY_READY=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$GATEWAY_READY" -ne 1 ]; then
+            echo "api-gateway failed to become healthy. Logs:"
+            cat api-gateway.log
+            exit 1
+          fi
+
+          if ! GATEWAY_BASE_URL=http://127.0.0.1:8082 node scripts/test-microservices-e2e.mjs; then
             echo "Combined microservices E2E test failed. identity-service.log:"
             cat identity-service.log
             echo "todo-api.log:"
             cat todo-api.log
+            echo "api-gateway.log:"
+            cat api-gateway.log
             exit 1
           fi
