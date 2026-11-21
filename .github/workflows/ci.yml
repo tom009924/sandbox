@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, "feat/**"]
   workflow_dispatch:
 
 permissions:
@@ -15,8 +15,107 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify
+  verify-monolith:
+    name: Verify todo-api (Monolith)
+    runs-on: ubuntu-latest
+    services:
+      spanner-emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+      pubsub-emulator:
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+        ports:
+          - 8085:8085
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run checks, build JAR, and generate SBOM
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          PUBSUB_REQUIRED: "true"
+        run: ./gradlew check bootJar cyclonedxBom --no-daemon -PdetektAutoCorrect=false
+
+      - name: Verify generated docs and diagrams are up-to-date
+        run: |
+          ./gradlew generateExternalCallDiagrams --no-daemon
+          git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-call-sequence.md
+
+      - name: Upload CycloneDX SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-cyclonedx-sbom
+          path: build/reports/cyclonedx/bom.json
+          retention-days: 14
+
+      - name: Upload todo-api JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-todo-api
+          path: build/libs/app.jar
+          retention-days: 1
+
+  verify-microservices:
+    name: Verify ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: identity-service
+            gradle-project: :services:identity-service
+            jar-path: services/identity-service/build/libs/app.jar
+          - service: api-gateway
+            gradle-project: :services:api-gateway
+            jar-path: services/api-gateway/build/libs/app.jar
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run checks and build JAR
+        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar --no-daemon -PdetektAutoCorrect=false
+
+      - name: Upload ${{ matrix.service }} JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-${{ matrix.service }}
+          path: ${{ matrix.jar-path }}
+          retention-days: 1
+
+  e2e-arazzo:
+    name: E2E (Arazzo Workflows)
+    needs: [verify-monolith]
     runs-on: ubuntu-latest
     services:
       spanner-emulator:
@@ -57,31 +156,11 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run checks and build application JAR
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-          PUBSUB_EMULATOR_HOST: localhost:8085
-          PUBSUB_REQUIRED: "true"
-        run: ./gradlew check :services:identity-service:check bootJar :services:identity-service:bootJar --no-daemon -PdetektAutoCorrect=false
-
-      - name: Generate CycloneDX SBOM
-        run: ./gradlew cyclonedxBom --no-daemon
-
-      - name: Upload CycloneDX SBOM
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download todo-api JAR
+        uses: actions/download-artifact@v4
         with:
-          name: gradle-cyclonedx-sbom
-          path: build/reports/cyclonedx/bom.json
-          retention-days: 14
-
-      - name: Verify generated docs and diagrams are up-to-date
-        run: |
-          ./gradlew generateExternalCallDiagrams --no-daemon
-          git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-call-sequence.md
+          name: jar-todo-api
+          path: build/libs
 
       - name: Run Arazzo E2E workflow tests
         env:
@@ -91,14 +170,11 @@ jobs:
           java -jar build/libs/app.jar > app.log 2>&1 &
           APP_PID=$!
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          echo "Started application with PID $APP_PID"
 
-          echo "Waiting for application to become healthy..."
           READY=0
-          for i in $(seq 1 30); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/auth/register || true)
-            if [ "$HTTP_CODE" != "000" ] && [ -n "$HTTP_CODE" ]; then
-              echo "Application is ready! (HTTP $HTTP_CODE)"
+          for _ in $(seq 1 30); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/actuator/health || true)
+            if [ "$HTTP_CODE" = "200" ]; then
               READY=1
               break
             fi
@@ -106,64 +182,57 @@ jobs:
           done
 
           if [ "$READY" -ne 1 ]; then
-            echo "Application failed to start within timeout. Logs:"
+            echo "todo-api failed to become healthy. Logs:"
             cat app.log
             exit 1
           fi
 
-          npm run test:arazzo
+          if ! npm run test:arazzo; then
+            echo "Arazzo E2E failed. Logs:"
+            cat app.log
+            exit 1
+          fi
+
+  e2e-microservices:
+    name: E2E (Gateway + Microservices)
+    needs: [verify-monolith, verify-microservices]
+    runs-on: ubuntu-latest
+    services:
+      spanner-emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+      pubsub-emulator:
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+        ports:
+          - 8085:8085
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Download service JARs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: jar-*
+          path: .ci-jars
 
       - name: Run combined microservices E2E test
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
-        run: |
-          SPANNER_DATABASE=identity-database \
-          java -jar services/identity-service/build/libs/app.jar > identity-service.log 2>&1 &
-          IDENTITY_PID=$!
-          trap 'kill "$IDENTITY_PID" "${TODO_PID:-}" 2>/dev/null || true' EXIT
-
-          IDENTITY_READY=0
-          for i in $(seq 1 30); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/actuator/health || true)
-            if [ "$HTTP_CODE" = "200" ]; then
-              IDENTITY_READY=1
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$IDENTITY_READY" -ne 1 ]; then
-            echo "identity-service failed to become healthy. Logs:"
-            cat identity-service.log
-            exit 1
-          fi
-
-          IDENTITY_SERVICE_ENABLED=true \
-          IDENTITY_SERVICE_BASE_URL=http://127.0.0.1:8081 \
-          java -jar build/libs/app.jar > todo-api.log 2>&1 &
-          TODO_PID=$!
-
-          TODO_READY=0
-          for i in $(seq 1 30); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/actuator/health || true)
-            if [ "$HTTP_CODE" = "200" ]; then
-              TODO_READY=1
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$TODO_READY" -ne 1 ]; then
-            echo "todo-api failed to become healthy. Logs:"
-            cat todo-api.log
-            exit 1
-          fi
-
-          if ! node scripts/test-microservices-e2e.mjs; then
-            echo "Combined microservices E2E test failed. identity-service.log:"
-            cat identity-service.log
-            echo "todo-api.log:"
-            cat todo-api.log
-            exit 1
-          fi
+          IDENTITY_JAR: .ci-jars/jar-identity-service/app.jar
+          TODO_JAR: .ci-jars/jar-todo-api/app.jar
+          GATEWAY_JAR: .ci-jars/jar-api-gateway/app.jar
+        run: bash scripts/run-microservices-e2e.sh
