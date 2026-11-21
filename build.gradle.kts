@@ -167,6 +167,7 @@ dependencies {
     add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
     add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
     add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
+    add(integrationTestSourceSet.implementationConfigurationName, libs.kotest.property)
     add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
     detektPlugins(libs.detekt.formatting)
 }
@@ -228,7 +229,25 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     classpath = integrationTestSourceSet.runtimeClasspath
     dependsOn(tasks.test)
     shouldRunAfter(tasks.test)
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("property")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+}
+
+val propertyTest = tasks.register<Test>("propertyTest") {
+    description = "Runs property-based tests after the integration tests."
+    group = "verification"
+    maxHeapSize = "512m"
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    dependsOn(integrationTest)
+    shouldRunAfter(integrationTest)
+    useJUnitPlatform {
+        includeTags("property")
+    }
     testLogging {
         showStandardStreams = true
     }
@@ -251,7 +270,7 @@ tasks.register<Test>("generateExternalCallDiagrams") {
 }
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.test, integrationTest)
+    dependsOn(tasks.test, integrationTest, propertyTest)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")
@@ -278,7 +297,7 @@ val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
 }
 
 val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(jacocoTestReport)
+    dependsOn(jacocoTestReport, propertyTest)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")
@@ -355,6 +374,7 @@ val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("ja
 tasks.check {
     dependsOn("buildHealth")
     dependsOn(integrationTest)
+    dependsOn(propertyTest)
     dependsOn(tasks.named("openApiValidate"))
     dependsOn("lintOpenApi")
     dependsOn("lintAsyncApi")
