@@ -25,21 +25,21 @@ import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
-import com.example.todo.infrastructure.identity.HttpIdentityUserRepository
-import com.example.todo.infrastructure.identity.HttpIdentityUserSettingsRepository
+import com.example.todo.infrastructure.identity.GrpcIdentityUserRepository
+import com.example.todo.infrastructure.identity.GrpcIdentityUserSettingsRepository
 import com.example.todo.infrastructure.identity.IdentityServiceProperties
 import com.example.todo.infrastructure.notification.EmailNotificationProperties
 import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
-import org.springframework.beans.factory.ObjectProvider
+import io.grpc.ManagedChannel
+import io.grpc.ManagedChannelBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
-import org.springframework.web.client.RestClient
 import tools.jackson.databind.ObjectMapper
 
 @Configuration(proxyBeanMethods = false)
@@ -53,24 +53,35 @@ import tools.jackson.databind.ObjectMapper
 @Suppress("TooManyFunctions")
 class TodoConfiguration {
 
+    @Bean(destroyMethod = "shutdown")
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    fun identityGrpcChannel(
+        properties: IdentityServiceProperties,
+    ): ManagedChannel = ManagedChannelBuilder
+        .forAddress(properties.grpcHost, properties.grpcPort)
+        .usePlaintext()
+        .build()
+
     @Bean
     @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
-    fun httpIdentityUserRepository(
+    fun grpcIdentityUserRepository(
+        identityGrpcChannel: ManagedChannel,
         properties: IdentityServiceProperties,
-        restClientBuilderProvider: ObjectProvider<RestClient.Builder>,
-    ): UserRepository = HttpIdentityUserRepository(
-        properties = properties,
-        restClientBuilder = restClientBuilderProvider.getIfAvailable { RestClient.builder() },
+    ): UserRepository = GrpcIdentityUserRepository(
+        channel = identityGrpcChannel,
+        internalApiKey = properties.internalApiKey,
+        timeoutMillis = properties.timeout.toMillis(),
     )
 
     @Bean
     @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
-    fun httpIdentityUserSettingsRepository(
+    fun grpcIdentityUserSettingsRepository(
+        identityGrpcChannel: ManagedChannel,
         properties: IdentityServiceProperties,
-        restClientBuilderProvider: ObjectProvider<RestClient.Builder>,
-    ): UserSettingsRepository = HttpIdentityUserSettingsRepository(
-        properties = properties,
-        restClientBuilder = restClientBuilderProvider.getIfAvailable { RestClient.builder() },
+    ): UserSettingsRepository = GrpcIdentityUserSettingsRepository(
+        channel = identityGrpcChannel,
+        internalApiKey = properties.internalApiKey,
+        timeoutMillis = properties.timeout.toMillis(),
     )
 
     @Bean(destroyMethod = "close")

@@ -10,9 +10,7 @@ import com.example.identity.domain.model.AuthenticatedUser
 import com.example.identity.domain.model.TodoPriority
 import com.example.identity.domain.model.User
 import com.example.identity.domain.model.UserSettings
-import com.example.identity.domain.repository.UserRepository
 import com.example.identity.infrastructure.security.AdminApiKeyFilter
-import com.example.identity.infrastructure.security.InternalApiKeyFilter
 import com.example.identity.infrastructure.security.JwtTokenProvider
 import com.example.identity.infrastructure.security.SecurityConfiguration
 import org.junit.jupiter.api.Test
@@ -33,7 +31,6 @@ import java.util.UUID
     controllers = [
         AdminUserController::class,
         AuthController::class,
-        InternalIdentityController::class,
         UserSettingsController::class,
     ],
 )
@@ -51,9 +48,6 @@ class IdentitySecurityAndExceptionWebMvcTest(
 
     @MockitoBean
     private lateinit var authService: AuthService
-
-    @MockitoBean
-    private lateinit var userRepository: UserRepository
 
     @MockitoBean
     private lateinit var userSettingsService: UserSettingsService
@@ -80,26 +74,6 @@ class IdentitySecurityAndExceptionWebMvcTest(
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].username").value("alice"))
-    }
-
-    @Test
-    fun `internal endpoint enforces X-Internal-Api-Key header`() {
-        `when`(userRepository.count()).thenReturn(3L)
-
-        mockMvc.perform(get("/internal/users/count"))
-            .andExpect(status().isUnauthorized)
-
-        mockMvc.perform(
-            get("/internal/users/count")
-                .header(InternalApiKeyFilter.INTERNAL_API_KEY_HEADER, "wrong-key"),
-        ).andExpect(status().isForbidden)
-
-        mockMvc.perform(
-            get("/internal/users/count")
-                .header(InternalApiKeyFilter.INTERNAL_API_KEY_HEADER, "internal-secret-key"),
-        )
-            .andExpect(status().isOk)
-            .andExpect(jsonPath("$.count").value(3))
     }
 
     @Test
