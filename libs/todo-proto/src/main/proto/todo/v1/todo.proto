@@ -1,0 +1,294 @@
+syntax = "proto3";
+
+package todo.v1;
+
+option java_multiple_files = true;
+option java_package = "com.example.todo.grpc.v1";
+
+service TodoService {
+  rpc ListTodos (ListTodosRequest) returns (ListTodosResponse);
+  rpc GetTodo (GetTodoRequest) returns (TodoMessage);
+  rpc CreateTodo (CreateTodoRequest) returns (TodoMessage);
+  rpc UpdateTodo (UpdateTodoRequest) returns (TodoMessage);
+  rpc PatchTodo (PatchTodoRequest) returns (TodoMessage);
+  rpc DeleteTodo (DeleteTodoRequest) returns (EmptyResponse);
+
+  rpc ListSubtasks (ListSubtasksRequest) returns (ListSubtasksResponse);
+  rpc CreateSubtask (CreateSubtaskRequest) returns (TodoSubtaskMessage);
+  rpc PatchSubtask (PatchSubtaskRequest) returns (TodoSubtaskMessage);
+  rpc DeleteSubtask (DeleteSubtaskRequest) returns (EmptyResponse);
+
+  rpc ListComments (ListCommentsRequest) returns (ListCommentsResponse);
+  rpc CreateComment (CreateCommentRequest) returns (TodoCommentMessage);
+  rpc DeleteComment (DeleteCommentRequest) returns (EmptyResponse);
+
+  rpc GetAdminStats (GetAdminStatsRequest) returns (AdminStatsMessage);
+}
+
+service ProjectService {
+  rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
+  rpc GetProject (GetProjectRequest) returns (ProjectMessage);
+  rpc CreateProject (CreateProjectRequest) returns (ProjectMessage);
+  rpc UpdateProject (UpdateProjectRequest) returns (ProjectMessage);
+  rpc DeleteProject (DeleteProjectRequest) returns (EmptyResponse);
+
+  rpc ListProjectMembers (ListProjectMembersRequest) returns (ListProjectMembersResponse);
+  rpc AddProjectMember (AddProjectMemberRequest) returns (ProjectMemberMessage);
+  rpc RemoveProjectMember (RemoveProjectMemberRequest) returns (EmptyResponse);
+}
+
+enum TodoPriority {
+  TODO_PRIORITY_UNSPECIFIED = 0;
+  LOW = 1;
+  MEDIUM = 2;
+  HIGH = 3;
+}
+
+enum TodoSortField {
+  TODO_SORT_FIELD_UNSPECIFIED = 0;
+  DUE_DATE = 1;
+  PRIORITY = 2;
+  TITLE = 3;
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  ASC = 1;
+  DESC = 2;
+}
+
+enum ProjectRole {
+  PROJECT_ROLE_UNSPECIFIED = 0;
+  OWNER = 1;
+  MEMBER = 2;
+}
+
+message EmptyResponse {}
+
+message TodoMessage {
+  string id = 1;
+  string user_id = 2;
+  string title = 3;
+  bool completed = 4;
+  optional string description = 5;
+  optional string due_date = 6;
+  TodoPriority priority = 7;
+  optional int32 estimated_minutes = 8;
+  repeated string tags = 9;
+  optional string project_id = 10;
+  optional string assignee_id = 11;
+}
+
+message ListTodosRequest {
+  string user_id = 1;
+  optional bool completed = 2;
+  TodoPriority priority = 3;
+  optional string tag = 4;
+  optional string keyword = 5;
+  optional string due_before = 6;
+  optional string due_after = 7;
+  TodoSortField sort_by = 8;
+  SortOrder sort_order = 9;
+  optional string project_id = 10;
+  optional string assignee_id = 11;
+}
+
+message ListTodosResponse {
+  repeated TodoMessage todos = 1;
+}
+
+message GetTodoRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message CreateTodoRequest {
+  string user_id = 1;
+  string idempotency_key = 2;
+  string title = 3;
+  optional string description = 4;
+  optional string due_date = 5;
+  TodoPriority priority = 6;
+  optional int32 estimated_minutes = 7;
+  repeated string tags = 8;
+  optional string project_id = 9;
+  optional string assignee_id = 10;
+}
+
+message UpdateTodoRequest {
+  string id = 1;
+  string user_id = 2;
+  string title = 3;
+  bool completed = 4;
+  optional string description = 5;
+  optional string due_date = 6;
+  TodoPriority priority = 7;
+  optional int32 estimated_minutes = 8;
+  repeated string tags = 9;
+  optional string assignee_id = 10;
+}
+
+message PatchTodoRequest {
+  string id = 1;
+  string user_id = 2;
+  optional string title = 3;
+  optional bool completed = 4;
+  optional string description = 5;
+  optional string due_date = 6;
+  TodoPriority priority = 7;
+  optional int32 estimated_minutes = 8;
+  bool has_tags = 9;
+  repeated string tags = 10;
+  optional string assignee_id = 11;
+}
+
+message DeleteTodoRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message TodoSubtaskMessage {
+  string id = 1;
+  string todo_id = 2;
+  string title = 3;
+  bool completed = 4;
+  int32 position = 5;
+}
+
+message ListSubtasksRequest {
+  string todo_id = 1;
+  string user_id = 2;
+}
+
+message ListSubtasksResponse {
+  repeated TodoSubtaskMessage subtasks = 1;
+}
+
+message CreateSubtaskRequest {
+  string todo_id = 1;
+  string user_id = 2;
+  string title = 3;
+}
+
+message PatchSubtaskRequest {
+  string todo_id = 1;
+  string subtask_id = 2;
+  string user_id = 3;
+  optional string title = 4;
+  optional bool completed = 5;
+  optional int32 position = 6;
+}
+
+message DeleteSubtaskRequest {
+  string todo_id = 1;
+  string subtask_id = 2;
+  string user_id = 3;
+}
+
+message TodoCommentMessage {
+  string id = 1;
+  string todo_id = 2;
+  string user_id = 3;
+  string username = 4;
+  string content = 5;
+  string created_at = 6;
+}
+
+message ListCommentsRequest {
+  string todo_id = 1;
+  string user_id = 2;
+}
+
+message ListCommentsResponse {
+  repeated TodoCommentMessage comments = 1;
+}
+
+message CreateCommentRequest {
+  string todo_id = 1;
+  string user_id = 2;
+  string content = 3;
+}
+
+message DeleteCommentRequest {
+  string todo_id = 1;
+  string comment_id = 2;
+  string user_id = 3;
+}
+
+message GetAdminStatsRequest {}
+
+message AdminStatsMessage {
+  int64 total_users = 1;
+  int64 total_todos = 2;
+  int64 completed_todos = 3;
+  int64 active_todos = 4;
+}
+
+message ProjectMessage {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  string created_by = 4;
+  string created_at = 5;
+}
+
+message ListProjectsRequest {
+  string user_id = 1;
+}
+
+message ListProjectsResponse {
+  repeated ProjectMessage projects = 1;
+}
+
+message GetProjectRequest {
+  string project_id = 1;
+  string user_id = 2;
+}
+
+message CreateProjectRequest {
+  string user_id = 1;
+  string name = 2;
+  optional string description = 3;
+}
+
+message UpdateProjectRequest {
+  string project_id = 1;
+  string user_id = 2;
+  string name = 3;
+  optional string description = 4;
+}
+
+message DeleteProjectRequest {
+  string project_id = 1;
+  string user_id = 2;
+}
+
+message ProjectMemberMessage {
+  string project_id = 1;
+  string user_id = 2;
+  string username = 3;
+  ProjectRole role = 4;
+  string joined_at = 5;
+}
+
+message ListProjectMembersRequest {
+  string project_id = 1;
+  string user_id = 2;
+}
+
+message ListProjectMembersResponse {
+  repeated ProjectMemberMessage members = 1;
+}
+
+message AddProjectMemberRequest {
+  string project_id = 1;
+  string actor_user_id = 2;
+  string username = 3;
+  ProjectRole role = 4;
+}
+
+message RemoveProjectMemberRequest {
+  string project_id = 1;
+  string actor_user_id = 2;
+  string target_user_id = 3;
+}

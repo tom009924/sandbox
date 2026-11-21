@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.server.ResponseStatusException
 
 @RestControllerAdvice
@@ -30,6 +31,7 @@ class GatewayExceptionHandler {
     @ExceptionHandler(
         ConstraintViolationException::class,
         MethodArgumentNotValidException::class,
+        MethodArgumentTypeMismatchException::class,
         MissingRequestHeaderException::class,
         HttpMessageNotReadableException::class,
     )
