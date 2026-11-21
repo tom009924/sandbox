@@ -7,6 +7,7 @@ import com.example.todo.domain.model.UserSettings
 import com.example.todo.presentation.api.SettingsApi
 import com.example.todo.presentation.model.UpdateUserSettingsRequest
 import com.example.todo.presentation.model.UserSettingsResponse
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
@@ -14,6 +15,7 @@ import com.example.todo.domain.model.TodoPriority as DomainTodoPriority
 import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
 
 @RestController
+@ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
 class UserSettingsController(
     private val userSettingsService: UserSettingsService,
     private val userContext: UserContext,

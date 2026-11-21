@@ -3,10 +3,16 @@ package com.example.todo.infrastructure.persistence
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.UserRepository
 import com.google.cloud.spring.data.spanner.core.SpannerTemplate
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
+@ConditionalOnProperty(
+    name = ["identity.service.enabled"],
+    havingValue = "false",
+    matchIfMissing = true,
+)
 class UserRepositoryAdapter(
     private val springDataUserRepository: SpringDataUserRepository,
     private val spannerTemplate: SpannerTemplate,

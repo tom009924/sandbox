@@ -25,15 +25,21 @@ import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
+import com.example.todo.infrastructure.identity.HttpIdentityUserRepository
+import com.example.todo.infrastructure.identity.HttpIdentityUserSettingsRepository
+import com.example.todo.infrastructure.identity.IdentityServiceProperties
 import com.example.todo.infrastructure.notification.EmailNotificationProperties
 import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
+import org.springframework.web.client.RestClient
 import tools.jackson.databind.ObjectMapper
 
 @Configuration(proxyBeanMethods = false)
@@ -42,9 +48,30 @@ import tools.jackson.databind.ObjectMapper
     PubSubProperties::class,
     EmailNotificationProperties::class,
     GrpcKeyManagementProperties::class,
+    IdentityServiceProperties::class,
 )
 @Suppress("TooManyFunctions")
 class TodoConfiguration {
+
+    @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    fun httpIdentityUserRepository(
+        properties: IdentityServiceProperties,
+        restClientBuilderProvider: ObjectProvider<RestClient.Builder>,
+    ): UserRepository = HttpIdentityUserRepository(
+        properties = properties,
+        restClientBuilder = restClientBuilderProvider.getIfAvailable { RestClient.builder() },
+    )
+
+    @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    fun httpIdentityUserSettingsRepository(
+        properties: IdentityServiceProperties,
+        restClientBuilderProvider: ObjectProvider<RestClient.Builder>,
+    ): UserSettingsRepository = HttpIdentityUserSettingsRepository(
+        properties = properties,
+        restClientBuilder = restClientBuilderProvider.getIfAvailable { RestClient.builder() },
+    )
 
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(CryptoService::class)
@@ -136,6 +163,7 @@ class TodoConfiguration {
     )
 
     @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
     fun userSettingsService(
         userSettingsRepository: UserSettingsRepository,
     ) = UserSettingsService(userSettingsRepository)
@@ -152,6 +180,7 @@ class TodoConfiguration {
     ) = AdminUserService(userRepository)
 
     @Bean
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
     fun authService(
         userRepository: UserRepository,
         passwordEncoder: PasswordEncoder,
