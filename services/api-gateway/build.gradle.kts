@@ -75,6 +75,7 @@ dependencies {
     }
 
     implementation(project(":libs:identity-proto"))
+    implementation(project(":libs:todo-proto"))
     implementation(libs.grpc.netty.shaded)
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)

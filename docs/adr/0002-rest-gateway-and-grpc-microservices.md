@@ -15,9 +15,9 @@ Maintaining both HTTP `/internal/**` controllers/filters and gRPC services in `i
 ## Decision
 
 1. **External edge**: Expose a single Spring Boot REST API Gateway (`:services:api-gateway`) that owns external REST contracts, centralized JWT / `X-Admin-Key` validation, and gRPC-to-HTTP error translation.
-2. **Internal communication**: Standardize **all** service-to-service communication on **gRPC** using shared Protobuf contracts under `libs/*-proto` (`:libs:identity-proto`).
+2. **Internal communication**: Standardize **all** service-to-service communication on **gRPC** using shared Protobuf contracts under `libs/*-proto` (`:libs:identity-proto`, `:libs:todo-proto`).
 3. **Service-to-service auth**: Authenticate all gRPC RPCs via `x-internal-api-key` metadata verified in `InternalApiKeyGrpcInterceptor` (guarded on non-local profiles by `SecurityStartupValidator`).
-4. **Removal of internal HTTP surface**: Remove `InternalIdentityController` and `InternalApiKeyFilter` from `identity-service` so internal APIs have a single canonical transport (gRPC).
+4. **Removal of internal HTTP surface & transitional proxy**: Remove `InternalIdentityController` and `InternalApiKeyFilter` from `identity-service`, and remove the transitional HTTP `TodoProxyController` from `api-gateway` so all internal traffic uses gRPC.
 
 ## Consequences
 
