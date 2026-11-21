@@ -3,15 +3,22 @@ package com.example.todo.infrastructure.grpc
 import com.example.todo.application.AdminStatsService
 import com.example.todo.application.PatchTodoCommand
 import com.example.todo.application.PatchTodoSubtaskCommand
+import com.example.todo.application.SortOrder
 import com.example.todo.application.TodoCommand
 import com.example.todo.application.TodoCommentInfo
 import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoListQuery
 import com.example.todo.application.TodoService
+import com.example.todo.application.TodoSortField
 import com.example.todo.application.TodoSubtaskService
+import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.IdempotencyConflictException
+import com.example.todo.domain.exception.InvalidCredentialsException
+import com.example.todo.domain.exception.InvalidTodoAssigneeException
 import com.example.todo.domain.exception.TodoCommentForbiddenException
+import com.example.todo.domain.exception.TodoCommentNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
+import com.example.todo.domain.exception.TodoSubtaskNotFoundException
 import com.example.todo.domain.model.AdminStats
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
@@ -52,7 +59,9 @@ import org.mockito.Mockito.`when`
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import com.example.todo.grpc.v1.SortOrder as ProtoSortOrder
 import com.example.todo.grpc.v1.TodoPriority as ProtoTodoPriority
+import com.example.todo.grpc.v1.TodoSortField as ProtoTodoSortField
 
 class TodoGrpcServiceTest {
     private val todoService: TodoService = mock(TodoService::class.java)
@@ -99,12 +108,22 @@ class TodoGrpcServiceTest {
     }
 
     @Test
-    fun `rejects request without internal api key`() {
+    fun `rejects request without or with invalid internal api key`() {
         val unauthStub = TodoServiceGrpc.newBlockingStub(channel)
-        val ex = assertThrows(StatusRuntimeException::class.java) {
+        val missingEx = assertThrows(StatusRuntimeException::class.java) {
             unauthStub.getAdminStats(GetAdminStatsRequest.getDefaultInstance())
         }
-        assertEquals(Status.Code.UNAUTHENTICATED, ex.status.code)
+        assertEquals(Status.Code.UNAUTHENTICATED, missingEx.status.code)
+
+        val badHeaders = Metadata().apply {
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, "wrong-key")
+        }
+        val badStub = TodoServiceGrpc.newBlockingStub(channel)
+            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(badHeaders))
+        val invalidEx = assertThrows(StatusRuntimeException::class.java) {
+            badStub.getAdminStats(GetAdminStatsRequest.getDefaultInstance())
+        }
+        assertEquals(Status.Code.PERMISSION_DENIED, invalidEx.status.code)
     }
 
     @Test
@@ -335,6 +354,218 @@ class TodoGrpcServiceTest {
             )
         }
         assertEquals(Status.Code.PERMISSION_DENIED, forbidden.status.code)
+    }
+
+    @Test
+    fun `handles optional fields in list and create RPCs`() {
+        val projectId = UUID.fromString("55555555-5555-5555-5555-555555555555")
+        val assigneeId = UUID.fromString("66666666-6666-6666-6666-666666666666")
+        val fullTodo = sampleTodo().copy(priority = TodoPriority.LOW, projectId = projectId, assigneeId = assigneeId)
+        val minimalTodo = Todo(id = todoId, userId = userId, title = "Min", priority = TodoPriority.MEDIUM)
+        val query = TodoListQuery(
+            completed = true,
+            priority = TodoPriority.LOW,
+            tag = "grpc",
+            keyword = "test",
+            dueBefore = LocalDate.of(2026, 6, 1),
+            dueAfter = LocalDate.of(2026, 4, 1),
+            sortBy = TodoSortField.DUE_DATE,
+            sortOrder = SortOrder.DESC,
+            projectId = projectId,
+            assigneeId = assigneeId,
+        )
+        `when`(todoService.list(userId, query)).thenReturn(listOf(fullTodo, minimalTodo))
+        `when`(
+            todoService.createIdempotent(
+                userId,
+                "k-full",
+                TodoCommand(
+                    title = "Full",
+                    description = "Desc",
+                    dueDate = LocalDate.of(2026, 5, 1),
+                    priority = TodoPriority.LOW,
+                    estimatedMinutes = 20,
+                    tags = listOf("a"),
+                    projectId = projectId,
+                    assigneeId = assigneeId,
+                ),
+            ),
+        ).thenReturn(fullTodo)
+
+        val stub = authenticatedStub()
+        val listed = stub.listTodos(
+            ListTodosRequest.newBuilder().setUserId(userId.toString()).setCompleted(true)
+                .setPriority(ProtoTodoPriority.LOW).setTag("grpc").setKeyword("test")
+                .setDueBefore("2026-06-01").setDueAfter("2026-04-01")
+                .setSortBy(ProtoTodoSortField.DUE_DATE).setSortOrder(ProtoSortOrder.DESC)
+                .setProjectId(projectId.toString()).setAssigneeId(assigneeId.toString()).build(),
+        )
+        assertEquals(2, listed.todosCount)
+
+        val created = stub.createTodo(
+            CreateTodoRequest.newBuilder().setUserId(userId.toString()).setIdempotencyKey("k-full")
+                .setTitle("Full").setDescription("Desc").setDueDate("2026-05-01")
+                .setPriority(ProtoTodoPriority.LOW).setEstimatedMinutes(20).addTags("a")
+                .setProjectId(projectId.toString()).setAssigneeId(assigneeId.toString()).build(),
+        )
+        assertEquals(projectId.toString(), created.projectId)
+    }
+
+    @Test
+    fun `handles optional fields in update and patch RPCs`() {
+        val assigneeId = UUID.fromString("66666666-6666-6666-6666-666666666666")
+        val todo = sampleTodo()
+        `when`(
+            todoService.update(
+                todoId,
+                userId,
+                TodoCommand(
+                    title = "Upd",
+                    completed = false,
+                    description = "D",
+                    dueDate = LocalDate.of(2026, 5, 2),
+                    priority = TodoPriority.MEDIUM,
+                    estimatedMinutes = 15,
+                    tags = listOf("t"),
+                    assigneeId = assigneeId,
+                ),
+            ),
+        ).thenReturn(todo)
+        `when`(
+            todoService.patch(
+                todoId,
+                userId,
+                PatchTodoCommand(
+                    title = "P",
+                    completed = true,
+                    description = "PD",
+                    dueDate = LocalDate.of(2026, 5, 3),
+                    priority = TodoPriority.MEDIUM,
+                    estimatedMinutes = 10,
+                    tags = listOf("x"),
+                    assigneeId = assigneeId,
+                ),
+            ),
+        ).thenReturn(todo)
+
+        val stub = authenticatedStub()
+        stub.updateTodo(
+            UpdateTodoRequest.newBuilder().setId(todoId.toString()).setUserId(userId.toString())
+                .setTitle("Upd").setCompleted(false).setDescription("D").setDueDate("2026-05-02")
+                .setPriority(ProtoTodoPriority.MEDIUM).setEstimatedMinutes(15).addTags("t")
+                .setAssigneeId(assigneeId.toString()).build(),
+        )
+        stub.patchTodo(
+            PatchTodoRequest.newBuilder().setId(todoId.toString()).setUserId(userId.toString())
+                .setTitle("P").setCompleted(true).setDescription("PD").setDueDate("2026-05-03")
+                .setPriority(ProtoTodoPriority.MEDIUM).setEstimatedMinutes(10).setHasTags(true).addTags("x")
+                .setAssigneeId(assigneeId.toString()).build(),
+        )
+    }
+
+    @Test
+    fun `handles sort enum variants and subtask patch fields`() {
+        `when`(todoService.list(userId, TodoListQuery(sortBy = TodoSortField.PRIORITY, sortOrder = SortOrder.ASC)))
+            .thenReturn(emptyList())
+        `when`(todoService.list(userId, TodoListQuery(sortBy = TodoSortField.TITLE, sortOrder = SortOrder.ASC)))
+            .thenReturn(emptyList())
+        `when`(
+            todoSubtaskService.patch(
+                todoId,
+                subtaskId,
+                userId,
+                PatchTodoSubtaskCommand(title = "S", completed = false, position = 2),
+            ),
+        ).thenReturn(TodoSubtask(id = subtaskId, todoId = todoId, title = "S", completed = false, position = 2))
+
+        val stub = authenticatedStub()
+        stub.listTodos(
+            ListTodosRequest.newBuilder().setUserId(userId.toString())
+                .setSortBy(ProtoTodoSortField.PRIORITY).setSortOrder(ProtoSortOrder.ASC).build(),
+        )
+        stub.listTodos(
+            ListTodosRequest.newBuilder().setUserId(userId.toString()).setSortBy(ProtoTodoSortField.TITLE).build(),
+        )
+        val patchedSub = stub.patchSubtask(
+            PatchSubtaskRequest.newBuilder().setTodoId(todoId.toString()).setSubtaskId(subtaskId.toString())
+                .setUserId(userId.toString()).setTitle("S").setCompleted(false).setPosition(2).build(),
+        )
+        assertEquals(2, patchedSub.position)
+    }
+
+    @Test
+    fun `maps invalid arguments and auth exceptions`() {
+        `when`(todoService.createIdempotent(userId, "lim", TodoCommand(title = "T")))
+            .thenThrow(ActiveTodosLimitExceededException(5))
+        `when`(todoService.createIdempotent(userId, "asg", TodoCommand(title = "T")))
+            .thenThrow(InvalidTodoAssigneeException("bad"))
+        `when`(todoService.get(todoId, userId)).thenThrow(InvalidCredentialsException())
+
+        val stub = authenticatedStub()
+        assertEquals(
+            Status.Code.INVALID_ARGUMENT,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.getTodo(GetTodoRequest.newBuilder().setId("bad-uuid").setUserId(userId.toString()).build())
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.INVALID_ARGUMENT,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.listTodos(
+                    ListTodosRequest.newBuilder().setUserId(userId.toString()).setDueBefore("not-a-date").build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.INVALID_ARGUMENT,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.createTodo(
+                    CreateTodoRequest.newBuilder().setUserId(userId.toString()).setIdempotencyKey("lim")
+                        .setTitle("T").build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.INVALID_ARGUMENT,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.createTodo(
+                    CreateTodoRequest.newBuilder().setUserId(userId.toString()).setIdempotencyKey("asg")
+                        .setTitle("T").build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.UNAUTHENTICATED,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.getTodo(GetTodoRequest.newBuilder().setId(todoId.toString()).setUserId(userId.toString()).build())
+            }.status.code,
+        )
+    }
+
+    @Test
+    fun `maps subtask and comment not found exceptions`() {
+        `when`(todoSubtaskService.delete(todoId, subtaskId, userId)).thenThrow(TodoSubtaskNotFoundException(subtaskId))
+        `when`(todoCommentService.delete(todoId, commentId, userId)).thenThrow(TodoCommentNotFoundException(commentId))
+
+        val stub = authenticatedStub()
+        assertEquals(
+            Status.Code.NOT_FOUND,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.deleteSubtask(
+                    DeleteSubtaskRequest.newBuilder().setTodoId(todoId.toString())
+                        .setSubtaskId(subtaskId.toString()).setUserId(userId.toString()).build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.NOT_FOUND,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.deleteComment(
+                    DeleteCommentRequest.newBuilder().setTodoId(todoId.toString())
+                        .setCommentId(commentId.toString()).setUserId(userId.toString()).build(),
+                )
+            }.status.code,
+        )
     }
 
     private fun authenticatedStub(): TodoServiceGrpc.TodoServiceBlockingStub {

@@ -2,9 +2,13 @@ package com.example.todo.infrastructure.grpc
 
 import com.example.todo.application.ProjectMemberInfo
 import com.example.todo.application.ProjectService
+import com.example.todo.domain.exception.LastProjectOwnerException
 import com.example.todo.domain.exception.ProjectForbiddenException
 import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
+import com.example.todo.domain.exception.ProjectMemberNotFoundException
 import com.example.todo.domain.exception.ProjectNotFoundException
+import com.example.todo.domain.exception.UserAlreadyExistsException
+import com.example.todo.domain.exception.UserNotFoundException
 import com.example.todo.domain.model.Project
 import com.example.todo.domain.model.ProjectRole
 import com.example.todo.grpc.v1.AddProjectMemberRequest
@@ -203,6 +207,127 @@ class ProjectGrpcServiceTest {
                         .setActorUserId(userId.toString())
                         .setUsername("bob")
                         .setRole(ProtoProjectRole.MEMBER)
+                        .build(),
+                )
+            }.status.code,
+        )
+    }
+
+    @Test
+    fun `handles owner role unspecified role and optional descriptions`() {
+        val now = Instant.parse("2026-05-01T12:00:00Z")
+        val noDescProject = Project(
+            id = projectId,
+            name = "Minimal",
+            description = null,
+            createdBy = userId,
+            createdAt = now,
+        )
+        val ownerMember = ProjectMemberInfo(
+            projectId = projectId,
+            userId = memberId,
+            username = "owner1",
+            role = ProjectRole.OWNER,
+            joinedAt = now,
+        )
+        `when`(projectService.create(userId, "Minimal", null)).thenReturn(noDescProject)
+        `when`(projectService.update(projectId, userId, "Updated", "With desc"))
+            .thenReturn(noDescProject.copy(name = "Updated", description = "With desc"))
+        `when`(projectService.addMember(projectId, userId, "owner1", ProjectRole.OWNER)).thenReturn(ownerMember)
+        `when`(projectService.addMember(projectId, userId, "defaultRole", ProjectRole.MEMBER))
+            .thenReturn(ownerMember.copy(username = "defaultRole", role = ProjectRole.MEMBER))
+
+        val stub = authenticatedStub()
+        val created = stub.createProject(
+            CreateProjectRequest.newBuilder().setUserId(userId.toString()).setName("Minimal").build(),
+        )
+        assertEquals(false, created.hasDescription())
+
+        val updated = stub.updateProject(
+            UpdateProjectRequest.newBuilder()
+                .setProjectId(projectId.toString())
+                .setUserId(userId.toString())
+                .setName("Updated")
+                .setDescription("With desc")
+                .build(),
+        )
+        assertEquals("With desc", updated.description)
+
+        val owner = stub.addProjectMember(
+            AddProjectMemberRequest.newBuilder()
+                .setProjectId(projectId.toString())
+                .setActorUserId(userId.toString())
+                .setUsername("owner1")
+                .setRole(ProtoProjectRole.OWNER)
+                .build(),
+        )
+        assertEquals(ProtoProjectRole.OWNER, owner.role)
+
+        val member = stub.addProjectMember(
+            AddProjectMemberRequest.newBuilder()
+                .setProjectId(projectId.toString())
+                .setActorUserId(userId.toString())
+                .setUsername("defaultRole")
+                .build(),
+        )
+        assertEquals(ProtoProjectRole.MEMBER, member.role)
+    }
+
+    @Test
+    fun `maps additional project and user exceptions`() {
+        `when`(projectService.removeMember(projectId, userId, memberId))
+            .thenThrow(LastProjectOwnerException(projectId))
+        `when`(projectService.listMembers(projectId, userId))
+            .thenThrow(ProjectMemberNotFoundException(projectId, memberId))
+        `when`(projectService.addMember(projectId, userId, "ghost", ProjectRole.MEMBER))
+            .thenThrow(UserNotFoundException("ghost"))
+        `when`(projectService.addMember(projectId, userId, "dup", ProjectRole.MEMBER))
+            .thenThrow(UserAlreadyExistsException("dup"))
+
+        val stub = authenticatedStub()
+        assertEquals(
+            Status.Code.ALREADY_EXISTS,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.removeProjectMember(
+                    RemoveProjectMemberRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setActorUserId(userId.toString())
+                        .setTargetUserId(memberId.toString())
+                        .build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.NOT_FOUND,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.listProjectMembers(
+                    ListProjectMembersRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setUserId(userId.toString())
+                        .build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.NOT_FOUND,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.addProjectMember(
+                    AddProjectMemberRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setActorUserId(userId.toString())
+                        .setUsername("ghost")
+                        .build(),
+                )
+            }.status.code,
+        )
+        assertEquals(
+            Status.Code.ALREADY_EXISTS,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.addProjectMember(
+                    AddProjectMemberRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setActorUserId(userId.toString())
+                        .setUsername("dup")
                         .build(),
                 )
             }.status.code,
