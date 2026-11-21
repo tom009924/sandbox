@@ -59,6 +59,6 @@ class AdminApiKeyFilter(
     }
 
     companion object {
-        const val ADMIN_API_KEY_HEADER = "X-Admin-Api-Key"
+        const val ADMIN_API_KEY_HEADER = "X-Admin-Key"
     }
 }

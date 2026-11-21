@@ -83,7 +83,7 @@ async function main() {
 
   // 5. Check admin stats on todo-api -> aggregates user count from identity-service
   const stats = await request(`${TODO_URL}/api/admin/stats`, {
-    headers: { 'X-Admin-Api-Key': ADMIN_API_KEY },
+    headers: { 'X-Admin-Key': ADMIN_API_KEY },
   });
   if (stats.totalUsers < 1) {
     throw new Error(`Expected totalUsers >= 1, got ${stats.totalUsers}`);

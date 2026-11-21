@@ -160,4 +160,10 @@ jobs:
             exit 1
           fi
 
-          node scripts/test-microservices-e2e.mjs
+          if ! node scripts/test-microservices-e2e.mjs; then
+            echo "Combined microservices E2E test failed. identity-service.log:"
+            cat identity-service.log
+            echo "todo-api.log:"
+            cat todo-api.log
+            exit 1
+          fi

@@ -13,6 +13,8 @@ class SecurityStartupValidator(
     private val jwtSecret: String,
     @param:Value("\${todo.security.admin-api-key:admin-secret-key}")
     private val adminApiKey: String,
+    @param:Value("\${identity.security.internal-api-key:internal-secret-key}")
+    private val internalApiKey: String,
 ) {
     private val logger = LoggerFactory.getLogger(SecurityStartupValidator::class.java)
 
@@ -33,11 +35,19 @@ class SecurityStartupValidator(
                     "but 'todo.security.admin-api-key' is set to default insecure value. " +
                     "A secure admin API key must be provided via environment variables."
             }
+            check(internalApiKey != DEFAULT_INTERNAL_API_KEY) {
+                "Non-local profile detected (${activeProfiles.joinToString()}) " +
+                    "but 'identity.security.internal-api-key' is set to default insecure value. " +
+                    "A secure internal API key must be provided via environment variables."
+            }
             logger.info("Security secret validation passed for profiles: ${activeProfiles.joinToString()}.")
         } else {
-            if (jwtSecret == DEFAULT_JWT_SECRET || adminApiKey == DEFAULT_ADMIN_API_KEY) {
+            if (jwtSecret == DEFAULT_JWT_SECRET ||
+                adminApiKey == DEFAULT_ADMIN_API_KEY ||
+                internalApiKey == DEFAULT_INTERNAL_API_KEY
+            ) {
                 logger.warn(
-                    "Running with default insecure security keys (JWT secret or admin API key). " +
+                    "Running with default insecure security keys (JWT secret, admin API key, or internal API key). " +
                         "This is acceptable for local development/testing only.",
                 )
             }
@@ -47,6 +57,7 @@ class SecurityStartupValidator(
     companion object {
         const val DEFAULT_JWT_SECRET = "default-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256"
         const val DEFAULT_ADMIN_API_KEY = "admin-secret-key"
+        const val DEFAULT_INTERNAL_API_KEY = "internal-secret-key"
         private val ALLOWED_DEFAULT_SECRET_PROFILES = setOf("local", "dev", "development", "test")
     }
 }

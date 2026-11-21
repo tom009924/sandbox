@@ -3,63 +3,49 @@ package com.example.identity.presentation
 import com.example.identity.domain.exception.InvalidCredentialsException
 import com.example.identity.domain.exception.UserAlreadyExistsException
 import com.example.identity.domain.exception.UserNotFoundException
+import jakarta.validation.ConstraintViolationException
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
-import java.time.Instant
-
-data class ErrorResponse(
-    val status: Int,
-    val error: String,
-    val message: String,
-    val timestamp: Instant = Instant.now(),
-)
 
 @RestControllerAdvice
 class IdentityExceptionHandler {
+    private val logger = LoggerFactory.getLogger(IdentityExceptionHandler::class.java)
+
+    @ExceptionHandler(
+        ConstraintViolationException::class,
+        MethodArgumentNotValidException::class,
+        MissingRequestHeaderException::class,
+        HttpMessageNotReadableException::class,
+    )
+    fun handleBadRequest(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(mapOf("message" to "Invalid request parameters"))
+
     @ExceptionHandler(UserAlreadyExistsException::class)
-    fun handleConflict(ex: UserAlreadyExistsException): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(HttpStatus.CONFLICT).body(
-            ErrorResponse(
-                status = HttpStatus.CONFLICT.value(),
-                error = HttpStatus.CONFLICT.reasonPhrase,
-                message = ex.message ?: "Conflict",
-            ),
-        )
+    fun handleConflict(ex: UserAlreadyExistsException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(mapOf("message" to (ex.message ?: "Conflict")))
 
     @ExceptionHandler(InvalidCredentialsException::class)
-    fun handleUnauthorized(ex: InvalidCredentialsException): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-            ErrorResponse(
-                status = HttpStatus.UNAUTHORIZED.value(),
-                error = HttpStatus.UNAUTHORIZED.reasonPhrase,
-                message = ex.message ?: "Unauthorized",
-            ),
-        )
+    fun handleUnauthorized(ex: InvalidCredentialsException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(mapOf("message" to (ex.message ?: "Unauthorized")))
 
     @ExceptionHandler(UserNotFoundException::class)
-    fun handleNotFound(ex: UserNotFoundException): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ErrorResponse(
-                status = HttpStatus.NOT_FOUND.value(),
-                error = HttpStatus.NOT_FOUND.reasonPhrase,
-                message = ex.message ?: "Not Found",
-            ),
-        )
+    fun handleNotFound(ex: UserNotFoundException): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("message" to (ex.message ?: "Not Found")))
 
-    @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
-        val message = ex.bindingResult.fieldErrors
-            .joinToString(", ") { "${it.field}: ${it.defaultMessage}" }
-            .ifBlank { "Validation failed" }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-            ErrorResponse(
-                status = HttpStatus.BAD_REQUEST.value(),
-                error = HttpStatus.BAD_REQUEST.reasonPhrase,
-                message = message,
-            ),
-        )
+    @ExceptionHandler(Exception::class)
+    fun handleGenericException(ex: Exception): ResponseEntity<Map<String, String>> {
+        logger.error("Unhandled server exception occurred", ex)
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(mapOf("message" to "Internal server error"))
     }
 }

@@ -27,6 +27,7 @@ class HttpIdentityUserRepository(
                 },
             )
             .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .defaultHeader(INTERNAL_API_KEY_HEADER, properties.internalApiKey)
             .build(),
     )
 
@@ -41,11 +42,12 @@ class HttpIdentityUserRepository(
     }
 
     override fun findAllByIdIn(ids: Collection<UUID>): List<User> {
-        if (ids.isEmpty()) return emptyList()
+        val uniqueIds = ids.distinct()
+        if (uniqueIds.isEmpty()) return emptyList()
         val body = restClient.get()
             .uri { builder ->
                 builder.path("/internal/users")
-                    .queryParam("ids", ids.joinToString(",") { it.toString() })
+                    .queryParam("ids", uniqueIds.joinToString(",") { it.toString() })
                     .build()
             }
             .retrieve()
@@ -111,4 +113,8 @@ class HttpIdentityUserRepository(
     private data class InternalUserCountDto(
         val count: Long,
     )
+
+    companion object {
+        const val INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key"
+    }
 }

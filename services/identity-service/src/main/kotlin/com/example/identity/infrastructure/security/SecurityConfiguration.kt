@@ -23,6 +23,8 @@ class SecurityConfiguration(
     private val objectMapper: ObjectMapper,
     @param:Value("\${todo.security.admin-api-key:admin-secret-key}")
     private val adminApiKey: String,
+    @param:Value("\${identity.security.internal-api-key:internal-secret-key}")
+    private val internalApiKey: String,
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder {
@@ -66,6 +68,7 @@ class SecurityConfiguration(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         val jwtFilter = JwtAuthenticationFilter(jwtTokenProvider)
         val adminFilter = AdminApiKeyFilter(adminApiKey, objectMapper)
+        val internalFilter = InternalApiKeyFilter(internalApiKey, objectMapper)
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -75,13 +78,14 @@ class SecurityConfiguration(
             }
             .authorizeHttpRequests {
                 it.requestMatchers("/api/auth/**").permitAll()
-                it.requestMatchers("/internal/**").permitAll()
+                it.requestMatchers("/internal/**").hasRole("INTERNAL")
                 it.requestMatchers("/error").permitAll()
                 it.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 it.requestMatchers("/actuator/**").hasRole("ADMIN")
                 it.requestMatchers("/api/admin/**").hasRole("ADMIN")
                 it.anyRequest().authenticated()
             }
+            .addFilterBefore(internalFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(adminFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter::class.java)
 

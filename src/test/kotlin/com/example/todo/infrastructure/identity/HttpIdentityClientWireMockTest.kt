@@ -2,6 +2,7 @@ package com.example.todo.infrastructure.identity
 
 import com.example.todo.domain.model.TodoPriority
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.equalTo
 import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.stubFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
@@ -16,18 +17,21 @@ import java.util.UUID
 class HttpIdentityClientWireMockTest {
 
     @Test
-    fun `HttpIdentityUserRepository fetches user, list, username, and count`(
+    fun `HttpIdentityUserRepository fetches user, list, username, and count with internal API key`(
         wmRuntimeInfo: WireMockRuntimeInfo,
     ) {
         val userId = UUID.randomUUID()
+        val internalKey = "test-internal-key"
         val properties = IdentityServiceProperties(
             enabled = true,
             baseUrl = wmRuntimeInfo.httpBaseUrl,
+            internalApiKey = internalKey,
         )
         val repository = HttpIdentityUserRepository(properties)
 
         stubFor(
             get(urlEqualTo("/internal/users/$userId"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
                 .willReturn(
                     aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -36,6 +40,7 @@ class HttpIdentityClientWireMockTest {
         )
         stubFor(
             get(urlEqualTo("/internal/users/by-username?username=alice"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
                 .willReturn(
                     aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -44,6 +49,7 @@ class HttpIdentityClientWireMockTest {
         )
         stubFor(
             get(urlEqualTo("/internal/users?ids=$userId"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
                 .willReturn(
                     aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -52,6 +58,7 @@ class HttpIdentityClientWireMockTest {
         )
         stubFor(
             get(urlEqualTo("/internal/users/count"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
                 .willReturn(
                     aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -61,7 +68,7 @@ class HttpIdentityClientWireMockTest {
 
         assertEquals("alice", repository.findById(userId)?.username)
         assertEquals(userId, repository.findByUsername("alice")?.id)
-        assertEquals(listOf("alice"), repository.findAllByIdIn(listOf(userId)).map { it.username })
+        assertEquals(listOf("alice"), repository.findAllByIdIn(listOf(userId, userId)).map { it.username })
         assertEquals(42L, repository.count())
     }
 
@@ -83,16 +90,23 @@ class HttpIdentityClientWireMockTest {
     }
 
     @Test
-    fun `HttpIdentityUserSettingsRepository fetches user settings`(
+    fun `HttpIdentityUserSettingsRepository fetches user settings and returns null on 404`(
         wmRuntimeInfo: WireMockRuntimeInfo,
     ) {
         val userId = UUID.randomUUID()
+        val missingUserId = UUID.randomUUID()
+        val internalKey = "test-internal-key"
         val repository = HttpIdentityUserSettingsRepository(
-            IdentityServiceProperties(enabled = true, baseUrl = wmRuntimeInfo.httpBaseUrl),
+            IdentityServiceProperties(
+                enabled = true,
+                baseUrl = wmRuntimeInfo.httpBaseUrl,
+                internalApiKey = internalKey,
+            ),
         )
 
         stubFor(
             get(urlEqualTo("/internal/users/$userId/settings"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
                 .willReturn(
                     aResponse()
                         .withHeader("Content-Type", "application/json")
@@ -108,11 +122,17 @@ class HttpIdentityClientWireMockTest {
                         ),
                 ),
         )
+        stubFor(
+            get(urlEqualTo("/internal/users/$missingUserId/settings"))
+                .withHeader(HttpIdentityUserRepository.INTERNAL_API_KEY_HEADER, equalTo(internalKey))
+                .willReturn(aResponse().withStatus(404)),
+        )
 
         val settings = repository.findByUserId(userId)
 
         assertEquals(TodoPriority.HIGH, settings?.defaultPriority)
         assertEquals(30, settings?.defaultEstimatedMinutes)
         assertEquals(10, settings?.maxActiveTodos)
+        assertNull(repository.findByUserId(missingUserId))
     }
 }

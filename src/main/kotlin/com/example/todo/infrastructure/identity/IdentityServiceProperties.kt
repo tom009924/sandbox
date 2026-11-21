@@ -10,4 +10,5 @@ data class IdentityServiceProperties(
     val enabled: Boolean = false,
     val baseUrl: String = "http://localhost:8081",
     val timeout: Duration = Duration.ofSeconds(DEFAULT_TIMEOUT_SECONDS),
+    val internalApiKey: String = "internal-secret-key",
 )

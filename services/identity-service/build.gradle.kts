@@ -88,6 +88,9 @@ dependencies {
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.micrometer.tracing.bridge.otel)
+    implementation(libs.micrometer.registry.prometheus)
+    implementation(libs.opentelemetry.exporter.otlp)
     implementation(libs.spring.cloud.gcp.starter.data.spanner)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.security)
@@ -102,6 +105,7 @@ dependencies {
     runtimeOnly(libs.kotlin.reflect)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.starter.webmvc.test)
     detektPlugins(libs.detekt.formatting)
 }
 

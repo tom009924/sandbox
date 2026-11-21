@@ -6,12 +6,14 @@ import com.example.todo.presentation.model.AuthTokenResponse
 import com.example.todo.presentation.model.LoginRequest
 import com.example.todo.presentation.model.RegisterRequest
 import com.example.todo.presentation.model.UserResponse
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
+@ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
 class AuthController(
     private val authService: AuthService,
 ) : AuthApi {
