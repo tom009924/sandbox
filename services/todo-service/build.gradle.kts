@@ -9,16 +9,6 @@ plugins {
     jacoco
 }
 
-detekt {
-    source.setFrom(
-        files(
-            "src/main/kotlin",
-            "src/test/kotlin",
-            "src/integrationTest/kotlin",
-        ),
-    )
-}
-
 configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.apache.groovy") {

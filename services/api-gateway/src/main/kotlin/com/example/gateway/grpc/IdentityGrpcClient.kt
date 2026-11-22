@@ -1,6 +1,6 @@
 package com.example.gateway.grpc
 
-import com.example.gateway.config.IdentityGrpcProperties
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.identity.grpc.v1.AuthTokenResponse
 import com.example.identity.grpc.v1.GetUserSettingsRequest
@@ -14,7 +14,6 @@ import com.example.identity.grpc.v1.UserMessage
 import com.example.identity.grpc.v1.UserSettingsMessage
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.MetadataUtils
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -25,26 +24,9 @@ class IdentityGrpcClient(
     private val timeoutMillis: Long,
 ) : AutoCloseable {
 
-    constructor(properties: IdentityGrpcProperties) : this(
-        channel = NettyChannelBuilder.forAddress(properties.grpcHost, properties.grpcPort)
-            .apply {
-                if (properties.useTls) {
-                    useTransportSecurity()
-                } else {
-                    usePlaintext()
-                }
-            }
-            .keepAliveTime(properties.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
-            .keepAliveTimeout(properties.keepAliveTimeout.toMillis(), TimeUnit.MILLISECONDS)
-            .keepAliveWithoutCalls(true)
-            .build(),
-        internalApiKey = properties.internalApiKey,
-        timeoutMillis = properties.timeout.toMillis(),
-    )
-
     private fun stub(): IdentityServiceGrpc.IdentityServiceBlockingStub {
         val headers = Metadata().apply {
-            put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return IdentityServiceGrpc.newBlockingStub(channel)
             .withInterceptors(
@@ -102,9 +84,6 @@ class IdentityGrpcClient(
     }
 
     companion object {
-        const val INTERNAL_API_KEY_HEADER = "x-internal-api-key"
         private const val SHUTDOWN_TIMEOUT_SECONDS = 5L
-        val INTERNAL_API_KEY_METADATA_KEY: Metadata.Key<String> =
-            Metadata.Key.of(INTERNAL_API_KEY_HEADER, Metadata.ASCII_STRING_MARSHALLER)
     }
 }

@@ -56,6 +56,12 @@ allprojects {
     plugins.withId("io.gitlab.arturbosch.detekt") {
         extensions.configure<DetektExtension> {
             autoCorrect = findProperty("detektAutoCorrect")?.toString()?.toBooleanStrictOrNull() ?: true
+            val candidateDirs = listOf(
+                "src/main/kotlin",
+                "src/test/kotlin",
+                "src/integrationTest/kotlin",
+            ).map { file(it) }.filter { it.exists() }
+            source.setFrom(candidateDirs)
         }
         configurations.matching { it.name.startsWith("detekt") }.configureEach {
             resolutionStrategy.eachDependency {
@@ -123,6 +129,10 @@ allprojects {
     plugins.withId("org.springframework.boot") {
         tasks.named<BootJar>("bootJar") {
             archiveFileName.set("app.jar")
+        }
+
+        tasks.named<Jar>("jar") {
+            enabled = false
         }
 
         tasks.withType<Test>().configureEach {
@@ -308,12 +318,42 @@ tasks.register("detekt") {
 }
 
 tasks.register("test") {
-    description = "Runs unit tests across all services."
+    description = "Runs unit tests across all modules."
     group = "verification"
     dependsOn(
+        ":libs:grpc-common:test",
         ":services:api-gateway:test",
         ":services:identity-service:test",
         ":services:todo-service:test",
+    )
+}
+
+tasks.register("bootJar") {
+    description = "Builds executable Spring Boot JARs for all services."
+    group = "build"
+    dependsOn(
+        ":services:api-gateway:bootJar",
+        ":services:identity-service:bootJar",
+        ":services:todo-service:bootJar",
+    )
+}
+
+tasks.register("cyclonedxBom") {
+    description = "Generates CycloneDX SBOMs for all services."
+    group = "reporting"
+    dependsOn(
+        ":services:api-gateway:cyclonedxBom",
+        ":services:identity-service:cyclonedxBom",
+        ":services:todo-service:cyclonedxBom",
+    )
+}
+
+tasks.register("openApiGenerate") {
+    description = "Generates OpenAPI server interfaces and models across services."
+    group = "openapi tools"
+    dependsOn(
+        ":services:api-gateway:openApiGenerate",
+        ":services:todo-service:openApiGenerate",
     )
 }
 

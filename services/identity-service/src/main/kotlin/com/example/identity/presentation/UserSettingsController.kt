@@ -18,7 +18,7 @@ import java.util.UUID
 
 data class UpdateUserSettingsRequest(
     val defaultPriority: TodoPriority = TodoPriority.MEDIUM,
-    @field:Min(1)
+    @field:Min(0)
     val defaultEstimatedMinutes: Int? = null,
     @field:Min(1)
     val maxActiveTodos: Int? = null,

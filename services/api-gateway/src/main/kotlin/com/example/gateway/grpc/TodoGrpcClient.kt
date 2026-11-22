@@ -1,6 +1,6 @@
 package com.example.gateway.grpc
 
-import com.example.gateway.config.TodoGrpcProperties
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.todo.grpc.v1.AddProjectMemberRequest
 import com.example.todo.grpc.v1.AdminStatsMessage
@@ -34,7 +34,6 @@ import com.example.todo.grpc.v1.UpdateProjectRequest
 import com.example.todo.grpc.v1.UpdateTodoRequest
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.stub.MetadataUtils
 import java.util.concurrent.TimeUnit
 
@@ -45,26 +44,9 @@ class TodoGrpcClient(
     private val timeoutMillis: Long,
 ) : AutoCloseable {
 
-    constructor(properties: TodoGrpcProperties) : this(
-        channel = NettyChannelBuilder.forAddress(properties.grpcHost, properties.grpcPort)
-            .apply {
-                if (properties.useTls) {
-                    useTransportSecurity()
-                } else {
-                    usePlaintext()
-                }
-            }
-            .keepAliveTime(properties.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
-            .keepAliveTimeout(properties.keepAliveTimeout.toMillis(), TimeUnit.MILLISECONDS)
-            .keepAliveWithoutCalls(true)
-            .build(),
-        internalApiKey = properties.internalApiKey,
-        timeoutMillis = properties.timeout.toMillis(),
-    )
-
     private fun todoStub(): TodoServiceGrpc.TodoServiceBlockingStub {
         val headers = Metadata().apply {
-            put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return TodoServiceGrpc.newBlockingStub(channel)
             .withInterceptors(
@@ -76,7 +58,7 @@ class TodoGrpcClient(
 
     private fun projectStub(): ProjectServiceGrpc.ProjectServiceBlockingStub {
         val headers = Metadata().apply {
-            put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return ProjectServiceGrpc.newBlockingStub(channel)
             .withInterceptors(
@@ -165,9 +147,6 @@ class TodoGrpcClient(
     }
 
     companion object {
-        const val INTERNAL_API_KEY_HEADER = "x-internal-api-key"
         private const val SHUTDOWN_TIMEOUT_SECONDS = 5L
-        val INTERNAL_API_KEY_METADATA_KEY: Metadata.Key<String> =
-            Metadata.Key.of(INTERNAL_API_KEY_HEADER, Metadata.ASCII_STRING_MARSHALLER)
     }
 }

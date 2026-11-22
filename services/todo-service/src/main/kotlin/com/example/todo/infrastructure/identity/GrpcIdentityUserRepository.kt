@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.identity
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.identity.grpc.v1.BatchGetUsersRequest
 import com.example.identity.grpc.v1.CountUsersRequest
 import com.example.identity.grpc.v1.GetUserByUsernameRequest
@@ -25,7 +26,7 @@ class GrpcIdentityUserRepository(
 
     private fun stub(): IdentityServiceGrpc.IdentityServiceBlockingStub {
         val headers = Metadata().apply {
-            put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return IdentityServiceGrpc.newBlockingStub(channel)
             .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
@@ -83,10 +84,4 @@ class GrpcIdentityUserRepository(
         username = username,
         passwordHash = "",
     )
-
-    companion object {
-        const val INTERNAL_API_KEY_HEADER = "x-internal-api-key"
-        val INTERNAL_API_KEY_METADATA_KEY: Metadata.Key<String> =
-            Metadata.Key.of(INTERNAL_API_KEY_HEADER, Metadata.ASCII_STRING_MARSHALLER)
-    }
 }

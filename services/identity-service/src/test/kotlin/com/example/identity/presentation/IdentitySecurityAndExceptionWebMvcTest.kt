@@ -23,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.UUID
@@ -124,5 +125,44 @@ class IdentitySecurityAndExceptionWebMvcTest(
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.message").value("Invalid request parameters"))
+    }
+
+    @Test
+    fun `validates password minimum length of 6 and zero estimated minutes`() {
+        val userId = UUID.randomUUID()
+        val token = jwtTokenProvider.generateToken(AuthenticatedUser(userId, "bob"))
+        `when`(authService.register("bob", "short6")).thenReturn(User(userId, "bob", "hash"))
+        `when`(userContext.currentUserId()).thenReturn(userId)
+        `when`(
+            userSettingsService.updateSettings(
+                userId,
+                com.example.identity.application.UserSettingsCommand(
+                    defaultPriority = TodoPriority.MEDIUM,
+                    defaultEstimatedMinutes = 0,
+                    maxActiveTodos = 5,
+                ),
+            ),
+        ).thenReturn(UserSettings(userId, TodoPriority.MEDIUM, 0, 5))
+
+        mockMvc.perform(
+            post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"username":"bob","password":"short6"}"""),
+        ).andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"username":"bob","password":"12345"}"""),
+        ).andExpect(status().isBadRequest)
+
+        mockMvc.perform(
+            put("/api/user/settings")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"defaultPriority":"MEDIUM","defaultEstimatedMinutes":0,"maxActiveTodos":5}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(0))
     }
 }

@@ -8,15 +8,6 @@ plugins {
     jacoco
 }
 
-detekt {
-    source.setFrom(
-        files(
-            "src/main/kotlin",
-            "src/test/kotlin",
-        ),
-    )
-}
-
 dependencies {
     implementation(project(":libs:grpc-common"))
     implementation(project(":libs:identity-proto"))
@@ -46,10 +37,6 @@ dependencies {
     testImplementation(libs.archunit.junit5)
     testImplementation(libs.opentelemetry.api)
     detektPlugins(libs.detekt.formatting)
-}
-
-tasks.named<Jar>("jar") {
-    enabled = false
 }
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {

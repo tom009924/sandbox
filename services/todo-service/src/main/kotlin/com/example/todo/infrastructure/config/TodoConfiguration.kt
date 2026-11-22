@@ -34,7 +34,7 @@ import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -59,7 +59,7 @@ class TodoConfiguration {
     @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
     fun identityGrpcChannel(
         properties: IdentityServiceProperties,
-    ): ManagedChannel = ManagedChannelBuilder
+    ): ManagedChannel = NettyChannelBuilder
         .forAddress(properties.grpcHost, properties.grpcPort)
         .apply {
             if (properties.useTls) {
