@@ -39,6 +39,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate CycloneDX SBOM
+        run: ./gradlew cyclonedxBom --no-daemon
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -64,24 +76,26 @@ jobs:
           VDB_HOME: /tmp/depscan-vdb
         run: |
           mkdir -p /tmp/depscan-vdb
-          depscan-vdb download --scope app
+          if [ ! -f /tmp/depscan-vdb/data.vdb6 ] && [ ! -f /tmp/depscan-vdb/data.vdb5 ]; then
+            depscan-vdb download --scope app
+          fi
+          depscan-vdb info || true
 
-      - name: Run OWASP dep-scan (Gradle & Node.js with App-Only VDB & Reachability / VEX)
+      - name: Run OWASP dep-scan on CycloneDX SBOM (EPSS/KEV & VEX)
         env:
           VDB_HOME: /tmp/depscan-vdb
         run: |
           mkdir -p build/reports/depscan
           depscan \
-            --src . \
+            --bom build/reports/cyclonedx/bom.json \
             --reports-dir build/reports/depscan \
-            --type gradle,nodejs \
             --explain \
             --profile appsec || true
 
       - name: Summarize OWASP dep-scan reports in Job Summary
         if: always()
         run: |
-          echo "### 🔍 OWASP dep-scan (Reachability & EPSS/KEV Analysis)" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 OWASP dep-scan (EPSS/KEV & VEX Analysis)" >> $GITHUB_STEP_SUMMARY
           if compgen -G "build/reports/depscan/*.txt" > /dev/null; then
             for report in build/reports/depscan/*.txt; do
               echo "#### $(basename "$report")" >> $GITHUB_STEP_SUMMARY
