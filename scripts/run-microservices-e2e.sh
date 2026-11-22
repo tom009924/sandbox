@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IDENTITY_JAR="${IDENTITY_JAR:-services/identity-service/build/libs/app.jar}"
-TODO_JAR="${TODO_JAR:-build/libs/app.jar}"
+TODO_JAR="${TODO_JAR:-services/todo-service/build/libs/app.jar}"
 GATEWAY_JAR="${GATEWAY_JAR:-services/api-gateway/build/libs/app.jar}"
 
 IDENTITY_PID=""

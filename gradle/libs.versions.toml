@@ -19,6 +19,7 @@ wiremock = "3.12.1"
 bouncycastle = "1.85"
 kotest = "5.9.1"
 grpc = "1.83.0"
+opentelemetry = "1.55.0"
 protobuf = "4.33.6"
 protobufPlugin = "0.9.5"
 
@@ -27,6 +28,7 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 micrometer-tracing-bridge-otel = { module = "io.micrometer:micrometer-tracing-bridge-otel" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
 opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-cloud-gcp-dependencies = { module = "com.google.cloud:spring-cloud-gcp-dependencies", version.ref = "springCloudGcp" }
@@ -57,8 +59,10 @@ wiremock = { module = "org.wiremock:wiremock-jetty12", version.ref = "wiremock" 
 wiremock-core = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
+grpc-api = { module = "io.grpc:grpc-api", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-services = { module = "io.grpc:grpc-services", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 grpc-inprocess = { module = "io.grpc:grpc-inprocess", version.ref = "grpc" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }

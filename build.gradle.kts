@@ -1,179 +1,160 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.spring)
-    alias(libs.plugins.spring.boot)
-    alias(libs.plugins.spring.dependency.management)
-    alias(libs.plugins.detekt)
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.spring) apply false
+    alias(libs.plugins.spring.boot) apply false
+    alias(libs.plugins.spring.dependency.management) apply false
+    alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.openapi.generator) apply false
+    alias(libs.plugins.cyclonedx) apply false
     alias(libs.plugins.dependency.analysis)
-    alias(libs.plugins.openapi.generator)
-    alias(libs.plugins.cyclonedx)
-    jacoco
 }
 
-import java.nio.file.Files
+import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.cyclonedx.gradle.CyclonedxAggregateTask
 import org.cyclonedx.gradle.CyclonedxDirectTask
 import org.gradle.api.file.RegularFile
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+import java.nio.file.Files
 
-group = "com.example"
-version = "1.0.0"
+allprojects {
+    group = "com.example"
+    version = "1.0.0"
 
-jacoco {
-    toolVersion = libs.versions.jacoco.get()
-}
-
-tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
-    includeConfigs.set(listOf("runtimeClasspath"))
-    xmlOutput.convention(null as RegularFile?)
-}
-
-tasks.named<CyclonedxAggregateTask>("cyclonedxBom") {
-    jsonOutput.set(layout.buildDirectory.file("reports/cyclonedx/bom.json"))
-    xmlOutput.convention(null as RegularFile?)
-}
-
-dependencyLocking {
-    lockAllConfigurations()
-}
-
-detekt {
-    autoCorrect = findProperty("detektAutoCorrect")?.toString()?.toBooleanStrictOrNull() ?: true
-    source.setFrom(
-        files(
-            "src/main/kotlin",
-            "src/test/kotlin",
-            "src/integrationTest/kotlin",
-        ),
-    )
-}
-
-configurations.matching { it.name.startsWith("detekt") }.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.jetbrains.kotlin") {
-            useVersion("2.0.21")
-        }
+    repositories {
+        mavenCentral()
     }
-}
 
-configurations.matching { it.name.startsWith("integrationTest") }.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.apache.groovy") {
-            useVersion("4.0.26")
-        }
+    dependencyLocking {
+        lockAllConfigurations()
     }
-}
 
-configurations.all {
-    resolutionStrategy.eachDependency {
-        when {
-            requested.group == "org.apache.httpcomponents.client5" -> useVersion("5.6.3")
-            requested.group == "org.apache.httpcomponents.core5" -> useVersion("5.4.3")
-            requested.group.startsWith("org.bouncycastle") -> useVersion("1.85")
-        }
-    }
-}
-
-configurations.matching { it.name.contains("test") || it.name.contains("Test") }.configureEach {
-    exclude(group = "org.eclipse.jetty", module = "jetty-servlet")
-    exclude(group = "org.eclipse.jetty", module = "jetty-servlets")
-    exclude(group = "org.eclipse.jetty", module = "jetty-webapp")
-    exclude(group = "org.eclipse.jetty.http2", module = "http2-server")
-    resolutionStrategy.eachDependency {
-        if (requested.group.startsWith("org.eclipse.jetty")) {
-            useVersion("12.1.10")
-        }
-    }
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-val integrationTestSourceSet = sourceSets.create("integrationTest") {
-    compileClasspath += sourceSets.main.get().output
-    runtimeClasspath += output + compileClasspath
-}
-
-configurations[integrationTestSourceSet.implementationConfigurationName]
-    .extendsFrom(configurations.testImplementation.get())
-configurations[integrationTestSourceSet.runtimeOnlyConfigurationName]
-    .extendsFrom(configurations.testRuntimeOnly.get())
-
-dependencies {
-    constraints {
-        implementation(libs.bouncycastle.bcprov) {
-            because("CVE-2025-14813, CVE-2026-5598 and GHSA-9pwp-9qqc-pr26 fixed in 1.85")
-        }
-        implementation("org.bouncycastle:bcpg-jdk18on:1.85") {
-            because("fix GHSA-cj8j-37rh-8475")
-        }
-        implementation("org.bouncycastle:bcpkix-jdk18on:1.85") {
-            because("fix GHSA-wg6q-6289-32hp")
-        }
-        implementation("com.google.guava:guava:33.7.2-jre") {
-            because("fix GHSA-xxph-c9ww-hj94")
-        }
-        implementation("com.github.jknack:handlebars:4.5.2") {
-            because("fix GHSA-r4gv-qr8j-p3pg")
-        }
-        implementation("commons-fileupload:commons-fileupload:1.6.0") {
-            because("fix GHSA-vv7r-c36w-3prj")
-        }
-        implementation("commons-io:commons-io:2.18.0") {
-            because("fix GHSA-78wr-2p64-hpwj")
-        }
-        implementation("org.apache.httpcomponents.client5:httpclient5:5.6.3") {
-            because("fix GHSA-hjcp-jmpx-g3qm")
-        }
-        implementation("org.apache.httpcomponents.core5:httpcore5:5.4.3") {
-            because("fix GHSA-hf6x-8p5f-cgmf")
-        }
-        implementation("org.apache.httpcomponents.core5:httpcore5-h2:5.4.3") {
-            because("fix GHSA-v3jc-474w-2wm6")
+    plugins.withType<JavaBasePlugin>().configureEach {
+        extensions.configure<JavaPluginExtension> {
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(21))
+            }
         }
     }
 
-    implementation(project(":libs:identity-proto"))
-    implementation(project(":libs:todo-proto"))
-    implementation(libs.grpc.netty.shaded)
-    implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.actuator)
-    runtimeOnly(libs.micrometer.tracing.bridge.otel)
-    runtimeOnly(libs.micrometer.registry.prometheus)
-    runtimeOnly(libs.opentelemetry.exporter.otlp)
-    implementation(libs.spring.cloud.gcp.starter.data.spanner)
-    implementation(libs.spring.boot.starter.validation)
-    implementation(libs.spring.boot.starter.security)
-    implementation(libs.spring.boot.starter.flyway)
-    runtimeOnly(libs.flyway.gcp.spanner)
-    implementation(libs.jjwt.api)
-    runtimeOnly(libs.jjwt.impl)
-    runtimeOnly(libs.jjwt.jackson)
-    implementation(libs.jackson.annotations)
-    runtimeOnly(libs.spanner.jdbc)
-    implementation(libs.google.cloud.pubsub)
-    runtimeOnly(libs.jackson.module.kotlin)
-    runtimeOnly(libs.kotlin.reflect)
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        configurations.matching {
+            it.name.startsWith("kotlin") || it.name.startsWith("swiftExport")
+        }.configureEach {
+            resolutionStrategy.eachDependency {
+                when {
+                    requested.group == "org.jetbrains.kotlin" && requested.name == "kotlin-reflect" ->
+                        useVersion(rootProject.libs.versions.kotlin.get())
+                    requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-coroutines") ->
+                        useVersion("1.10.2")
+                    requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization") ->
+                        useVersion("1.9.0")
+                }
+            }
+        }
+    }
 
-    testImplementation(libs.spring.boot.starter.test)
-    testImplementation(libs.spring.boot.starter.webmvc.test)
-    testImplementation(libs.grpc.inprocess)
-    testImplementation(libs.archunit.junit5)
-    testImplementation(libs.wiremock.core)
-    testRuntimeOnly(libs.wiremock)
-    testRuntimeOnly(libs.jackson.module.kotlin)
-    add(integrationTestSourceSet.implementationConfigurationName, libs.rest.assured)
-    add(integrationTestSourceSet.implementationConfigurationName, libs.swagger.parser)
-    add(integrationTestSourceSet.implementationConfigurationName, libs.wiremock.core)
-    add(integrationTestSourceSet.implementationConfigurationName, libs.kotest.property)
-    add(integrationTestSourceSet.runtimeOnlyConfigurationName, libs.wiremock)
-    detektPlugins(libs.detekt.formatting)
+    plugins.withId("io.gitlab.arturbosch.detekt") {
+        extensions.configure<DetektExtension> {
+            autoCorrect = findProperty("detektAutoCorrect")?.toString()?.toBooleanStrictOrNull() ?: true
+        }
+        configurations.matching { it.name.startsWith("detekt") }.configureEach {
+            resolutionStrategy.eachDependency {
+                when {
+                    requested.group == "org.jetbrains.kotlin" -> useVersion("2.0.21")
+                    requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-coroutines") ->
+                        useVersion("1.10.2")
+                    requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization") ->
+                        useVersion("1.9.0")
+                    requested.group == "org.slf4j" && requested.name == "slf4j-api" ->
+                        useVersion("2.0.20")
+                }
+            }
+        }
+    }
+
+    plugins.withId("io.spring.dependency-management") {
+        configurations.all {
+            resolutionStrategy.eachDependency {
+                when {
+                    requested.group == "org.apache.httpcomponents.client5" -> useVersion("5.6.3")
+                    requested.group == "org.apache.httpcomponents.core5" -> useVersion("5.4.3")
+                    requested.group.startsWith("org.bouncycastle") -> useVersion("1.85")
+                    requested.group == "com.google.guava" && requested.name == "guava" -> useVersion("33.7.2-jre")
+                }
+            }
+        }
+
+        dependencies {
+            constraints {
+                add("implementation", rootProject.libs.bouncycastle.bcprov) {
+                    because("CVE-2025-14813, CVE-2026-5598 and GHSA-9pwp-9qqc-pr26 fixed in 1.85")
+                }
+                add("implementation", "org.bouncycastle:bcpg-jdk18on:1.85") {
+                    because("fix GHSA-cj8j-37rh-8475")
+                }
+                add("implementation", "org.bouncycastle:bcpkix-jdk18on:1.85") {
+                    because("fix GHSA-wg6q-6289-32hp")
+                }
+                add("implementation", "com.google.guava:guava:33.7.2-jre") {
+                    because("fix GHSA-xxph-c9ww-hj94")
+                }
+                add("implementation", "com.github.jknack:handlebars:4.5.2") {
+                    because("fix GHSA-r4gv-qr8j-p3pg")
+                }
+                add("implementation", "commons-fileupload:commons-fileupload:1.6.0") {
+                    because("fix GHSA-vv7r-c36w-3prj")
+                }
+                add("implementation", "commons-io:commons-io:2.18.0") {
+                    because("fix GHSA-78wr-2p64-hpwj")
+                }
+                add("implementation", "org.apache.httpcomponents.client5:httpclient5:5.6.3") {
+                    because("fix GHSA-hjcp-jmpx-g3qm")
+                }
+                add("implementation", "org.apache.httpcomponents.core5:httpcore5:5.4.3") {
+                    because("fix GHSA-hf6x-8p5f-cgmf")
+                }
+                add("implementation", "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3") {
+                    because("fix GHSA-v3jc-474w-2wm6")
+                }
+            }
+        }
+    }
+
+    plugins.withId("org.springframework.boot") {
+        tasks.named<BootJar>("bootJar") {
+            archiveFileName.set("app.jar")
+        }
+
+        tasks.withType<Test>().configureEach {
+            useJUnitPlatform()
+            maxHeapSize = "256m"
+            maxParallelForks = 1
+            testLogging {
+                events("failed")
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                showExceptions = true
+                showCauses = true
+                showStackTraces = true
+            }
+        }
+    }
+
+    plugins.withId("jacoco") {
+        extensions.configure<JacocoPluginExtension> {
+            toolVersion = rootProject.libs.versions.jacoco.get()
+        }
+    }
+
+    plugins.withId("org.cyclonedx.bom") {
+        tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
+            includeConfigs.set(listOf("runtimeClasspath"))
+            xmlOutput.convention(null as RegularFile?)
+        }
+        tasks.named<CyclonedxAggregateTask>("cyclonedxBom") {
+            jsonOutput.set(layout.buildDirectory.file("reports/cyclonedx/bom.json"))
+            xmlOutput.convention(null as RegularFile?)
+        }
+    }
 }
 
 dependencyAnalysis {
@@ -208,188 +189,6 @@ dependencyAnalysis {
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.withType<Test>().configureEach {
-    maxHeapSize = "256m"
-    maxParallelForks = 1
-    environment("SPANNER_EMULATOR_HOST", System.getenv("SPANNER_EMULATOR_HOST") ?: "localhost:9010")
-    environment("PUBSUB_EMULATOR_HOST", System.getenv("PUBSUB_EMULATOR_HOST") ?: "localhost:8085")
-    testLogging {
-        events("failed")
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-        showExceptions = true
-        showCauses = true
-        showStackTraces = true
-    }
-}
-
-val integrationTest = tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests after the unit tests."
-    group = "verification"
-    testClassesDirs = integrationTestSourceSet.output.classesDirs
-    classpath = integrationTestSourceSet.runtimeClasspath
-    dependsOn(tasks.test)
-    shouldRunAfter(tasks.test)
-    useJUnitPlatform {
-        excludeTags("property")
-    }
-    testLogging {
-        showStandardStreams = true
-    }
-}
-
-val propertyTest = tasks.register<Test>("propertyTest") {
-    description = "Runs property-based tests after the integration tests."
-    group = "verification"
-    maxHeapSize = "512m"
-    testClassesDirs = integrationTestSourceSet.output.classesDirs
-    classpath = integrationTestSourceSet.runtimeClasspath
-    dependsOn(integrationTest)
-    shouldRunAfter(integrationTest)
-    useJUnitPlatform {
-        includeTags("property")
-    }
-    testLogging {
-        showStandardStreams = true
-    }
-}
-
-tasks.register<Test>("generateExternalCallDiagrams") {
-    description = "Generates Mermaid external call sequence diagrams from dynamic traces."
-    group = "documentation"
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
-    useJUnitPlatform()
-    filter {
-        includeTestsMatching("com.example.todo.trace.ExternalCallSequenceDiagramGeneratorTest")
-    }
-    systemProperty(
-        "externalCallDiagramOut",
-        "$projectDir/docs/architecture/external-call-sequence.md",
-    )
-    outputs.upToDateWhen { false }
-}
-
-val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.test, integrationTest, propertyTest)
-    executionData.setFrom(
-        fileTree(layout.buildDirectory.dir("jacoco")) {
-            include("*.exec")
-        },
-    )
-    classDirectories.setFrom(
-        files(
-            classDirectories.files.map {
-                fileTree(it) {
-                    exclude(
-                        "**/presentation/api/**",
-                        "**/presentation/model/**",
-                        "**/TodoApplicationKt.class",
-                    )
-                }
-            },
-        ),
-    )
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
-        csv.required.set(false)
-    }
-}
-
-val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(jacocoTestReport, propertyTest)
-    executionData.setFrom(
-        fileTree(layout.buildDirectory.dir("jacoco")) {
-            include("*.exec")
-        },
-    )
-    classDirectories.setFrom(
-        files(
-            classDirectories.files.map {
-                fileTree(it) {
-                    exclude(
-                        "**/presentation/api/**",
-                        "**/presentation/model/**",
-                        "**/TodoApplicationKt.class",
-                    )
-                }
-            },
-        ),
-    )
-    violationRules {
-        rule {
-            element = "BUNDLE"
-            limit {
-                counter = "INSTRUCTION"
-                value = "COVEREDRATIO"
-                minimum = "0.85".toBigDecimal()
-            }
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = "0.90".toBigDecimal()
-            }
-            limit {
-                counter = "BRANCH"
-                value = "COVEREDRATIO"
-                minimum = "0.75".toBigDecimal()
-            }
-        }
-        rule {
-            element = "PACKAGE"
-            includes = listOf("com/example/todo/domain*")
-            limit {
-                counter = "INSTRUCTION"
-                value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
-            }
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
-            }
-        }
-        rule {
-            element = "PACKAGE"
-            includes = listOf("com/example/todo/application*")
-            limit {
-                counter = "INSTRUCTION"
-                value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
-            }
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = "0.95".toBigDecimal()
-            }
-            limit {
-                counter = "BRANCH"
-                value = "COVEREDRATIO"
-                minimum = "0.85".toBigDecimal()
-            }
-        }
-    }
-}
-
-tasks.check {
-    dependsOn("buildHealth")
-    dependsOn(integrationTest)
-    dependsOn(propertyTest)
-    dependsOn(tasks.named("openApiValidate"))
-    dependsOn("lintOpenApi")
-    dependsOn("lintAsyncApi")
-    dependsOn(jacocoTestReport)
-    dependsOn(jacocoTestCoverageVerification)
-}
-
-openApiValidate {
-    inputSpec.set("$projectDir/docs/dist/openapi.yaml")
-}
-
 val nvmBinDir = "/usr/local/share/nvm/current/bin"
 val npmExecutable = if (file("$nvmBinDir/npm").exists() && !System.getenv("PATH").orEmpty().contains(nvmBinDir)) {
     "$nvmBinDir/npm"
@@ -419,8 +218,8 @@ val npmInstall = tasks.register<Exec>("npmInstall") {
         if (nodeModulesDir.exists()) {
             false
         } else {
-            // In a feature worktree, automatically link shared node_modules from primary workspace if available
             val candidateRoots = listOf(
+                file("/workspaces/sandbox/node_modules"),
                 file("/workspaces/kotlin-devcontainer/node_modules"),
             )
             val sharedNodeModules = candidateRoots.firstOrNull { it.exists() && it.isDirectory }
@@ -462,11 +261,7 @@ val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
     outputs.file("docs/dist/openapi.ja.yaml")
 }
 
-tasks.named("openApiValidate") {
-    dependsOn(bundleOpenApi)
-}
-
-val bundleOpenApiJa = tasks.register("bundleOpenApiJa") {
+tasks.register("bundleOpenApiJa") {
     description = "Alias for bundleOpenApi for backwards compatibility."
     dependsOn(bundleOpenApi)
 }
@@ -500,48 +295,62 @@ val lintAsyncApi = tasks.register<Exec>("lintAsyncApi") {
     inputs.file("package-lock.json")
 }
 
-tasks.bootJar {
-    archiveFileName.set("app.jar")
-}
-
-openApiGenerate {
-    generatorName.set("kotlin-spring")
-    inputSpec.set("$projectDir/docs/dist/openapi.admin.yaml")
-    outputDir.set(layout.buildDirectory.dir("generated/openapi").map { it.asFile.absolutePath })
-    apiPackage.set("com.example.todo.presentation.api")
-    modelPackage.set("com.example.todo.presentation.model")
-    generateApiTests.set(false)
-    generateModelTests.set(false)
-    generateApiDocumentation.set(false)
-    generateModelDocumentation.set(false)
-    configOptions.set(
-        mapOf(
-            "interfaceOnly" to "true",
-            "skipDefaultInterface" to "true",
-            "exceptionHandler" to "false",
-            "useSpringBoot3" to "true",
-            "useTags" to "true",
-            "documentationProvider" to "none",
-            "annotationLibrary" to "none",
-            "useBeanValidation" to "true",
-            "serializationLibrary" to "jackson",
-            "enumPropertyNaming" to "UPPERCASE",
-        ),
+// Root convenience aggregate tasks
+tasks.register("detekt") {
+    description = "Runs Detekt across all Kotlin modules."
+    group = "verification"
+    dependsOn(
+        ":libs:grpc-common:detekt",
+        ":services:api-gateway:detekt",
+        ":services:identity-service:detekt",
+        ":services:todo-service:detekt",
     )
 }
 
-tasks.openApiGenerate {
-    dependsOn(bundleOpenApi)
+tasks.register("test") {
+    description = "Runs unit tests across all services."
+    group = "verification"
+    dependsOn(
+        ":services:api-gateway:test",
+        ":services:identity-service:test",
+        ":services:todo-service:test",
+    )
 }
 
-sourceSets.main {
-    kotlin.srcDir(tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") })
+tasks.register("integrationTest") {
+    description = "Runs integration tests for todo-service."
+    group = "verification"
+    dependsOn(":services:todo-service:integrationTest")
 }
 
-tasks.compileKotlin {
-    dependsOn(tasks.openApiGenerate)
+tasks.register("propertyTest") {
+    description = "Runs property-based tests for todo-service."
+    group = "verification"
+    dependsOn(":services:todo-service:propertyTest")
 }
 
-tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
-    dependsOn(tasks.openApiGenerate)
+tasks.register("generateExternalCallDiagrams") {
+    description = "Generates Mermaid external call sequence diagrams for todo-service."
+    group = "documentation"
+    dependsOn(":services:todo-service:generateExternalCallDiagrams")
+}
+
+tasks.register("bootRun") {
+    description = "Runs todo-service locally."
+    group = "application"
+    dependsOn(":services:todo-service:bootRun")
+}
+
+tasks.register("check") {
+    description = "Runs all verification tasks across the monorepo."
+    group = "verification"
+    dependsOn(
+        "buildHealth",
+        lintOpenApi,
+        lintAsyncApi,
+        ":libs:grpc-common:check",
+        ":services:api-gateway:check",
+        ":services:identity-service:check",
+        ":services:todo-service:check",
+    )
 }

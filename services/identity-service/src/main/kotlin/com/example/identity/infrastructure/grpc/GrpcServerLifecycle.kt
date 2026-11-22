@@ -1,5 +1,6 @@
 package com.example.identity.infrastructure.grpc
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import io.grpc.Server
 import io.grpc.ServerInterceptors
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder

@@ -3,23 +3,6 @@ plugins {
     alias(libs.plugins.protobuf)
 }
 
-group = "com.example"
-version = "1.0.0"
-
-dependencyLocking {
-    lockAllConfigurations()
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     api(libs.grpc.protobuf)
     api(libs.grpc.stub)
