@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.openapi.generator)
     alias(libs.plugins.cyclonedx)
     jacoco
 }
@@ -48,13 +49,59 @@ tasks.named<Jar>("jar") {
     enabled = false
 }
 
+openApiGenerate {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("${rootProject.projectDir}/docs/dist/openapi.admin.yaml")
+    outputDir.set(layout.buildDirectory.dir("generated/openapi").map { it.asFile.absolutePath })
+    apiPackage.set("com.example.gateway.presentation.api")
+    modelPackage.set("com.example.gateway.presentation.model")
+    generateApiTests.set(false)
+    generateModelTests.set(false)
+    generateApiDocumentation.set(false)
+    generateModelDocumentation.set(false)
+    configOptions.set(
+        mapOf(
+            "interfaceOnly" to "true",
+            "skipDefaultInterface" to "true",
+            "exceptionHandler" to "false",
+            "useSpringBoot3" to "true",
+            "useTags" to "true",
+            "documentationProvider" to "none",
+            "annotationLibrary" to "none",
+            "useBeanValidation" to "true",
+            "serializationLibrary" to "jackson",
+            "enumPropertyNaming" to "UPPERCASE",
+        ),
+    )
+}
+
+tasks.openApiGenerate {
+    mustRunAfter(rootProject.tasks.named("bundleOpenApi"))
+}
+
+sourceSets.main {
+    kotlin.srcDir(tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") })
+}
+
+tasks.compileKotlin {
+    dependsOn(tasks.openApiGenerate)
+}
+
+tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
+    dependsOn(tasks.openApiGenerate)
+}
+
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.test)
     classDirectories.setFrom(
         files(
             classDirectories.files.map {
                 fileTree(it) {
-                    exclude("**/ApiGatewayApplicationKt.class")
+                    exclude(
+                        "**/presentation/api/**",
+                        "**/presentation/model/**",
+                        "**/ApiGatewayApplicationKt.class",
+                    )
                 }
             },
         ),
