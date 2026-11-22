@@ -15,12 +15,12 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 2. 内部専用・管理者向けエンドポイント（Admin API等）を追加・更新する場合は、安全性を確保するため外部向けベースではなく OpenAPI Overlay 仕様（`docs/overlays/admin.yaml`）に拡張定義（`update`）を追加し、内部完全版（`docs/dist/openapi.admin.yaml`）を生成するようにします。
 3. 日本語の説明・要約を提供する場合は、OpenAPI Overlay 仕様に基づき `docs/overlays/ja.yaml` に対応するターゲットパス（JSONPath）と日本語翻訳（`update`）を追加します。
 4. 新規・変更した API のユースケースを Arazzo ワークフロー仕様（`docs/workflows/todo-workflows.arazzo.yaml`）に追加・更新し、`npm run generate:diagrams` で `docs/workflows/README.md` を再生成します（`lint:arazzo` により OpenAPI の全 `operationId` カバレッジが強制されます）。
-5. `./gradlew lintOpenApi` を実行し、`bundleOpenApi` による `docs/dist/` 生成、Spectral 検証、Arazzo 検証・カバレッジ検査をパスすることを確認します（生成された `docs/dist/` と `docs/workflows/README.md` は必ずコミットしてください）。
+5. `./gradlew lintOpenApi` を実行し、`bundleOpenApi` による `docs/dist/` 生成、Redocly CLI 検証、Arazzo 検証・カバレッジ検査をパスすることを確認します（生成された `docs/dist/` と `docs/workflows/README.md` は必ずコミットしてください）。
 
 ### Step 2: 実装コードの更新
 1. **DTO / Request / Response モデル**:
-   - `src/main/kotlin/com/example/` 配下の該当モデルクラスを更新します。
-   - Bean Validation アノテーション（`@field:NotBlank` など）が仕様と合致しているか確認します。
+   - `src/main/kotlin/com/example/` および `services/api-gateway/src/main/kotlin/com/example/gateway/presentation/` 配下の該当モデルクラスを更新します（必要に応じて `libs/*-proto` の `.proto` 契約も同期）。
+   - Bean Validation アノテーション（`@field:NotBlank`, `@field:Size`, `@field:Pattern` など）が OpenAPI 仕様と完全一致しているか確認します。
 2. **Controller**:
    - リクエストマッピング、引数、ステータスコードを OpenAPI 仕様と一致させます。
 3. **Service / Repository**:
