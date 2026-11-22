@@ -272,6 +272,18 @@ tasks.openApiGenerate {
     dependsOn(rootProject.tasks.named("bundleOpenApi"))
 }
 
+sourceSets.main {
+    kotlin.srcDir(layout.buildDirectory.dir("generated/dmn/src/main/kotlin"))
+}
+
+tasks.compileKotlin {
+    dependsOn(rootProject.tasks.named("generateDmnModel"))
+}
+
+tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
+    dependsOn(rootProject.tasks.named("generateDmnModel"))
+}
+
 integrationTestSourceSet.kotlin.srcDir(
     tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") },
 )

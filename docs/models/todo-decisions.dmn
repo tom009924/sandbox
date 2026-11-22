@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+  xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:todo="https://example.com/ns/todo-dmn"
+  id="todo-decisions"
+  name="Todo Domain Decisions"
+  namespace="https://example.com/dmn/todo-decisions">
+
+  <decision id="activeTodoLimitDecision" name="Active Todo Limit Decision">
+    <description>Evaluates whether a personal Todo mutation requires an active-todo limit check and whether the DB active count exceeds the user setting.</description>
+    <extensionElements>
+      <todo:operations>createTodo,updateTodo,patchTodo</todo:operations>
+    </extensionElements>
+    <decisionTable id="activeTodoLimitDecisionTable" hitPolicy="FIRST">
+      <input id="input_active_hasProject" label="hasProject">
+        <inputExpression id="expr_active_hasProject" typeRef="boolean">
+          <text>hasProject</text>
+        </inputExpression>
+      </input>
+      <input id="input_active_operation" label="operation">
+        <inputExpression id="expr_active_operation" typeRef="string">
+          <text>operation</text>
+        </inputExpression>
+      </input>
+      <input id="input_active_currentCompleted" label="currentCompleted">
+        <inputExpression id="expr_active_currentCompleted" typeRef="boolean">
+          <text>currentCompleted</text>
+        </inputExpression>
+      </input>
+      <input id="input_active_targetCompleted" label="targetCompleted">
+        <inputExpression id="expr_active_targetCompleted" typeRef="boolean">
+          <text>targetCompleted</text>
+        </inputExpression>
+      </input>
+      <input id="input_active_hasMaxActiveLimit" label="hasMaxActiveLimit">
+        <inputExpression id="expr_active_hasMaxActiveLimit" typeRef="boolean">
+          <text>hasMaxActiveLimit</text>
+        </inputExpression>
+      </input>
+      <input id="input_active_atOrAboveLimit" label="atOrAboveLimit">
+        <inputExpression id="expr_active_atOrAboveLimit" typeRef="boolean">
+          <text>atOrAboveLimit</text>
+        </inputExpression>
+      </input>
+      <output id="output_active_checkRequired" label="checkRequired" name="checkRequired" typeRef="boolean" />
+      <output id="output_active_decision" label="decision" name="decision" typeRef="string" />
+      <output id="output_active_httpStatus" label="httpStatus" name="httpStatus" typeRef="integer" />
+
+      <rule id="active_project_exempt">
+        <description>Project todos are exempt from personal active-todo limits.</description>
+        <inputEntry id="ie_active_1_1"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_1_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_1_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_1_4"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_1_5"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_1_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_active_1_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_active_1_2"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_active_1_3"><text>200</text></outputEntry>
+      </rule>
+      <rule id="active_create_limit_exceeded">
+        <description>Creating an active personal todo when active count is at or above limit is denied.</description>
+        <inputEntry id="ie_active_2_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_2_2"><text>"createTodo"</text></inputEntry>
+        <inputEntry id="ie_active_2_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_2_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_2_5"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_2_6"><text>true</text></inputEntry>
+        <outputEntry id="oe_active_2_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_2_2"><text>"DENY_ACTIVE_LIMIT_EXCEEDED"</text></outputEntry>
+        <outputEntry id="oe_active_2_3"><text>400</text></outputEntry>
+      </rule>
+      <rule id="active_create_allowed">
+        <description>Creating an active personal todo below limit (or without limit) is allowed.</description>
+        <inputEntry id="ie_active_3_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_3_2"><text>"createTodo"</text></inputEntry>
+        <inputEntry id="ie_active_3_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_3_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_3_5"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_3_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_active_3_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_3_2"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_active_3_3"><text>201</text></outputEntry>
+      </rule>
+      <rule id="active_update_reopen_limit_exceeded">
+        <description>Reopening a completed personal todo via PUT when at or above limit is denied.</description>
+        <inputEntry id="ie_active_4_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_4_2"><text>"updateTodo"</text></inputEntry>
+        <inputEntry id="ie_active_4_3"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_4_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_4_5"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_4_6"><text>true</text></inputEntry>
+        <outputEntry id="oe_active_4_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_4_2"><text>"DENY_ACTIVE_LIMIT_EXCEEDED"</text></outputEntry>
+        <outputEntry id="oe_active_4_3"><text>400</text></outputEntry>
+      </rule>
+      <rule id="active_update_reopen_allowed">
+        <description>Reopening a completed personal todo via PUT below limit is allowed.</description>
+        <inputEntry id="ie_active_5_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_5_2"><text>"updateTodo"</text></inputEntry>
+        <inputEntry id="ie_active_5_3"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_5_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_5_5"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_5_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_active_5_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_5_2"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_active_5_3"><text>200</text></outputEntry>
+      </rule>
+      <rule id="active_patch_reopen_limit_exceeded">
+        <description>Reopening a completed personal todo via PATCH when at or above limit is denied.</description>
+        <inputEntry id="ie_active_6_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_6_2"><text>"patchTodo"</text></inputEntry>
+        <inputEntry id="ie_active_6_3"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_6_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_6_5"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_6_6"><text>true</text></inputEntry>
+        <outputEntry id="oe_active_6_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_6_2"><text>"DENY_ACTIVE_LIMIT_EXCEEDED"</text></outputEntry>
+        <outputEntry id="oe_active_6_3"><text>400</text></outputEntry>
+      </rule>
+      <rule id="active_patch_reopen_allowed">
+        <description>Reopening a completed personal todo via PATCH below limit is allowed.</description>
+        <inputEntry id="ie_active_7_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_7_2"><text>"patchTodo"</text></inputEntry>
+        <inputEntry id="ie_active_7_3"><text>true</text></inputEntry>
+        <inputEntry id="ie_active_7_4"><text>false</text></inputEntry>
+        <inputEntry id="ie_active_7_5"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_7_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_active_7_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_active_7_2"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_active_7_3"><text>200</text></outputEntry>
+      </rule>
+      <rule id="active_default_allowed">
+        <description>All other mutations do not increase the active todo count.</description>
+        <inputEntry id="ie_active_8_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_8_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_8_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_8_4"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_8_5"><text>-</text></inputEntry>
+        <inputEntry id="ie_active_8_6"><text>-</text></inputEntry>
+        <outputEntry id="oe_active_8_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_active_8_2"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_active_8_3"><text>200</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="projectMemberRemovalDecision" name="Project Member Removal Decision">
+    <description>Evaluates authorization and last-owner invariants when removing a member from a project.</description>
+    <extensionElements>
+      <todo:operations>removeProjectMember</todo:operations>
+    </extensionElements>
+    <decisionTable id="projectMemberRemovalDecisionTable" hitPolicy="FIRST">
+      <input id="input_member_isSelfRemoval" label="isSelfRemoval">
+        <inputExpression id="expr_member_isSelfRemoval" typeRef="boolean">
+          <text>isSelfRemoval</text>
+        </inputExpression>
+      </input>
+      <input id="input_member_actorRole" label="actorRole">
+        <inputExpression id="expr_member_actorRole" typeRef="string">
+          <text>actorRole</text>
+        </inputExpression>
+      </input>
+      <input id="input_member_targetExists" label="targetExists">
+        <inputExpression id="expr_member_targetExists" typeRef="boolean">
+          <text>targetExists</text>
+        </inputExpression>
+      </input>
+      <input id="input_member_targetRole" label="targetRole">
+        <inputExpression id="expr_member_targetRole" typeRef="string">
+          <text>targetRole</text>
+        </inputExpression>
+      </input>
+      <input id="input_member_isLastOwner" label="isLastOwner">
+        <inputExpression id="expr_member_isLastOwner" typeRef="boolean">
+          <text>isLastOwner</text>
+        </inputExpression>
+      </input>
+      <output id="output_member_decision" label="decision" name="decision" typeRef="string" />
+      <output id="output_member_httpStatus" label="httpStatus" name="httpStatus" typeRef="integer" />
+
+      <rule id="member_non_owner_cannot_remove_others">
+        <description>Only project owners can remove other members.</description>
+        <inputEntry id="ie_member_1_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_member_1_2"><text>"MEMBER"</text></inputEntry>
+        <inputEntry id="ie_member_1_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_1_4"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_1_5"><text>-</text></inputEntry>
+        <outputEntry id="oe_member_1_1"><text>"DENY_FORBIDDEN"</text></outputEntry>
+        <outputEntry id="oe_member_1_2"><text>403</text></outputEntry>
+      </rule>
+      <rule id="member_target_not_found">
+        <description>Target user must be an existing member of the project.</description>
+        <inputEntry id="ie_member_2_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_2_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_2_3"><text>false</text></inputEntry>
+        <inputEntry id="ie_member_2_4"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_2_5"><text>-</text></inputEntry>
+        <outputEntry id="oe_member_2_1"><text>"DENY_NOT_FOUND"</text></outputEntry>
+        <outputEntry id="oe_member_2_2"><text>404</text></outputEntry>
+      </rule>
+      <rule id="member_last_owner_protected">
+        <description>The last remaining owner of a project cannot be removed.</description>
+        <inputEntry id="ie_member_3_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_3_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_3_3"><text>true</text></inputEntry>
+        <inputEntry id="ie_member_3_4"><text>"OWNER"</text></inputEntry>
+        <inputEntry id="ie_member_3_5"><text>true</text></inputEntry>
+        <outputEntry id="oe_member_3_1"><text>"DENY_LAST_OWNER"</text></outputEntry>
+        <outputEntry id="oe_member_3_2"><text>409</text></outputEntry>
+      </rule>
+      <rule id="member_removal_allowed">
+        <description>All other valid member removals are permitted.</description>
+        <inputEntry id="ie_member_4_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_4_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_4_3"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_4_4"><text>-</text></inputEntry>
+        <inputEntry id="ie_member_4_5"><text>-</text></inputEntry>
+        <outputEntry id="oe_member_4_1"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_member_4_2"><text>204</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="idempotencyDecision" name="Todo Idempotency Decision">
+    <description>Evaluates whether an idempotent Todo creation replays a cached response, rejects as conflict, or creates a new Todo.</description>
+    <extensionElements>
+      <todo:operations>createTodo</todo:operations>
+    </extensionElements>
+    <decisionTable id="idempotencyDecisionTable" hitPolicy="FIRST">
+      <input id="input_idem_recordExists" label="recordExists">
+        <inputExpression id="expr_idem_recordExists" typeRef="boolean">
+          <text>recordExists</text>
+        </inputExpression>
+      </input>
+      <input id="input_idem_recordActive" label="recordActive">
+        <inputExpression id="expr_idem_recordActive" typeRef="boolean">
+          <text>recordActive</text>
+        </inputExpression>
+      </input>
+      <input id="input_idem_fingerprintMatches" label="fingerprintMatches">
+        <inputExpression id="expr_idem_fingerprintMatches" typeRef="boolean">
+          <text>fingerprintMatches</text>
+        </inputExpression>
+      </input>
+      <output id="output_idem_decision" label="decision" name="decision" typeRef="string" />
+      <output id="output_idem_httpStatus" label="httpStatus" name="httpStatus" typeRef="integer" />
+
+      <rule id="idem_replay_existing">
+        <description>Active record with matching fingerprint replays the original response.</description>
+        <inputEntry id="ie_idem_1_1"><text>true</text></inputEntry>
+        <inputEntry id="ie_idem_1_2"><text>true</text></inputEntry>
+        <inputEntry id="ie_idem_1_3"><text>true</text></inputEntry>
+        <outputEntry id="oe_idem_1_1"><text>"REPLAY_EXISTING"</text></outputEntry>
+        <outputEntry id="oe_idem_1_2"><text>201</text></outputEntry>
+      </rule>
+      <rule id="idem_conflict">
+        <description>Active record with different fingerprint is rejected as 409 Conflict.</description>
+        <inputEntry id="ie_idem_2_1"><text>true</text></inputEntry>
+        <inputEntry id="ie_idem_2_2"><text>true</text></inputEntry>
+        <inputEntry id="ie_idem_2_3"><text>false</text></inputEntry>
+        <outputEntry id="oe_idem_2_1"><text>"DENY_CONFLICT"</text></outputEntry>
+        <outputEntry id="oe_idem_2_2"><text>409</text></outputEntry>
+      </rule>
+      <rule id="idem_create_new">
+        <description>Missing or expired record proceeds to create a new Todo.</description>
+        <inputEntry id="ie_idem_3_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_idem_3_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_idem_3_3"><text>-</text></inputEntry>
+        <outputEntry id="oe_idem_3_1"><text>"CREATE_NEW"</text></outputEntry>
+        <outputEntry id="oe_idem_3_2"><text>201</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <decision id="todoAssigneeDecision" name="Todo Assignee Decision">
+    <description>Evaluates whether assigning a user to a Todo is permitted based on project scope and membership.</description>
+    <extensionElements>
+      <todo:operations>createTodo,updateTodo,patchTodo</todo:operations>
+    </extensionElements>
+    <decisionTable id="todoAssigneeDecisionTable" hitPolicy="FIRST">
+      <input id="input_assignee_hasAssignee" label="hasAssignee">
+        <inputExpression id="expr_assignee_hasAssignee" typeRef="boolean">
+          <text>hasAssignee</text>
+        </inputExpression>
+      </input>
+      <input id="input_assignee_hasProject" label="hasProject">
+        <inputExpression id="expr_assignee_hasProject" typeRef="boolean">
+          <text>hasProject</text>
+        </inputExpression>
+      </input>
+      <input id="input_assignee_isMember" label="isAssigneeProjectMember">
+        <inputExpression id="expr_assignee_isMember" typeRef="boolean">
+          <text>isAssigneeProjectMember</text>
+        </inputExpression>
+      </input>
+      <output id="output_assignee_decision" label="decision" name="decision" typeRef="string" />
+      <output id="output_assignee_httpStatus" label="httpStatus" name="httpStatus" typeRef="integer" />
+
+      <rule id="assignee_unassigned_allowed">
+        <description>No assignee specified is always allowed.</description>
+        <inputEntry id="ie_assignee_1_1"><text>false</text></inputEntry>
+        <inputEntry id="ie_assignee_1_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_assignee_1_3"><text>-</text></inputEntry>
+        <outputEntry id="oe_assignee_1_1"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_assignee_1_2"><text>200</text></outputEntry>
+      </rule>
+      <rule id="assignee_personal_todo_denied">
+        <description>Assignee cannot be set on personal todos outside a project.</description>
+        <inputEntry id="ie_assignee_2_1"><text>true</text></inputEntry>
+        <inputEntry id="ie_assignee_2_2"><text>false</text></inputEntry>
+        <inputEntry id="ie_assignee_2_3"><text>-</text></inputEntry>
+        <outputEntry id="oe_assignee_2_1"><text>"DENY_PERSONAL_TODO"</text></outputEntry>
+        <outputEntry id="oe_assignee_2_2"><text>400</text></outputEntry>
+      </rule>
+      <rule id="assignee_non_member_denied">
+        <description>Assignee must be a member of the Todo's project.</description>
+        <inputEntry id="ie_assignee_3_1"><text>true</text></inputEntry>
+        <inputEntry id="ie_assignee_3_2"><text>true</text></inputEntry>
+        <inputEntry id="ie_assignee_3_3"><text>false</text></inputEntry>
+        <outputEntry id="oe_assignee_3_1"><text>"DENY_NOT_PROJECT_MEMBER"</text></outputEntry>
+        <outputEntry id="oe_assignee_3_2"><text>400</text></outputEntry>
+      </rule>
+      <rule id="assignee_project_member_allowed">
+        <description>Assigning a project member to a project todo is allowed.</description>
+        <inputEntry id="ie_assignee_4_1"><text>-</text></inputEntry>
+        <inputEntry id="ie_assignee_4_2"><text>-</text></inputEntry>
+        <inputEntry id="ie_assignee_4_3"><text>-</text></inputEntry>
+        <outputEntry id="oe_assignee_4_1"><text>"ALLOW"</text></outputEntry>
+        <outputEntry id="oe_assignee_4_2"><text>200</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

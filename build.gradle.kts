@@ -289,8 +289,20 @@ val lintOpenApi = tasks.register<Exec>("lintOpenApi") {
     inputs.file("docs/overlays/admin.yaml")
     inputs.file("docs/overlays/ja.yaml")
     inputs.dir("docs/workflows")
+    inputs.dir("docs/models")
     inputs.file("package.json")
     inputs.file("package-lock.json")
+}
+
+val generateDmnModel = tasks.register<Exec>("generateDmnModel") {
+    description = "Generates Kotlin domain decision model code from OMG DMN 1.3 models."
+    group = "code generation"
+    setupNodeEnvironment()
+    commandLine(npmExecutable, "run", "generate:dmn-kotlin")
+    inputs.file("docs/models/todo-decisions.dmn")
+    inputs.file("scripts/generate-dmn-kotlin.mjs")
+    inputs.file("scripts/check-dmn-model.mjs")
+    outputs.dir("services/todo-service/build/generated/dmn")
 }
 
 val lintAsyncApi = tasks.register<Exec>("lintAsyncApi") {
