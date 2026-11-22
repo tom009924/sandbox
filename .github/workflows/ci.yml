@@ -54,8 +54,8 @@ jobs:
 
       - name: Run Detekt, API spec linters, and Dependency Analysis
         run: |
-          ./gradlew detekt :services:identity-service:detekt :services:api-gateway:detekt \
-            lintOpenApi lintAsyncApi openApiValidate buildHealth \
+          ./gradlew :detekt :services:identity-service:detekt :services:api-gateway:detekt \
+            :lintOpenApi :lintAsyncApi :openApiValidate :buildHealth \
             --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated OpenAPI and workflow docs are up-to-date
