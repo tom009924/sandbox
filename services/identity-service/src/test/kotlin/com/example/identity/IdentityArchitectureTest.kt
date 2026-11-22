@@ -58,10 +58,9 @@ class IdentityArchitectureTest {
             .should().beAnnotatedWith(Autowired::class.java)
             .check(classes)
 
-        classes()
-            .that().areAnnotatedWith(RestController::class.java)
-            .and().areNotInterfaces()
-            .should().haveSimpleNameEndingWith("Controller")
+        noClasses()
+            .should().beAnnotatedWith(RestController::class.java)
+            .because("identity-service is a pure gRPC service; all REST endpoints are owned by api-gateway")
             .check(classes)
     }
 }

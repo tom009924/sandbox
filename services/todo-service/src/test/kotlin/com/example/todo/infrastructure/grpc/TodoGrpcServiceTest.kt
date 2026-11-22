@@ -45,11 +45,15 @@ import io.grpc.Server
 import io.grpc.ServerInterceptors
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import io.grpc.health.v1.HealthCheckRequest
+import io.grpc.health.v1.HealthCheckResponse
+import io.grpc.health.v1.HealthGrpc
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.MetadataUtils
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -567,6 +571,50 @@ class TodoGrpcServiceTest {
                 )
             }.status.code,
         )
+    }
+
+    @Test
+    fun `maps unexpected exceptions to INTERNAL and manages GrpcServerLifecycle`() {
+        `when`(adminStatsService.getStats()).thenThrow(IllegalStateException("db failure"))
+        val stub = authenticatedStub()
+        assertEquals(
+            Status.Code.INTERNAL,
+            assertThrows(StatusRuntimeException::class.java) {
+                stub.getAdminStats(GetAdminStatsRequest.getDefaultInstance())
+            }.status.code,
+        )
+
+        val lifecycle = GrpcServerLifecycle(
+            todoGrpcService = TodoGrpcService(
+                todoService = todoService,
+                todoSubtaskService = todoSubtaskService,
+                todoCommentService = todoCommentService,
+                adminStatsService = adminStatsService,
+            ),
+            projectGrpcService = ProjectGrpcService(mock(com.example.todo.application.ProjectService::class.java)),
+            grpcPort = 0,
+            internalApiKey = TEST_API_KEY,
+        )
+        assertFalse(lifecycle.isRunning)
+        lifecycle.start()
+        assertTrue(lifecycle.isRunning)
+        try {
+            val serverField = GrpcServerLifecycle::class.java.getDeclaredField("server").apply { isAccessible = true }
+            val nettyServer = serverField.get(lifecycle) as Server
+            val nettyChannel = io.grpc.ManagedChannelBuilder.forAddress("127.0.0.1", nettyServer.port)
+                .usePlaintext()
+                .build()
+            try {
+                val health = HealthGrpc.newBlockingStub(nettyChannel)
+                    .check(HealthCheckRequest.getDefaultInstance())
+                assertEquals(HealthCheckResponse.ServingStatus.SERVING, health.status)
+            } finally {
+                nettyChannel.shutdownNow()
+            }
+        } finally {
+            lifecycle.stop()
+            assertFalse(lifecycle.isRunning)
+        }
     }
 
     private fun authenticatedStub(): TodoServiceGrpc.TodoServiceBlockingStub {

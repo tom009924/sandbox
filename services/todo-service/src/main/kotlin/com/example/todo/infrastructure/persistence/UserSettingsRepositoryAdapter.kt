@@ -12,7 +12,7 @@ import java.util.UUID
 @ConditionalOnProperty(
     name = ["identity.service.enabled"],
     havingValue = "false",
-    matchIfMissing = true,
+    matchIfMissing = false,
 )
 class UserSettingsRepositoryAdapter(
     private val springDataUserSettingsRepository: SpringDataUserSettingsRepository,

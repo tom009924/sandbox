@@ -4,7 +4,6 @@ import com.tngtech.archunit.core.domain.JavaClasses
 import com.tngtech.archunit.core.importer.ImportOption
 import com.tngtech.archunit.junit.AnalyzeClasses
 import com.tngtech.archunit.junit.ArchTest
-import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields
 import com.tngtech.archunit.library.GeneralCodingRules
@@ -59,12 +58,10 @@ class ArchitectureConventionsTest {
     }
 
     @ArchTest
-    fun controllersShouldFollowNamingConvention(classes: JavaClasses) {
-        classes()
-            .that().areAnnotatedWith(RestController::class.java)
-            .and().areNotInterfaces()
-            .should().haveSimpleNameEndingWith("Controller")
-            .because("Concrete REST controller implementations should be suffixed with 'Controller'")
+    fun noProductionRestControllersInTodoService(classes: JavaClasses) {
+        noClasses()
+            .should().beAnnotatedWith(RestController::class.java)
+            .because("todo-service is a pure gRPC service; all REST endpoints are owned by api-gateway")
             .check(classes)
     }
 }

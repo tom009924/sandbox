@@ -272,15 +272,15 @@ tasks.openApiGenerate {
     dependsOn(rootProject.tasks.named("bundleOpenApi"))
 }
 
-sourceSets.main {
-    kotlin.srcDir(tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") })
-}
+integrationTestSourceSet.kotlin.srcDir(
+    tasks.openApiGenerate.map { file("${it.outputDir.get()}/src/main/kotlin") },
+)
 
-tasks.compileKotlin {
+tasks.named("compileIntegrationTestKotlin") {
     dependsOn(tasks.openApiGenerate)
 }
 
-tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
+tasks.matching { it.name == "explodeCodeSourceIntegrationTest" }.configureEach {
     dependsOn(tasks.openApiGenerate)
 }
 

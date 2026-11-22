@@ -14,7 +14,7 @@ export SPANNER_EMULATOR_HOST=localhost:9010
 export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew bootRun
 ```
-※ アプリケーションはポート `8080` で起動します。
+※ REST API の外部エントリーポイントは `api-gateway`（ポート `8082`）です。すべての REST リクエストは `api-gateway` で gRPC に変換され、`identity-service`（gRPC `9091` / Actuator `8081`）および `todo-service`（gRPC `9092` / Actuator `8080`）へルーティングされます。一括起動とE2E検証は `bash scripts/run-microservices-e2e.sh` でも実行できます。
 
 ### Apigee API プロキシ検証（オプション）
 Apigee APIプロキシをローカルで開発・検証する場合は、Apigee Emulatorを起動してプロキシバンドルをデプロイします。

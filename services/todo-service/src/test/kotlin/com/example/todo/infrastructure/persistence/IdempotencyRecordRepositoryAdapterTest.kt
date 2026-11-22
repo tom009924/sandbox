@@ -3,18 +3,23 @@ package com.example.todo.infrastructure.persistence
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
+import com.example.todo.domain.repository.IdempotencyRecordRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(properties = ["identity.service.enabled=false"])
 class IdempotencyRecordRepositoryAdapterTest @Autowired constructor(
     private val adapter: IdempotencyRecordRepositoryAdapter,
+    private val scheduler: IdempotencyCleanupScheduler,
 ) {
     @Test
     fun `save and find idempotency record`() {
@@ -79,8 +84,17 @@ class IdempotencyRecordRepositoryAdapterTest @Autowired constructor(
         adapter.save(activeRecord)
 
         adapter.deleteExpiredBefore(now)
+        scheduler.cleanupExpiredRecords()
 
         assertNull(adapter.findByUserIdAndKey(expiredUserId, expiredKey))
         assertNotNull(adapter.findByUserIdAndKey(activeUserId, activeKey))
+    }
+
+    @Test
+    fun `cleanupExpiredRecords delegates to repository`() {
+        val mockRepo = mock(IdempotencyRecordRepository::class.java)
+        val unitScheduler = IdempotencyCleanupScheduler(mockRepo)
+        unitScheduler.cleanupExpiredRecords()
+        verify(mockRepo).deleteExpiredBefore(any() ?: Instant.EPOCH)
     }
 }

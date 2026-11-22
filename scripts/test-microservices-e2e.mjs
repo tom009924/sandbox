@@ -1,6 +1,6 @@
-const GATEWAY_URL = process.env.GATEWAY_BASE_URL;
-const IDENTITY_URL = GATEWAY_URL ?? process.env.IDENTITY_SERVICE_BASE_URL ?? 'http://127.0.0.1:8081';
-const TODO_URL = GATEWAY_URL ?? process.env.TODO_SERVICE_BASE_URL ?? 'http://127.0.0.1:8080';
+const GATEWAY_URL = process.env.GATEWAY_BASE_URL ?? 'http://127.0.0.1:8082';
+const IDENTITY_URL = GATEWAY_URL;
+const TODO_URL = GATEWAY_URL;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY ?? 'admin-secret-key';
 
 async function request(url, options = {}) {

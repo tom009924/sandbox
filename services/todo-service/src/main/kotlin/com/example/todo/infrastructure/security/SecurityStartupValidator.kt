@@ -22,7 +22,7 @@ class SecurityStartupValidator(
     private val todoGrpcEnabled: Boolean
         get() = environment.getProperty("todo.grpc.enabled", Boolean::class.java, true)
     private val identityServiceEnabled: Boolean
-        get() = environment.getProperty("identity.service.enabled", Boolean::class.java, false)
+        get() = environment.getProperty("identity.service.enabled", Boolean::class.java, true)
 
     @PostConstruct
     fun validateSecretsOnStartup() {

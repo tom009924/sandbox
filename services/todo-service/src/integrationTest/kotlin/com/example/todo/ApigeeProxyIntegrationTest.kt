@@ -18,7 +18,10 @@ import java.net.URI
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = ["identity.service.enabled=false"],
+)
 class ApigeeProxyIntegrationTest {
 
     @LocalServerPort

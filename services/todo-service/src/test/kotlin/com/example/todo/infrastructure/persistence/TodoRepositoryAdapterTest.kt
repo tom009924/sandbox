@@ -13,7 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import java.time.LocalDate
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(properties = ["identity.service.enabled=false"])
 class TodoRepositoryAdapterTest @Autowired constructor(
     private val adapter: TodoRepositoryAdapter,
     private val springDataTodoRepository: SpringDataTodoRepository,

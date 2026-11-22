@@ -95,6 +95,28 @@ class GrpcIdentityClientTest {
         assertNull(repository.findByUserId(UUID.randomUUID()))
     }
 
+    @Test
+    fun `GrpcIdentityUserRepository and GrpcIdentityUserSettingsRepository reject direct writes`() {
+        val userRepo = GrpcIdentityUserRepository(channel, internalApiKey, 5000L)
+        val settingsRepo = GrpcIdentityUserSettingsRepository(channel, internalApiKey, 5000L)
+
+        org.junit.jupiter.api.Assertions.assertTrue(userRepo.existsByUsername("alice"))
+        org.junit.jupiter.api.Assertions.assertFalse(userRepo.existsByUsername("unknown"))
+        org.junit.jupiter.api.Assertions.assertEquals(
+            emptyList<com.example.todo.domain.model.User>(),
+            userRepo.findAllByIdIn(emptyList()),
+        )
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            userRepo.save(com.example.todo.domain.model.User(username = "bob", passwordHash = "h"))
+        }
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            userRepo.deleteAll()
+        }
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            settingsRepo.save(com.example.todo.domain.model.UserSettings(userId = userId))
+        }
+    }
+
     private class FakeIdentityService(
         private val knownUserId: UUID,
     ) : IdentityServiceGrpc.IdentityServiceImplBase() {

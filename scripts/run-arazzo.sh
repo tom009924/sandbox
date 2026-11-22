@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVER_URL="${SERVER_URL:-http://localhost:8080}"
+SERVER_URL="${SERVER_URL:-http://localhost:8082}"
 TIMESTAMP="$(date +%s)"
 ARAZZO_USERNAME="${ARAZZO_USERNAME:-arazzo-user-${TIMESTAMP}}"
 ARAZZO_PASSWORD="${ARAZZO_PASSWORD:-Password123!}"

@@ -19,7 +19,6 @@ import tools.jackson.databind.ObjectMapper
 @Configuration
 @EnableWebSecurity
 class SecurityConfiguration(
-    private val jwtTokenProvider: JwtTokenProvider,
     private val objectMapper: ObjectMapper,
     @param:Value("\${todo.security.admin-api-key:admin-secret-key}")
     private val adminApiKey: String,
@@ -64,7 +63,6 @@ class SecurityConfiguration(
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
-        val jwtFilter = JwtAuthenticationFilter(jwtTokenProvider)
         val adminFilter = AdminApiKeyFilter(adminApiKey, objectMapper)
         http
             .csrf { it.disable() }
@@ -74,15 +72,12 @@ class SecurityConfiguration(
                 it.accessDeniedHandler(accessDeniedHandler())
             }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/auth/**").permitAll()
                 it.requestMatchers("/error").permitAll()
                 it.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 it.requestMatchers("/actuator/**").hasRole("ADMIN")
-                it.requestMatchers("/api/admin/**").hasRole("ADMIN")
-                it.anyRequest().authenticated()
+                it.anyRequest().denyAll()
             }
             .addFilterBefore(adminFilter, UsernamePasswordAuthenticationFilter::class.java)
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }

@@ -10,7 +10,7 @@ private const val DEFAULT_KEEP_ALIVE_TIMEOUT_SECONDS = 10L
 
 @ConfigurationProperties(prefix = "identity.service")
 data class IdentityServiceProperties(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val grpcHost: String = "localhost",
     val grpcPort: Int = DEFAULT_GRPC_PORT,
     val timeout: Duration = Duration.ofSeconds(DEFAULT_TIMEOUT_SECONDS),
