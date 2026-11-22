@@ -2,14 +2,29 @@ package com.example.gateway
 
 import com.example.gateway.presentation.GatewayExceptionHandler
 import com.example.gateway.security.SecurityStartupValidator
+import com.example.grpc.common.TracingGrpcClientInterceptor
+import io.grpc.CallOptions
+import io.grpc.Channel
+import io.grpc.ClientCall
+import io.grpc.Metadata
+import io.grpc.MethodDescriptor
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.SpanContext
+import io.opentelemetry.api.trace.TraceFlags
+import io.opentelemetry.api.trace.TraceState
+import io.opentelemetry.context.Context
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.http.HttpStatus
 import org.springframework.mock.env.MockEnvironment
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 class ApiGatewaySecurityAndErrorTest {
 
@@ -102,5 +117,56 @@ class ApiGatewaySecurityAndErrorTest {
                 todoInternalApiKey = "secure-todo",
             ).validateSecretsOnStartup()
         }
+    }
+
+    @Test
+    fun `tracing client interceptor injects W3C traceparent metadata`() {
+        val interceptor = TracingGrpcClientInterceptor()
+        var capturedHeaders: Metadata? = null
+        val fakeChannel = object : Channel() {
+            override fun <ReqT, RespT> newCall(
+                methodDescriptor: MethodDescriptor<ReqT, RespT>,
+                callOptions: CallOptions,
+            ): ClientCall<ReqT, RespT> = object : ClientCall<ReqT, RespT>() {
+                override fun start(responseListener: Listener<RespT>, headers: Metadata) {
+                    capturedHeaders = headers
+                }
+
+                override fun request(numMessages: Int) = Unit
+                override fun cancel(message: String?, cause: Throwable?) = Unit
+                override fun halfClose() = Unit
+                override fun sendMessage(message: ReqT) = Unit
+            }
+
+            override fun authority(): String = "localhost"
+        }
+
+        val marshaller = object : MethodDescriptor.Marshaller<String> {
+            override fun stream(value: String): InputStream = ByteArrayInputStream(value.toByteArray())
+            override fun parse(stream: InputStream): String = stream.readBytes().decodeToString()
+        }
+        val method = MethodDescriptor.newBuilder<String, String>()
+            .setType(MethodDescriptor.MethodType.UNARY)
+            .setFullMethodName("test.Service/Call")
+            .setRequestMarshaller(marshaller)
+            .setResponseMarshaller(marshaller)
+            .build()
+
+        val spanContext = SpanContext.create(
+            "4bf92f3577b34da6a3ce929d0e0e4736",
+            "00f067aa0ba902b7",
+            TraceFlags.getSampled(),
+            TraceState.getDefault(),
+        )
+        val traceContext = Context.root().with(Span.wrap(spanContext))
+        traceContext.makeCurrent().use {
+            val call = interceptor.interceptCall(method, CallOptions.DEFAULT, fakeChannel)
+            call.start(object : ClientCall.Listener<String>() {}, Metadata())
+        }
+
+        val traceparentKey = Metadata.Key.of("traceparent", Metadata.ASCII_STRING_MARSHALLER)
+        val traceparent = capturedHeaders?.get(traceparentKey)
+        assertNotNull(traceparent)
+        assertTrue(traceparent!!.startsWith("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"))
     }
 }

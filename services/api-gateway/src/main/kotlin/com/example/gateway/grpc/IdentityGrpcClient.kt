@@ -1,6 +1,7 @@
 package com.example.gateway.grpc
 
 import com.example.gateway.config.IdentityGrpcProperties
+import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.identity.grpc.v1.AuthTokenResponse
 import com.example.identity.grpc.v1.GetUserSettingsRequest
 import com.example.identity.grpc.v1.IdentityServiceGrpc
@@ -26,7 +27,16 @@ class IdentityGrpcClient(
 
     constructor(properties: IdentityGrpcProperties) : this(
         channel = NettyChannelBuilder.forAddress(properties.grpcHost, properties.grpcPort)
-            .usePlaintext()
+            .apply {
+                if (properties.useTls) {
+                    useTransportSecurity()
+                } else {
+                    usePlaintext()
+                }
+            }
+            .keepAliveTime(properties.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
+            .keepAliveTimeout(properties.keepAliveTimeout.toMillis(), TimeUnit.MILLISECONDS)
+            .keepAliveWithoutCalls(true)
             .build(),
         internalApiKey = properties.internalApiKey,
         timeoutMillis = properties.timeout.toMillis(),
@@ -37,7 +47,10 @@ class IdentityGrpcClient(
             put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return IdentityServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
+            .withInterceptors(
+                MetadataUtils.newAttachHeadersInterceptor(headers),
+                TracingGrpcClientInterceptor(),
+            )
             .withDeadlineAfter(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 

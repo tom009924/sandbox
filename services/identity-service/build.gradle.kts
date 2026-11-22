@@ -90,4 +90,5 @@ val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("ja
 
 tasks.check {
     dependsOn(jacocoTestReport)
+    dependsOn(jacocoTestCoverageVerification)
 }

@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.config
 
+import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.todo.application.AdminStatsService
 import com.example.todo.application.AdminUserService
 import com.example.todo.application.AuthService
@@ -41,6 +42,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
 import tools.jackson.databind.ObjectMapper
+import java.util.concurrent.TimeUnit
 
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling
@@ -59,7 +61,17 @@ class TodoConfiguration {
         properties: IdentityServiceProperties,
     ): ManagedChannel = ManagedChannelBuilder
         .forAddress(properties.grpcHost, properties.grpcPort)
-        .usePlaintext()
+        .apply {
+            if (properties.useTls) {
+                useTransportSecurity()
+            } else {
+                usePlaintext()
+            }
+        }
+        .keepAliveTime(properties.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
+        .keepAliveTimeout(properties.keepAliveTimeout.toMillis(), TimeUnit.MILLISECONDS)
+        .keepAliveWithoutCalls(true)
+        .intercept(TracingGrpcClientInterceptor())
         .build()
 
     @Bean
