@@ -17,9 +17,12 @@ import com.example.todo.domain.exception.UserAlreadyExistsException
 import com.example.todo.domain.exception.UserNotFoundException
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import org.slf4j.LoggerFactory
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import java.util.UUID
+
+private val logger = LoggerFactory.getLogger("com.example.todo.infrastructure.grpc.TodoGrpcRpcExecutor")
 
 @Suppress("TooGenericExceptionCaught")
 internal fun <T> executeRpc(
@@ -34,8 +37,12 @@ internal fun <T> executeRpc(
         if (status != null) {
             responseObserver.onError(status.withDescription(ex.message).asRuntimeException())
         } else {
-            throw ex
+            logger.error("Unexpected runtime error while executing todo gRPC call", ex)
+            responseObserver.onError(Status.INTERNAL.withDescription("Internal server error").asRuntimeException())
         }
+    } catch (ex: Exception) {
+        logger.error("Unexpected error while executing todo gRPC call", ex)
+        responseObserver.onError(Status.INTERNAL.withDescription("Internal server error").asRuntimeException())
     }
 }
 

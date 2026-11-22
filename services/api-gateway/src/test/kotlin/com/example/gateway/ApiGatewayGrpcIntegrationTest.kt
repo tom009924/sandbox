@@ -74,16 +74,32 @@ class ApiGatewayGrpcIntegrationTest(
             .andExpect(status().isConflict)
             .andExpect(jsonPath("$.message").value("User already exists"))
 
+        mockMvc.perform(
+            post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"username":"alice","password":"Password123!"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.token").value("fake-token"))
+            .andExpect(jsonPath("$.tokenType").value("Bearer"))
+
         val jwt = createJwt(FAKE_USER_ID, "alice")
+        mockMvc.perform(
+            get("/api/user/settings")
+                .header("Authorization", "Bearer $jwt"),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.defaultPriority").value("MEDIUM"))
+
         mockMvc.perform(
             put("/api/user/settings")
                 .header("Authorization", "Bearer $jwt")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"defaultPriority":"HIGH","defaultEstimatedMinutes":30}"""),
+                .content("""{"defaultPriority":"HIGH","defaultEstimatedMinutes":0}"""),
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.defaultPriority").value("HIGH"))
-            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(30))
+            .andExpect(jsonPath("$.defaultEstimatedMinutes").value(0))
 
         mockMvc.perform(
             get("/api/admin/users")
@@ -91,6 +107,32 @@ class ApiGatewayGrpcIntegrationTest(
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].username").value("alice"))
+    }
+
+    @Test
+    fun `validates identity request constraints against OpenAPI contract`() {
+        mockMvc.perform(
+            post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"username":"bob","password":"short6"}"""),
+        )
+            .andExpect(status().isCreated)
+
+        mockMvc.perform(
+            post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"username":"bob","password":"12345"}"""),
+        )
+            .andExpect(status().isBadRequest)
+
+        val jwt = createJwt(FAKE_USER_ID, "alice")
+        mockMvc.perform(
+            put("/api/user/settings")
+                .header("Authorization", "Bearer $jwt")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"defaultPriority":"HIGH","defaultEstimatedMinutes":-1}"""),
+        )
+            .andExpect(status().isBadRequest)
     }
 
     private fun createJwt(userId: UUID, username: String): String {
