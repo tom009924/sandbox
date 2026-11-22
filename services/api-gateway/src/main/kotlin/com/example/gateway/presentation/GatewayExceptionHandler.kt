@@ -21,9 +21,11 @@ class GatewayExceptionHandler {
     @ExceptionHandler(StatusRuntimeException::class)
     fun handleGrpcException(ex: StatusRuntimeException): ResponseEntity<Map<String, String>> {
         val httpStatus = mapGrpcStatus(ex.status.code)
-        val message = ex.status.description ?: httpStatus.reasonPhrase
-        if (httpStatus.is5xxServerError) {
+        val message = if (httpStatus.is5xxServerError) {
             logger.error("Downstream gRPC call failed with status {}", ex.status, ex)
+            httpStatus.reasonPhrase
+        } else {
+            ex.status.description ?: httpStatus.reasonPhrase
         }
         return ResponseEntity.status(httpStatus).body(mapOf("message" to message))
     }
@@ -52,7 +54,9 @@ class GatewayExceptionHandler {
     }
 
     private fun mapGrpcStatus(code: Status.Code): HttpStatus = when (code) {
-        Status.Code.INVALID_ARGUMENT -> HttpStatus.BAD_REQUEST
+        Status.Code.INVALID_ARGUMENT,
+        Status.Code.FAILED_PRECONDITION,
+        -> HttpStatus.BAD_REQUEST
         Status.Code.UNAUTHENTICATED -> HttpStatus.UNAUTHORIZED
         Status.Code.PERMISSION_DENIED -> HttpStatus.FORBIDDEN
         Status.Code.NOT_FOUND -> HttpStatus.NOT_FOUND

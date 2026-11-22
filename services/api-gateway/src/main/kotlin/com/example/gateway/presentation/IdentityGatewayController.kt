@@ -1,21 +1,19 @@
 package com.example.gateway.presentation
 
 import com.example.gateway.grpc.IdentityGrpcClient
-import com.example.gateway.security.AuthenticatedUser
 import com.example.identity.grpc.v1.UserSettingsMessage
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 import com.example.identity.grpc.v1.TodoPriority as ProtoTodoPriority
 
@@ -27,17 +25,22 @@ enum class GatewayTodoPriority {
 
 data class RegisterRequest(
     @field:NotBlank
-    @field:Size(min = 3, max = 50)
+    @field:Size(min = MIN_USERNAME_LENGTH, max = MAX_USERNAME_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val username: String,
     @field:NotBlank
-    @field:Size(min = 8, max = 100)
+    @field:Size(min = MIN_PASSWORD_LENGTH, max = MAX_PASSWORD_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val password: String,
 )
 
 data class LoginRequest(
     @field:NotBlank
+    @field:Size(max = MAX_LOGIN_FIELD_LENGTH)
+    @field:Pattern(regexp = NO_WHITESPACE_PATTERN)
     val username: String,
     @field:NotBlank
+    @field:Size(max = MAX_LOGIN_FIELD_LENGTH)
     val password: String,
 )
 
@@ -54,7 +57,7 @@ data class AuthTokenResponse(
 
 data class UpdateUserSettingsRequest(
     val defaultPriority: GatewayTodoPriority = GatewayTodoPriority.MEDIUM,
-    @field:Min(1)
+    @field:Min(0)
     val defaultEstimatedMinutes: Int? = null,
     @field:Min(1)
     val maxActiveTodos: Int? = null,
@@ -123,12 +126,6 @@ class IdentityGatewayController(
             )
         }
         return ResponseEntity.ok(users)
-    }
-
-    private fun currentUserId(): UUID {
-        val principal = SecurityContextHolder.getContext().authentication?.principal as? AuthenticatedUser
-            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated")
-        return principal.userId
     }
 
     private fun UserSettingsMessage.toResponse() = UserSettingsResponse(

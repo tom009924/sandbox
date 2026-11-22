@@ -54,16 +54,53 @@ class SecurityStartupValidatorTest {
 
     @Test
     fun `pass validation in production profile when both secrets are secure`() {
-        val env = MockEnvironment().apply { setActiveProfiles("prod") }
+        val env = MockEnvironment().apply {
+            setActiveProfiles("prod")
+            setProperty("todo.grpc.enabled", "true")
+            setProperty("identity.service.enabled", "true")
+        }
         val validator = SecurityStartupValidator(
             environment = env,
             jwtSecret = "custom-secure-256-bit-jwt-secret-key-for-test",
             adminApiKey = "custom-secure-admin-api-key",
+            todoInternalApiKey = "custom-secure-todo-internal-api-key",
+            identityInternalApiKey = "custom-secure-identity-internal-api-key",
         )
 
         assertDoesNotThrow {
             validator.validateSecretsOnStartup()
         }
+    }
+
+    @Test
+    fun `fail fast in production profile when internal api keys are default`() {
+        val env = MockEnvironment().apply {
+            setActiveProfiles("prod")
+            setProperty("todo.grpc.enabled", "true")
+            setProperty("identity.service.enabled", "true")
+        }
+        val todoKeyValidator = SecurityStartupValidator(
+            environment = env,
+            jwtSecret = "custom-secure-256-bit-jwt-secret-key-for-test",
+            adminApiKey = "custom-secure-admin-api-key",
+            todoInternalApiKey = SecurityStartupValidator.DEFAULT_INTERNAL_API_KEY,
+        )
+        val todoException = assertThrows<IllegalStateException> {
+            todoKeyValidator.validateSecretsOnStartup()
+        }
+        assertTrue(requireNotNull(todoException.message).contains("todo.security.internal-api-key"))
+
+        val identityKeyValidator = SecurityStartupValidator(
+            environment = env,
+            jwtSecret = "custom-secure-256-bit-jwt-secret-key-for-test",
+            adminApiKey = "custom-secure-admin-api-key",
+            todoInternalApiKey = "custom-secure-todo-internal-api-key",
+            identityInternalApiKey = SecurityStartupValidator.DEFAULT_INTERNAL_API_KEY,
+        )
+        val identityException = assertThrows<IllegalStateException> {
+            identityKeyValidator.validateSecretsOnStartup()
+        }
+        assertTrue(requireNotNull(identityException.message).contains("identity.service.internal-api-key"))
     }
 
     @Test
