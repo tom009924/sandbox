@@ -56,6 +56,28 @@ class ApiGatewaySecurityAndErrorTest {
     }
 
     @Test
+    fun `maps HTTP protocol client errors to 4xx instead of 500`() {
+        val badRequest = handler.handleBadRequest()
+        assertEquals(HttpStatus.BAD_REQUEST, badRequest.statusCode)
+
+        val unsupportedMedia = handler.handleUnsupportedMediaType()
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, unsupportedMedia.statusCode)
+        assertEquals("Unsupported media type", unsupportedMedia.body?.get("message"))
+
+        val notAcceptable = handler.handleNotAcceptable()
+        assertEquals(HttpStatus.NOT_ACCEPTABLE, notAcceptable.statusCode)
+        assertEquals("Not acceptable", notAcceptable.body?.get("message"))
+
+        val methodNotAllowed = handler.handleMethodNotAllowed()
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED, methodNotAllowed.statusCode)
+        assertEquals("Method not allowed", methodNotAllowed.body?.get("message"))
+
+        val notFound = handler.handleNotFound()
+        assertEquals(HttpStatus.NOT_FOUND, notFound.statusCode)
+        assertEquals("Not found", notFound.body?.get("message"))
+    }
+
+    @Test
     fun `security startup validator allows defaults on local profiles`() {
         val validator = SecurityStartupValidator(
             environment = MockEnvironment().apply { setActiveProfiles("local") },

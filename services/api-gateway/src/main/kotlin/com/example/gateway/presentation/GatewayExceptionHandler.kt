@@ -5,15 +5,21 @@ import io.grpc.StatusRuntimeException
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.web.HttpMediaTypeNotAcceptableException
+import org.springframework.web.HttpMediaTypeNotSupportedException
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
-import org.springframework.web.bind.MissingRequestHeaderException
+import org.springframework.web.bind.ServletRequestBindingException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.multipart.MultipartException
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
 class GatewayExceptionHandler {
@@ -36,12 +42,34 @@ class GatewayExceptionHandler {
         HandlerMethodValidationException::class,
         MethodArgumentNotValidException::class,
         MethodArgumentTypeMismatchException::class,
-        MissingRequestHeaderException::class,
+        ServletRequestBindingException::class,
         HttpMessageNotReadableException::class,
+        InvalidMediaTypeException::class,
+        MultipartException::class,
     )
     fun handleBadRequest(): ResponseEntity<Map<String, String>> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(mapOf("message" to "Invalid request parameters"))
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException::class)
+    fun handleUnsupportedMediaType(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+            .body(mapOf("message" to "Unsupported media type"))
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException::class)
+    fun handleNotAcceptable(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
+            .body(mapOf("message" to "Not acceptable"))
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
+    fun handleMethodNotAllowed(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(mapOf("message" to "Method not allowed"))
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNotFound(): ResponseEntity<Map<String, String>> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(mapOf("message" to "Not found"))
 
     @ExceptionHandler(ResponseStatusException::class)
     fun handleResponseStatus(ex: ResponseStatusException): ResponseEntity<Map<String, String>> =
