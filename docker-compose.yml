@@ -25,5 +25,5 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./wiremock:/home/wiremock
+      - ./infra/wiremock:/home/wiremock
 

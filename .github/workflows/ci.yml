@@ -54,15 +54,14 @@ jobs:
 
       - name: Run Detekt, API spec linters, and Dependency Analysis
         run: |
-          ./gradlew :detekt :services:identity-service:detekt :services:api-gateway:detekt \
-            :lintOpenApi :lintAsyncApi :openApiValidate :buildHealth \
+          ./gradlew :detekt :lintOpenApi :lintAsyncApi :services:todo-service:openApiValidate :buildHealth \
             --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated OpenAPI and workflow docs are up-to-date
         run: git diff --exit-code docs/dist docs/workflows/README.md
 
   verify-monolith:
-    name: Verify todo-api (Monolith)
+    name: Verify todo-service
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -103,13 +102,13 @@ jobs:
           PUBSUB_EMULATOR_HOST: localhost:8085
           PUBSUB_REQUIRED: "true"
         run: |
-          ./gradlew check bootJar cyclonedxBom \
-            -x detekt -x lintOpenApi -x lintAsyncApi -x openApiValidate -x buildHealth \
+          ./gradlew :services:todo-service:check :services:todo-service:bootJar :services:todo-service:cyclonedxBom \
+            -x detekt -x openApiValidate \
             --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify external call sequence diagram is up-to-date
         run: |
-          ./gradlew generateExternalCallDiagrams --no-daemon
+          ./gradlew :services:todo-service:generateExternalCallDiagrams --no-daemon
           git diff --exit-code docs/architecture/external-call-sequence.md
 
       - name: Upload CycloneDX SBOM
@@ -117,14 +116,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom
-          path: build/reports/cyclonedx/bom.json
+          path: services/todo-service/build/reports/cyclonedx/bom.json
           retention-days: 14
 
-      - name: Upload todo-api JAR
+      - name: Upload todo-service JAR
         uses: actions/upload-artifact@v4
         with:
           name: jar-todo-api
-          path: build/libs/app.jar
+          path: services/todo-service/build/libs/app.jar
           retention-days: 1
 
   verify-microservices:
@@ -154,8 +153,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run tests and build JAR
-        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar -x detekt --no-daemon -PdetektAutoCorrect=false
+      - name: Run tests, build JAR, and generate SBOM
+        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom -x detekt --no-daemon -PdetektAutoCorrect=false
+
+      - name: Upload ${{ matrix.service }} CycloneDX SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-cyclonedx-sbom-${{ matrix.service }}
+          path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
+          retention-days: 14
 
       - name: Upload ${{ matrix.service }} JAR
         uses: actions/upload-artifact@v4
@@ -264,6 +271,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
 
       - name: Download service JARs
         uses: actions/download-artifact@v4

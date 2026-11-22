@@ -49,7 +49,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate CycloneDX SBOM
-        run: ./gradlew cyclonedxBom --no-daemon
+        run: ./gradlew :services:todo-service:cyclonedxBom --no-daemon
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -90,7 +90,7 @@ jobs:
             export VDB_DATABASE_URL="$(tr -d '\r\n' < /tmp/depscan-vdb/.depscan-vdb-image)"
           fi
           depscan \
-            --bom build/reports/cyclonedx/bom.json \
+            --bom services/todo-service/build/reports/cyclonedx/bom.json \
             --reports-dir build/reports/depscan \
             --explain \
             --profile appsec || true
