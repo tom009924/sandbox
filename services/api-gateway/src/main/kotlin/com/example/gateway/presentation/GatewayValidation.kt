@@ -15,7 +15,15 @@ internal fun currentUserId(): UUID {
 }
 
 internal fun validateTagItems(tags: List<String>?) {
-    if (tags != null && tags.any { it.length > MAX_TAG_LENGTH }) {
+    if (tags == null) return
+    val rawTags: List<*> = tags
+    if (rawTags.any { it == null }) {
+        throw ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Tags must not contain null elements",
+        )
+    }
+    if (tags.any { it.length > MAX_TAG_LENGTH }) {
         throw ResponseStatusException(
             HttpStatus.BAD_REQUEST,
             "Each tag must be at most $MAX_TAG_LENGTH characters",

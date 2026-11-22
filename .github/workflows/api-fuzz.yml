@@ -141,7 +141,15 @@ jobs:
           GATEWAY_PID=$!
           wait_for_health "api-gateway" "http://127.0.0.1:8082/actuator/health" "api-gateway.log"
 
-          bash scripts/run-schemathesis.sh
+          if ! bash scripts/run-schemathesis.sh; then
+            echo "=== api-gateway.log (last 100 lines) ==="
+            tail -n 100 api-gateway.log || true
+            echo "=== todo-api.log (last 100 lines) ==="
+            tail -n 100 todo-api.log || true
+            echo "=== identity-service.log (last 100 lines) ==="
+            tail -n 100 identity-service.log || true
+            exit 1
+          fi
 
       - name: Upload Schemathesis report
         if: always()

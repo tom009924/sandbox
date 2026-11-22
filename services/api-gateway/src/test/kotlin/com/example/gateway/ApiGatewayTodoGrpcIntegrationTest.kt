@@ -142,6 +142,35 @@ class ApiGatewayTodoGrpcIntegrationTest(
     }
 
     @Test
+    fun `rejects null tag items with 400 and handles unusual query strings on listTodos`() {
+        val jwt = createJwt(FAKE_USER_ID, "alice")
+
+        mockMvc.perform(
+            post("/api/todos")
+                .header("Authorization", "Bearer $jwt")
+                .header("Idempotency-Key", "gw-null-tag-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"title":"Null tag todo","tags":[null]}"""),
+        )
+            .andExpect(status().isBadRequest)
+
+        mockMvc.perform(
+            get(
+                java.net.URI.create(
+                    "/api/todos?%C3%A0jI%C3%BB%C3%BA%18%C2%A5%C3%BD=null&" +
+                        "assigneeId=102a762d-6858-1ca8-8d86-22a9f475541f&" +
+                        "q=%C3%BB%F0%AF%9C%AF&dueAfter=2544-07-28&" +
+                        "projectId=d61a5eb9-2c9c-1d93-bd67-0811c6a6718f&" +
+                        "sortBy=PRIORITY&tag=%E4%B9%82%C2%99%2B&dueBefore=0376-10-11&" +
+                        "completed=false&priority=LOW&sortOrder=ASC",
+                ),
+            )
+                .header("Authorization", "Bearer $jwt"),
+        )
+            .andExpect(status().isOk)
+    }
+
+    @Test
     fun `REST gateway calls project-service and admin stats via gRPC`() {
         val jwt = createJwt(FAKE_USER_ID, "alice")
 
