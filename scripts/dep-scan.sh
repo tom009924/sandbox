@@ -17,6 +17,9 @@ if command -v depscan &> /dev/null; then
   if command -v depscan-vdb &> /dev/null; then
     depscan-vdb download --scope "${VDB_SCOPE}"
   fi
+  if [ -f "${VDB_CACHE_DIR}/.depscan-vdb-image" ]; then
+    export VDB_DATABASE_URL="$(tr -d '\r\n' < "${VDB_CACHE_DIR}/.depscan-vdb-image")"
+  fi
   depscan \
     --src "${PROJECT_ROOT}" \
     --reports-dir "${PROJECT_ROOT}/${REPORTS_DIR}" \
@@ -30,7 +33,7 @@ elif command -v docker &> /dev/null && docker info &> /dev/null; then
     -v "${PROJECT_ROOT}:/app" \
     -v "${VDB_CACHE_DIR}:/vdb" \
     "${IMAGE}" \
-    sh -c 'depscan-vdb download --scope "$1" && shift && depscan --src /app --reports-dir "/app/$1" --type "$2" --explain "${@:3}"' \
+    sh -c 'depscan-vdb download --scope "$1" && shift && if [ -f /vdb/.depscan-vdb-image ]; then export VDB_DATABASE_URL="$(tr -d "\r\n" < /vdb/.depscan-vdb-image)"; fi && depscan --src /app --reports-dir "/app/$1" --type "$2" --explain "${@:3}"' \
     _ "${VDB_SCOPE}" "${REPORTS_DIR}" "${SCAN_TYPES}" "$@"
 else
   echo "Error: Neither 'depscan' CLI nor a running 'docker' daemon was found." >&2

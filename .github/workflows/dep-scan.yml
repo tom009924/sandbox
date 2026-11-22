@@ -86,6 +86,9 @@ jobs:
           VDB_HOME: /tmp/depscan-vdb
         run: |
           mkdir -p build/reports/depscan
+          if [ -f /tmp/depscan-vdb/.depscan-vdb-image ]; then
+            export VDB_DATABASE_URL="$(tr -d '\r\n' < /tmp/depscan-vdb/.depscan-vdb-image)"
+          fi
           depscan \
             --bom build/reports/cyclonedx/bom.json \
             --reports-dir build/reports/depscan \
