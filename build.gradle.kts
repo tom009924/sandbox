@@ -305,6 +305,17 @@ val generateDmnModel = tasks.register<Exec>("generateDmnModel") {
     outputs.dir("services/todo-service/build/generated/dmn")
 }
 
+val generateScxmlModel = tasks.register<Exec>("generateScxmlModel") {
+    description = "Generates Kotlin domain lifecycle state machine code from W3C SCXML models."
+    group = "code generation"
+    setupNodeEnvironment()
+    commandLine(npmExecutable, "run", "generate:scxml-kotlin")
+    inputs.file("docs/models/todo-lifecycle.scxml")
+    inputs.file("scripts/generate-scxml-kotlin.mjs")
+    inputs.file("scripts/check-scxml-model.mjs")
+    outputs.dir("services/todo-service/build/generated/scxml")
+}
+
 val lintAsyncApi = tasks.register<Exec>("lintAsyncApi") {
     description = "Lints AsyncAPI specification using Redocly CLI."
     group = "verification"

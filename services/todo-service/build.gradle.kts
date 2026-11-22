@@ -146,6 +146,7 @@ val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
                     exclude(
                         "**/presentation/api/**",
                         "**/presentation/model/**",
+                        "**/domain/lifecycle/**",
                         "**/TodoApplicationKt.class",
                     )
                 }
@@ -173,6 +174,7 @@ val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("ja
                     exclude(
                         "**/presentation/api/**",
                         "**/presentation/model/**",
+                        "**/domain/lifecycle/**",
                         "**/TodoApplicationKt.class",
                     )
                 }
@@ -274,14 +276,21 @@ tasks.openApiGenerate {
 
 sourceSets.main {
     kotlin.srcDir(layout.buildDirectory.dir("generated/dmn/src/main/kotlin"))
+    kotlin.srcDir(layout.buildDirectory.dir("generated/scxml/src/main/kotlin"))
 }
 
 tasks.compileKotlin {
-    dependsOn(rootProject.tasks.named("generateDmnModel"))
+    dependsOn(
+        rootProject.tasks.named("generateDmnModel"),
+        rootProject.tasks.named("generateScxmlModel"),
+    )
 }
 
 tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
-    dependsOn(rootProject.tasks.named("generateDmnModel"))
+    dependsOn(
+        rootProject.tasks.named("generateDmnModel"),
+        rootProject.tasks.named("generateScxmlModel"),
+    )
 }
 
 integrationTestSourceSet.kotlin.srcDir(

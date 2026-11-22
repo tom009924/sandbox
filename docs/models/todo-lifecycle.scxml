@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml"
+       version="1.0"
+       name="TodoLifecycleModel"
+       initial="NotCreated">
+  <!--
+    W3C SCXML 1.0 statechart model for the Todo API lifecycle.
+    Each transition `event` maps 1:1 to an OpenAPI `operationId` in docs/openapi.yaml.
+  -->
+  <datamodel>
+    <data id="maxActiveTodos" expr="2"/>
+    <data id="activeCount" expr="0"/>
+    <data id="subtaskCount" expr="0"/>
+    <data id="idempotencyKeyUsed" expr="false"/>
+  </datamodel>
+
+  <state id="NotCreated">
+    <transition event="getUserSettings" target="NotCreated"/>
+    <transition event="updateUserSettings" target="NotCreated"/>
+    <transition event="listTodos" target="NotCreated"/>
+
+    <!-- Forbidden / NotFound transitions before creation -->
+    <transition event="getTodo" cond="notExists" target="NotCreated"/>
+    <transition event="updateTodo" cond="notExists" target="NotCreated"/>
+    <transition event="patchTodo" cond="notExists" target="NotCreated"/>
+    <transition event="deleteTodo" cond="notExists" target="NotCreated"/>
+    <transition event="listTodoSubtasks" cond="notExists" target="NotCreated"/>
+    <transition event="createTodoSubtask" cond="notExists" target="NotCreated"/>
+
+    <!-- Create Todo when under maxActiveTodos limit -->
+    <transition event="createTodo" cond="activeCount &lt; maxActiveTodos" target="Active">
+      <assign location="activeCount" expr="activeCount + 1"/>
+      <assign location="idempotencyKeyUsed" expr="true"/>
+    </transition>
+  </state>
+
+  <state id="Active">
+    <transition event="getUserSettings" target="Active"/>
+    <transition event="updateUserSettings" target="Active"/>
+    <transition event="getTodo" target="Active"/>
+    <transition event="listTodos" target="Active"/>
+
+    <!-- Idempotency-Key replay (identical payload -> 201) and conflict (different payload -> 409) -->
+    <transition event="createTodo" cond="idempotencyReplay" target="Active"/>
+    <transition event="createTodo" cond="idempotencyConflict" target="Active"/>
+    <!-- Reject additional creation when maxActiveTodos limit is reached (400) -->
+    <transition event="createTodo" cond="activeCount &gt;= maxActiveTodos" target="Active"/>
+
+    <!-- Stay Active or complete via PUT / PATCH -->
+    <transition event="updateTodo" cond="completed == false" target="Active"/>
+    <transition event="updateTodo" cond="completed == true" target="Completed">
+      <assign location="activeCount" expr="activeCount - 1"/>
+    </transition>
+    <transition event="patchTodo" cond="completed == false" target="Active"/>
+    <transition event="patchTodo" cond="completed == true" target="Completed">
+      <assign location="activeCount" expr="activeCount - 1"/>
+    </transition>
+
+    <!-- Subtask lifecycle while Todo exists -->
+    <transition event="listTodoSubtasks" target="Active"/>
+    <transition event="createTodoSubtask" target="Active">
+      <assign location="subtaskCount" expr="subtaskCount + 1"/>
+    </transition>
+    <transition event="patchTodoSubtask" cond="subtaskCount &gt; 0" target="Active"/>
+    <transition event="deleteTodoSubtask" cond="subtaskCount &gt; 0" target="Active">
+      <assign location="subtaskCount" expr="subtaskCount - 1"/>
+    </transition>
+
+    <!-- Delete Todo -->
+    <transition event="deleteTodo" target="Deleted">
+      <assign location="activeCount" expr="activeCount - 1"/>
+      <assign location="subtaskCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="Completed">
+    <transition event="getUserSettings" target="Completed"/>
+    <transition event="updateUserSettings" target="Completed"/>
+    <transition event="getTodo" target="Completed"/>
+    <transition event="listTodos" target="Completed"/>
+
+    <!-- Reopen Todo when under maxActiveTodos limit -->
+    <transition event="updateTodo" cond="completed == false &amp;&amp; activeCount &lt; maxActiveTodos" target="Active">
+      <assign location="activeCount" expr="activeCount + 1"/>
+    </transition>
+    <transition event="updateTodo" cond="completed == true" target="Completed"/>
+    <transition event="patchTodo" cond="completed == false &amp;&amp; activeCount &lt; maxActiveTodos" target="Active">
+      <assign location="activeCount" expr="activeCount + 1"/>
+    </transition>
+    <transition event="patchTodo" cond="completed == true" target="Completed"/>
+
+    <!-- Subtasks remain accessible on completed Todo -->
+    <transition event="listTodoSubtasks" target="Completed"/>
+    <transition event="createTodoSubtask" target="Completed">
+      <assign location="subtaskCount" expr="subtaskCount + 1"/>
+    </transition>
+    <transition event="patchTodoSubtask" cond="subtaskCount &gt; 0" target="Completed"/>
+    <transition event="deleteTodoSubtask" cond="subtaskCount &gt; 0" target="Completed">
+      <assign location="subtaskCount" expr="subtaskCount - 1"/>
+    </transition>
+
+    <!-- Delete Completed Todo -->
+    <transition event="deleteTodo" target="Deleted">
+      <assign location="subtaskCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="Deleted">
+    <!-- Verify 404 after deletion and absence from list -->
+    <transition event="listTodos" target="Deleted"/>
+    <transition event="getTodo" cond="notExists" target="Deleted"/>
+    <transition event="updateTodo" cond="notExists" target="Deleted"/>
+    <transition event="patchTodo" cond="notExists" target="Deleted"/>
+    <transition event="deleteTodo" cond="notExists" target="Deleted"/>
+    <transition event="listTodoSubtasks" cond="notExists" target="Deleted"/>
+    <transition event="createTodoSubtask" cond="notExists" target="Deleted"/>
+  </state>
+</scxml>
