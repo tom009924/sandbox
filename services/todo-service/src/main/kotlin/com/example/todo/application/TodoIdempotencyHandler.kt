@@ -1,5 +1,7 @@
 package com.example.todo.application
 
+import com.example.todo.domain.decision.IdempotencyDecisionInput
+import com.example.todo.domain.decision.TodoDecisionModel
 import com.example.todo.domain.exception.IdempotencyConflictException
 import com.example.todo.domain.model.IdempotencyRecord
 import com.example.todo.domain.model.Todo
@@ -35,23 +37,29 @@ class TodoIdempotencyHandler(
             val now = clock.instant()
             val fingerprint = command.fingerprint()
             val existing = idempotencyRecordRepository.findByUserIdAndKey(userId, key)
-            if (existing != null && existing.expiresAt.isAfter(now)) {
-                if (existing.requestFingerprint != fingerprint) {
-                    throw IdempotencyConflictException(key)
+            val decision = TodoDecisionModel.evaluateIdempotencyDecision(
+                IdempotencyDecisionInput(
+                    recordExists = existing != null,
+                    recordActive = existing != null && existing.expiresAt.isAfter(now),
+                    fingerprintMatches = existing != null && existing.requestFingerprint == fingerprint,
+                ),
+            )
+            when (decision.decision) {
+                "REPLAY_EXISTING" -> requireNotNull(existing).response
+                "DENY_CONFLICT" -> throw IdempotencyConflictException(key)
+                else -> {
+                    val todo = onCreate()
+                    idempotencyRecordRepository.save(
+                        IdempotencyRecord(
+                            userId = userId,
+                            key = key,
+                            requestFingerprint = fingerprint,
+                            response = todo,
+                            expiresAt = now.plus(RETENTION),
+                        ),
+                    )
+                    todo
                 }
-                existing.response
-            } else {
-                val todo = onCreate()
-                idempotencyRecordRepository.save(
-                    IdempotencyRecord(
-                        userId = userId,
-                        key = key,
-                        requestFingerprint = fingerprint,
-                        response = todo,
-                        expiresAt = now.plus(RETENTION),
-                    ),
-                )
-                todo
             }
         } finally {
             lock.unlock()

@@ -1,6 +1,9 @@
 package com.example.todo.application
 
 import com.example.todo.domain.crypto.TodoCryptoHandler
+import com.example.todo.domain.decision.ActiveTodoLimitDecisionInput
+import com.example.todo.domain.decision.TodoAssigneeDecisionInput
+import com.example.todo.domain.decision.TodoDecisionModel
 import com.example.todo.domain.event.TodoEvent
 import com.example.todo.domain.event.TodoEventPublisher
 import com.example.todo.domain.event.TodoEventType
@@ -127,9 +130,14 @@ class TodoService(
         }
         validateAssignee(command.projectId, command.assigneeId)
         val settings = userSettingsRepository?.findByUserId(userId) ?: UserSettings.defaultFor(userId)
-        if (command.projectId == null) {
-            ensureActiveTodoLimitNotExceeded(userId, checkRequired = !command.completed, settings = settings)
-        }
+        ensureActiveTodoLimitAllowed(
+            userId = userId,
+            hasProject = command.projectId != null,
+            operation = "createTodo",
+            currentCompleted = false,
+            targetCompleted = command.completed,
+            settings = settings,
+        )
         val effectivePriority = command.priority ?: settings.defaultPriority
         val effectiveEstimatedMinutes = command.estimatedMinutes ?: settings.defaultEstimatedMinutes
         val saved = todoRepository.save(
@@ -157,9 +165,13 @@ class TodoService(
     fun update(id: UUID, userId: UUID, command: TodoCommand): Todo {
         val todo = findTodo(id, userId)
         validateAssignee(todo.projectId, command.assigneeId)
-        if (todo.projectId == null) {
-            ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !command.completed)
-        }
+        ensureActiveTodoLimitAllowed(
+            userId = userId,
+            hasProject = todo.projectId != null,
+            operation = "updateTodo",
+            currentCompleted = todo.completed,
+            targetCompleted = command.completed,
+        )
         val updated = todoRepository.save(
             todo.copy(
                 title = command.title.trim(),
@@ -183,9 +195,13 @@ class TodoService(
             validateAssignee(todo.projectId, command.assigneeId)
         }
         val newCompleted = command.completed ?: todo.completed
-        if (todo.projectId == null) {
-            ensureActiveTodoLimitNotExceeded(userId, checkRequired = todo.completed && !newCompleted)
-        }
+        ensureActiveTodoLimitAllowed(
+            userId = userId,
+            hasProject = todo.projectId != null,
+            operation = "patchTodo",
+            currentCompleted = todo.completed,
+            targetCompleted = newCompleted,
+        )
         val newDescription = command.description?.let { cryptoHandler.encrypt(it) } ?: todo.description
         val updated = todoRepository.save(
             todo.copy(
@@ -210,18 +226,41 @@ class TodoService(
         publishEvent(TodoEventType.DELETED, id, null)
     }
 
-    private fun ensureActiveTodoLimitNotExceeded(
+    private fun ensureActiveTodoLimitAllowed(
         userId: UUID,
-        checkRequired: Boolean,
+        hasProject: Boolean,
+        operation: String,
+        currentCompleted: Boolean,
+        targetCompleted: Boolean,
         settings: UserSettings? = null,
     ) {
-        if (!checkRequired) return
+        val preCheck = TodoDecisionModel.evaluateActiveTodoLimitDecision(
+            ActiveTodoLimitDecisionInput(
+                hasProject = hasProject,
+                operation = operation,
+                currentCompleted = currentCompleted,
+                targetCompleted = targetCompleted,
+                hasMaxActiveLimit = false,
+                atOrAboveLimit = false,
+            ),
+        )
+        if (!preCheck.checkRequired) return
         val effectiveSettings = settings
             ?: userSettingsRepository?.findByUserId(userId)
             ?: UserSettings.defaultFor(userId)
         val maxActive = effectiveSettings.maxActiveTodos ?: return
         val activeCount = todoRepository.countByUserIdAndCompletedFalse(userId)
-        if (activeCount >= maxActive) {
+        val decision = TodoDecisionModel.evaluateActiveTodoLimitDecision(
+            ActiveTodoLimitDecisionInput(
+                hasProject = hasProject,
+                operation = operation,
+                currentCompleted = currentCompleted,
+                targetCompleted = targetCompleted,
+                hasMaxActiveLimit = true,
+                atOrAboveLimit = activeCount >= maxActive,
+            ),
+        )
+        if (decision.decision == "DENY_ACTIVE_LIMIT_EXCEEDED") {
             throw ActiveTodosLimitExceededException(maxActive)
         }
     }
@@ -258,12 +297,21 @@ class TodoService(
     }
 
     private fun validateAssignee(projectId: UUID?, assigneeId: UUID?) {
-        if (assigneeId == null) return
-        if (projectId == null) {
-            throw InvalidTodoAssigneeException("Assignee can only be set for project todos")
-        }
-        if (projectMemberRepository?.findByProjectIdAndUserId(projectId, assigneeId) == null) {
-            throw InvalidTodoAssigneeException("Assignee $assigneeId is not a member of project $projectId")
+        val isMember = projectId != null &&
+            assigneeId != null &&
+            projectMemberRepository?.findByProjectIdAndUserId(projectId, assigneeId) != null
+        val decision = TodoDecisionModel.evaluateTodoAssigneeDecision(
+            TodoAssigneeDecisionInput(
+                hasAssignee = assigneeId != null,
+                hasProject = projectId != null,
+                isAssigneeProjectMember = isMember,
+            ),
+        )
+        when (decision.decision) {
+            "DENY_PERSONAL_TODO" ->
+                throw InvalidTodoAssigneeException("Assignee can only be set for project todos")
+            "DENY_NOT_PROJECT_MEMBER" ->
+                throw InvalidTodoAssigneeException("Assignee $assigneeId is not a member of project $projectId")
         }
     }
 }

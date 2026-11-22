@@ -1,5 +1,7 @@
 package com.example.todo.application
 
+import com.example.todo.domain.decision.ProjectMemberRemovalDecisionInput
+import com.example.todo.domain.decision.TodoDecisionModel
 import com.example.todo.domain.exception.LastProjectOwnerException
 import com.example.todo.domain.exception.ProjectForbiddenException
 import com.example.todo.domain.exception.ProjectMemberAlreadyExistsException
@@ -139,16 +141,32 @@ class ProjectService(
 
     fun removeMember(projectId: UUID, actorUserId: UUID, targetUserId: UUID) {
         val actor = requireMembership(projectId, actorUserId)
-        if (actorUserId != targetUserId && actor.role != ProjectRole.OWNER) {
-            throw ProjectForbiddenException("Only project owners can remove other members")
+        val isSelfRemoval = actorUserId == targetUserId
+        val target = when {
+            isSelfRemoval -> actor
+            actor.role != ProjectRole.OWNER -> null
+            else -> projectMemberRepository.findByProjectIdAndUserId(projectId, targetUserId)
         }
-        val target = if (actorUserId == targetUserId) {
-            actor
-        } else {
-            projectMemberRepository.findByProjectIdAndUserId(projectId, targetUserId)
-                ?: throw ProjectMemberNotFoundException(projectId, targetUserId)
+        val isLastOwner = target?.role == ProjectRole.OWNER &&
+            projectMemberRepository.countByProjectIdAndRole(projectId, ProjectRole.OWNER) <= 1
+        val result = TodoDecisionModel.evaluateProjectMemberRemovalDecision(
+            ProjectMemberRemovalDecisionInput(
+                isSelfRemoval = isSelfRemoval,
+                actorRole = actor.role.name,
+                targetExists = target != null,
+                targetRole = target?.role?.name ?: "NONE",
+                isLastOwner = isLastOwner,
+            ),
+        )
+        val denialException: RuntimeException? = when (result.decision) {
+            "DENY_FORBIDDEN" -> ProjectForbiddenException("Only project owners can remove other members")
+            "DENY_NOT_FOUND" -> ProjectMemberNotFoundException(projectId, targetUserId)
+            "DENY_LAST_OWNER" -> LastProjectOwnerException(projectId)
+            else -> null
         }
-        ensureNotLastOwner(projectId, target)
+        if (denialException != null) {
+            throw denialException
+        }
         projectMemberRepository.deleteByProjectIdAndUserId(projectId, targetUserId)
     }
 
@@ -158,14 +176,6 @@ class ProjectService(
             throw ProjectForbiddenException(message)
         }
         return member
-    }
-
-    private fun ensureNotLastOwner(projectId: UUID, target: ProjectMember) {
-        if (target.role == ProjectRole.OWNER &&
-            projectMemberRepository.countByProjectIdAndRole(projectId, ProjectRole.OWNER) <= 1
-        ) {
-            throw LastProjectOwnerException(projectId)
-        }
     }
 
     private fun requireMembership(projectId: UUID, userId: UUID): ProjectMember =
