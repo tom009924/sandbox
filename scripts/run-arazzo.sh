@@ -14,6 +14,7 @@ cd "${PROJECT_ROOT}"
 echo "==> Running Arazzo workflow tests against ${SERVER_URL} (username: ${ARAZZO_USERNAME})..."
 
 exec npx redocly respect docs/workflows/todo-workflows.arazzo.yaml \
-  --server "${SERVER_URL}" \
+  --server "publicApi=${SERVER_URL}" \
+  --server "adminApi=${SERVER_URL}" \
   --input "${INPUT_JSON}" \
   "$@"
