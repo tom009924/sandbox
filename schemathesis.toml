@@ -1,0 +1,6 @@
+#:schema https://raw.githubusercontent.com/schemathesis/schemathesis/master/src/schemathesis/config/schema.json
+
+request-timeout = 10.0
+
+[generation]
+max-examples = 30
