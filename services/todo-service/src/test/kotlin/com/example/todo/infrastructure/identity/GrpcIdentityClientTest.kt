@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.identity
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.identity.grpc.v1.BatchGetUsersRequest
 import com.example.identity.grpc.v1.CountUsersRequest
 import com.example.identity.grpc.v1.CountUsersResponse
@@ -46,7 +47,7 @@ class GrpcIdentityClientTest {
                 headers: Metadata,
                 next: ServerCallHandler<ReqT, RespT>,
             ): ServerCall.Listener<ReqT> {
-                val provided = headers.get(GrpcIdentityUserRepository.INTERNAL_API_KEY_METADATA_KEY)
+                val provided = headers.get(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY)
                 return if (provided == internalApiKey) {
                     next.startCall(call, headers)
                 } else {
@@ -92,6 +93,28 @@ class GrpcIdentityClientTest {
         assertEquals(30, settings?.defaultEstimatedMinutes)
         assertEquals(10, settings?.maxActiveTodos)
         assertNull(repository.findByUserId(UUID.randomUUID()))
+    }
+
+    @Test
+    fun `GrpcIdentityUserRepository and GrpcIdentityUserSettingsRepository reject direct writes`() {
+        val userRepo = GrpcIdentityUserRepository(channel, internalApiKey, 5000L)
+        val settingsRepo = GrpcIdentityUserSettingsRepository(channel, internalApiKey, 5000L)
+
+        org.junit.jupiter.api.Assertions.assertTrue(userRepo.existsByUsername("alice"))
+        org.junit.jupiter.api.Assertions.assertFalse(userRepo.existsByUsername("unknown"))
+        org.junit.jupiter.api.Assertions.assertEquals(
+            emptyList<com.example.todo.domain.model.User>(),
+            userRepo.findAllByIdIn(emptyList()),
+        )
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            userRepo.save(com.example.todo.domain.model.User(username = "bob", passwordHash = "h"))
+        }
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            userRepo.deleteAll()
+        }
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException::class.java) {
+            settingsRepo.save(com.example.todo.domain.model.UserSettings(userId = userId))
+        }
     }
 
     private class FakeIdentityService(

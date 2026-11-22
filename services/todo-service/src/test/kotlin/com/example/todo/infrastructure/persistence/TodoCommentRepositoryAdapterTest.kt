@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(properties = ["identity.service.enabled=false"])
 class TodoCommentRepositoryAdapterTest @Autowired constructor(
     private val adapter: TodoCommentRepositoryAdapter,
     private val springDataTodoCommentRepository: SpringDataTodoCommentRepository,

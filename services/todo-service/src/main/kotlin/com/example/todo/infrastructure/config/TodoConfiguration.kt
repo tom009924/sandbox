@@ -2,15 +2,11 @@ package com.example.todo.infrastructure.config
 
 import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.todo.application.AdminStatsService
-import com.example.todo.application.AdminUserService
-import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
 import com.example.todo.application.TodoAccessChecker
 import com.example.todo.application.TodoCommentService
 import com.example.todo.application.TodoService
 import com.example.todo.application.TodoSubtaskService
-import com.example.todo.application.TokenIssuer
-import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.crypto.CryptoService
 import com.example.todo.domain.crypto.TodoCryptoHandler
 import com.example.todo.domain.event.TodoEventPublisher
@@ -23,7 +19,6 @@ import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.TodoSubtaskRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
-import com.example.todo.domain.security.PasswordEncoder
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementClient
 import com.example.todo.infrastructure.crypto.GrpcKeyManagementProperties
 import com.example.todo.infrastructure.identity.GrpcIdentityUserRepository
@@ -34,7 +29,7 @@ import com.example.todo.infrastructure.notification.HttpEmailNotificationSender
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.pubsub.PubSubTodoEventPublisher
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -56,10 +51,10 @@ import java.util.concurrent.TimeUnit
 class TodoConfiguration {
 
     @Bean(destroyMethod = "shutdown")
-    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true", matchIfMissing = true)
     fun identityGrpcChannel(
         properties: IdentityServiceProperties,
-    ): ManagedChannel = ManagedChannelBuilder
+    ): ManagedChannel = NettyChannelBuilder
         .forAddress(properties.grpcHost, properties.grpcPort)
         .apply {
             if (properties.useTls) {
@@ -75,7 +70,7 @@ class TodoConfiguration {
         .build()
 
     @Bean
-    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true", matchIfMissing = true)
     fun grpcIdentityUserRepository(
         identityGrpcChannel: ManagedChannel,
         properties: IdentityServiceProperties,
@@ -86,7 +81,7 @@ class TodoConfiguration {
     )
 
     @Bean
-    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true")
+    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "true", matchIfMissing = true)
     fun grpcIdentityUserSettingsRepository(
         identityGrpcChannel: ManagedChannel,
         properties: IdentityServiceProperties,
@@ -186,28 +181,8 @@ class TodoConfiguration {
     )
 
     @Bean
-    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
-    fun userSettingsService(
-        userSettingsRepository: UserSettingsRepository,
-    ) = UserSettingsService(userSettingsRepository)
-
-    @Bean
     fun adminStatsService(
         userRepository: UserRepository,
         todoRepository: TodoRepository,
     ) = AdminStatsService(userRepository, todoRepository)
-
-    @Bean
-    fun adminUserService(
-        userRepository: UserRepository,
-    ) = AdminUserService(userRepository)
-
-    @Bean
-    @ConditionalOnProperty(name = ["identity.service.enabled"], havingValue = "false", matchIfMissing = true)
-    fun authService(
-        userRepository: UserRepository,
-        passwordEncoder: PasswordEncoder,
-        tokenIssuer: TokenIssuer,
-        emailNotificationSender: EmailNotificationSender,
-    ) = AuthService(userRepository, passwordEncoder, tokenIssuer, emailNotificationSender)
 }

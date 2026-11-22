@@ -34,7 +34,7 @@ gh auth status
 
 GradleのビルドキャッシュとKotlinのインクリメンタルコンパイルを有効にし、メモリ使用量を抑えるためGradleの並列ワーカー数を1に制限しています。
 
-APIのベースURLは `http://localhost:8080/api` です。
+REST APIの外部エンドポイント（`:services:api-gateway`）のベースURLは `http://localhost:8082/api` です（`identity-service` `:9091` と `todo-service` `:9092` は gRPC 専用バックエンドとして動作し、すべての外部 REST リクエストは `api-gateway` で gRPC に変換されます）。
 OpenAPI仕様は [`docs/openapi.yaml`](docs/openapi.yaml)（日本語版は [`docs/dist/openapi.ja.yaml`](docs/dist/openapi.ja.yaml)）にあります。※ 管理者・内部向けを含む完全版は [`docs/dist/openapi.admin.yaml`](docs/dist/openapi.admin.yaml)（`docs/overlays/admin.yaml` によるオーバーレイ合成）として生成されます。
 
 ## API

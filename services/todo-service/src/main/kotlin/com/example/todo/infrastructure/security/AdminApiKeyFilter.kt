@@ -17,8 +17,13 @@ class AdminApiKeyFilter(
     private val expectedApiKey: String,
     private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
-    override fun shouldNotFilter(request: HttpServletRequest): Boolean =
-        !request.requestURI.startsWith("/api/admin")
+    override fun shouldNotFilter(request: HttpServletRequest): Boolean {
+        val uri = request.requestURI
+        val isPublicActuator = uri == "/actuator/health" ||
+            uri.startsWith("/actuator/health/") ||
+            uri == "/actuator/info"
+        return isPublicActuator || (!uri.startsWith("/api/admin") && !uri.startsWith("/actuator"))
+    }
 
     override fun doFilterInternal(
         request: HttpServletRequest,

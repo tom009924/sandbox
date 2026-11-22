@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import java.util.UUID
 
-@SpringBootTest
+@SpringBootTest(properties = ["identity.service.enabled=false"])
 class AllRepositoriesDynamicSmokeTest @Autowired constructor(
     private val applicationContext: ApplicationContext,
 ) {

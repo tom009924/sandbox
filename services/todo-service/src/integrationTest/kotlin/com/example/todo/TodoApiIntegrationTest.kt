@@ -48,7 +48,10 @@ import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = ["identity.service.enabled=false"],
+)
 @Suppress("TooManyFunctions", "LargeClass", "LongParameterList")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,

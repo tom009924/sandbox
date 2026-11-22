@@ -1,8 +1,6 @@
 package com.example.todo.trace
 
 import com.example.todo.application.AdminStatsService
-import com.example.todo.application.AdminUserService
-import com.example.todo.application.AuthService
 import com.example.todo.application.ProjectService
 import com.example.todo.application.TodoAccessChecker
 import com.example.todo.application.TodoCommentService
@@ -10,8 +8,6 @@ import com.example.todo.application.TodoService
 import com.example.todo.application.TodoSubtaskService
 import com.example.todo.application.TokenIssuer
 import com.example.todo.application.TokenResult
-import com.example.todo.application.UserContext
-import com.example.todo.application.UserSettingsService
 import com.example.todo.domain.crypto.CryptoService
 import com.example.todo.domain.crypto.TodoCryptoHandler
 import com.example.todo.domain.event.TodoEvent
@@ -39,25 +35,36 @@ import com.example.todo.domain.repository.TodoSubtaskRepository
 import com.example.todo.domain.repository.UserRepository
 import com.example.todo.domain.repository.UserSettingsRepository
 import com.example.todo.domain.security.PasswordEncoder
-import com.example.todo.presentation.AdminController
-import com.example.todo.presentation.AuthController
-import com.example.todo.presentation.ProjectController
-import com.example.todo.presentation.TodoCommentController
-import com.example.todo.presentation.TodoController
-import com.example.todo.presentation.TodoSubtaskController
-import com.example.todo.presentation.UserSettingsController
-import com.example.todo.presentation.model.AddProjectMemberRequest
-import com.example.todo.presentation.model.CreateProjectRequest
-import com.example.todo.presentation.model.CreateTodoCommentRequest
-import com.example.todo.presentation.model.CreateTodoRequest
-import com.example.todo.presentation.model.CreateTodoSubtaskRequest
-import com.example.todo.presentation.model.LoginRequest
-import com.example.todo.presentation.model.PatchTodoRequest
-import com.example.todo.presentation.model.PatchTodoSubtaskRequest
-import com.example.todo.presentation.model.RegisterRequest
-import com.example.todo.presentation.model.UpdateProjectRequest
-import com.example.todo.presentation.model.UpdateTodoRequest
-import com.example.todo.presentation.model.UpdateUserSettingsRequest
+import com.example.todo.grpc.v1.AddProjectMemberRequest
+import com.example.todo.grpc.v1.CreateCommentRequest
+import com.example.todo.grpc.v1.CreateProjectRequest
+import com.example.todo.grpc.v1.CreateSubtaskRequest
+import com.example.todo.grpc.v1.CreateTodoRequest
+import com.example.todo.grpc.v1.DeleteCommentRequest
+import com.example.todo.grpc.v1.DeleteProjectRequest
+import com.example.todo.grpc.v1.DeleteSubtaskRequest
+import com.example.todo.grpc.v1.DeleteTodoRequest
+import com.example.todo.grpc.v1.GetAdminStatsRequest
+import com.example.todo.grpc.v1.GetProjectRequest
+import com.example.todo.grpc.v1.GetTodoRequest
+import com.example.todo.grpc.v1.ListCommentsRequest
+import com.example.todo.grpc.v1.ListProjectMembersRequest
+import com.example.todo.grpc.v1.ListProjectsRequest
+import com.example.todo.grpc.v1.ListSubtasksRequest
+import com.example.todo.grpc.v1.ListTodosRequest
+import com.example.todo.grpc.v1.PatchSubtaskRequest
+import com.example.todo.grpc.v1.PatchTodoRequest
+import com.example.todo.grpc.v1.ProjectServiceGrpc
+import com.example.todo.grpc.v1.RemoveProjectMemberRequest
+import com.example.todo.grpc.v1.TodoServiceGrpc
+import com.example.todo.grpc.v1.UpdateProjectRequest
+import com.example.todo.grpc.v1.UpdateTodoRequest
+import com.example.todo.infrastructure.grpc.ProjectGrpcService
+import com.example.todo.infrastructure.grpc.TodoGrpcService
+import io.grpc.ManagedChannel
+import io.grpc.Server
+import io.grpc.inprocess.InProcessChannelBuilder
+import io.grpc.inprocess.InProcessServerBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -66,34 +73,34 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import java.util.UUID
-import com.example.todo.presentation.model.ProjectRole as ApiProjectRole
-import com.example.todo.presentation.model.TodoPriority as ApiTodoPriority
+import com.example.todo.grpc.v1.ProjectRole as ProtoProjectRole
+import com.example.todo.grpc.v1.TodoPriority as ProtoTodoPriority
 
 class ExternalCallSequenceDiagramGeneratorTest {
 
     @Test
     fun `trace all endpoints and generate external call sequence diagrams`() {
         val tracer = ExternalCallTracer()
-        val harness = TracedControllerHarness(tracer)
-
-        val userId = harness.traceRegister()
-        val collaboratorId = harness.registerCollaborator("bob")
-        harness.setCurrentUser(userId)
-        harness.traceLogin()
-        harness.traceUpdateSettings()
-        harness.traceGetSettings()
-        val todoId = harness.traceCreateTodo()
-        harness.traceCreateTodoIdempotentReplay()
-        harness.traceListTodos()
-        harness.traceGetTodo(todoId)
-        harness.traceUpdateTodo(todoId)
-        harness.tracePatchTodoReopen(todoId)
-        harness.traceAdminStats()
-        harness.traceAdminUsers()
-        harness.traceSubtaskLifecycle(todoId)
-        harness.traceCommentLifecycle(todoId)
-        harness.traceDeleteTodo(todoId)
-        harness.traceProjectLifecycle(collaboratorId)
+        TracedGrpcHarness(tracer).use { harness ->
+            val userId = harness.traceRegister()
+            val collaboratorId = harness.registerCollaborator("bob")
+            harness.setCurrentUser(userId)
+            harness.traceLogin()
+            harness.traceUpdateSettings()
+            harness.traceGetSettings()
+            val todoId = harness.traceCreateTodo()
+            harness.traceCreateTodoIdempotentReplay()
+            harness.traceListTodos()
+            harness.traceGetTodo(todoId)
+            harness.traceUpdateTodo(todoId)
+            harness.tracePatchTodoReopen(todoId)
+            harness.traceAdminStats()
+            harness.traceAdminUsers()
+            harness.traceSubtaskLifecycle(todoId)
+            harness.traceCommentLifecycle(todoId)
+            harness.traceDeleteTodo(todoId)
+            harness.traceProjectLifecycle(collaboratorId)
+        }
 
         val traces = tracer.traces()
         val byEndpoint = traces.associateBy { it.endpoint }
@@ -157,7 +164,7 @@ class ExternalCallSequenceDiagramGeneratorTest {
     }
 
     @Suppress("TooManyFunctions")
-    private class TracedControllerHarness(private val tracer: ExternalCallTracer) {
+    private class TracedGrpcHarness(private val tracer: ExternalCallTracer) : AutoCloseable {
         private var activeUserId: UUID = UUID.randomUUID()
 
         private val todoRepo = tracer.wrap(
@@ -223,10 +230,6 @@ class ExternalCallSequenceDiagramGeneratorTest {
             ExternalSystem.EMAIL,
         ) { _, _ -> "POST /api/v1/emails" }
 
-        private val userContext = object : UserContext {
-            override fun currentUserId(): UUID = activeUserId
-        }
-
         private val passwordEncoder = object : PasswordEncoder {
             override fun encode(rawPassword: String): String = "hashed:$rawPassword"
             override fun matches(rawPassword: String, encodedPassword: String): Boolean =
@@ -237,32 +240,6 @@ class ExternalCallSequenceDiagramGeneratorTest {
             override fun issueToken(user: AuthenticatedUser): TokenResult =
                 TokenResult("stub-jwt", "Bearer", EXPIRES_IN_SECONDS)
         }
-
-        private val authController = AuthController(
-            AuthService(userRepo, passwordEncoder, tokenIssuer, emailSender),
-        )
-
-        private val todoController = TodoController(
-            TodoService(
-                todoRepository = todoRepo,
-                idempotencyRecordRepository = idempotencyRepo,
-                todoEventPublisher = eventPublisher,
-                userSettingsRepository = userSettingsRepo,
-                cryptoHandler = TodoCryptoHandler(cryptoService),
-                projectMemberRepository = projectMemberRepo,
-            ),
-            userContext,
-        )
-
-        private val projectController = ProjectController(
-            ProjectService(
-                projectRepository = projectRepo,
-                projectMemberRepository = projectMemberRepo,
-                userRepository = userRepo,
-                todoRepository = todoRepo,
-            ),
-            userContext,
-        )
 
         private val subtaskStorage = linkedMapOf<UUID, TodoSubtask>()
         private val todoSubtaskRepo = tracer.wrap(
@@ -286,14 +263,6 @@ class ExternalCallSequenceDiagramGeneratorTest {
             ExternalSystem.SPANNER,
         ) { method, _ -> "TodoSubtaskRepository.${method.name}" }
 
-        private val todoSubtaskController = TodoSubtaskController(
-            TodoSubtaskService(
-                todoAccessChecker = TodoAccessChecker(todoRepo, projectMemberRepo),
-                todoSubtaskRepository = todoSubtaskRepo,
-            ),
-            userContext,
-        )
-
         private val commentStorage = linkedMapOf<UUID, TodoComment>()
         private val todoCommentRepo = tracer.wrap(
             TodoCommentRepository::class.java,
@@ -316,44 +285,76 @@ class ExternalCallSequenceDiagramGeneratorTest {
             ExternalSystem.SPANNER,
         ) { method, _ -> "TodoCommentRepository.${method.name}" }
 
-        private val todoCommentController = TodoCommentController(
-            TodoCommentService(
+        private val todoGrpcService = TodoGrpcService(
+            todoService = TodoService(
+                todoRepository = todoRepo,
+                idempotencyRecordRepository = idempotencyRepo,
+                todoEventPublisher = eventPublisher,
+                userSettingsRepository = userSettingsRepo,
+                cryptoHandler = TodoCryptoHandler(cryptoService),
+                projectMemberRepository = projectMemberRepo,
+            ),
+            todoSubtaskService = TodoSubtaskService(
+                todoAccessChecker = TodoAccessChecker(todoRepo, projectMemberRepo),
+                todoSubtaskRepository = todoSubtaskRepo,
+            ),
+            todoCommentService = TodoCommentService(
                 todoAccessChecker = TodoAccessChecker(todoRepo, projectMemberRepo),
                 todoCommentRepository = todoCommentRepo,
                 userRepository = userRepo,
             ),
-            userContext,
+            adminStatsService = AdminStatsService(userRepo, todoRepo),
         )
 
-        private val settingsController = UserSettingsController(
-            UserSettingsService(userSettingsRepo),
-            userContext,
+        private val projectGrpcService = ProjectGrpcService(
+            projectService = ProjectService(
+                projectRepository = projectRepo,
+                projectMemberRepository = projectMemberRepo,
+                userRepository = userRepo,
+                todoRepository = todoRepo,
+            ),
         )
 
-        private val adminController = AdminController(
-            AdminStatsService(userRepo, todoRepo),
-            AdminUserService(userRepo),
-        )
+        private val serverName = InProcessServerBuilder.generateName()
+        private val server: Server = InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(todoGrpcService)
+            .addService(projectGrpcService)
+            .build()
+            .start()
+        private val channel: ManagedChannel = InProcessChannelBuilder.forName(serverName)
+            .directExecutor()
+            .build()
+        private val todoStub = TodoServiceGrpc.newBlockingStub(channel)
+        private val projectStub = ProjectServiceGrpc.newBlockingStub(channel)
+
+        override fun close() {
+            channel.shutdownNow()
+            server.shutdownNow()
+        }
 
         fun setCurrentUser(userId: UUID) {
             activeUserId = userId
         }
 
         fun registerCollaborator(username: String): UUID =
-            requireNotNull(authController.registerUser(RegisterRequest(username, "secret123")).body?.id)
+            registerUserThroughIdentityFlow(username, "secret123")
 
         fun traceRegister(): UUID = tracer.trace("POST /api/auth/register", transactionalReadOnly = false) {
-            requireNotNull(authController.registerUser(RegisterRequest("alice", "secret123")).body?.id)
+            registerUserThroughIdentityFlow("alice", "secret123")
         }
 
         fun traceLogin() = tracer.trace("POST /api/auth/login", transactionalReadOnly = true) {
-            authController.loginUser(LoginRequest("alice", "secret123"))
+            val user = requireNotNull(userRepo.findByUsername("alice"))
+            check(passwordEncoder.matches("secret123", user.passwordHash))
+            tokenIssuer.issueToken(AuthenticatedUser(requireNotNull(user.id), user.username))
         }
 
         fun traceUpdateSettings() = tracer.trace("PUT /api/user/settings", transactionalReadOnly = false) {
-            settingsController.updateUserSettings(
-                UpdateUserSettingsRequest(
-                    defaultPriority = ApiTodoPriority.HIGH,
+            userSettingsRepo.save(
+                UserSettings(
+                    userId = activeUserId,
+                    defaultPriority = TodoPriority.HIGH,
                     defaultEstimatedMinutes = DEFAULT_ESTIMATED_MINUTES,
                     maxActiveTodos = MAX_ACTIVE_TODOS,
                 ),
@@ -361,66 +362,67 @@ class ExternalCallSequenceDiagramGeneratorTest {
         }
 
         fun traceGetSettings() = tracer.trace("GET /api/user/settings", transactionalReadOnly = true) {
-            settingsController.getUserSettings()
+            userSettingsRepo.findByUserId(activeUserId) ?: UserSettings.defaultFor(activeUserId)
         }
 
         fun traceCreateTodo(): UUID = tracer.trace("POST /api/todos", transactionalReadOnly = false) {
-            val response = todoController.createTodo(
-                "idem-key-1",
-                CreateTodoRequest(
-                    title = "Write diagram",
-                    description = "Secret notes",
-                    priority = ApiTodoPriority.HIGH,
-                    tags = listOf("docs"),
-                ),
+            val response = todoStub.createTodo(
+                CreateTodoRequest.newBuilder()
+                    .setUserId(activeUserId.toString())
+                    .setIdempotencyKey("idem-key-1")
+                    .setTitle("Write diagram")
+                    .setDescription("Secret notes")
+                    .setPriority(ProtoTodoPriority.HIGH)
+                    .addTags("docs")
+                    .build(),
             )
-            requireNotNull(response.body?.id)
+            UUID.fromString(response.id)
         }
 
         fun traceCreateTodoIdempotentReplay() = tracer.trace(
             "POST /api/todos (idempotent replay)",
             transactionalReadOnly = false,
         ) {
-            todoController.createTodo(
-                "idem-key-1",
-                CreateTodoRequest(
-                    title = "Write diagram",
-                    description = "Secret notes",
-                    priority = ApiTodoPriority.HIGH,
-                    tags = listOf("docs"),
-                ),
+            todoStub.createTodo(
+                CreateTodoRequest.newBuilder()
+                    .setUserId(activeUserId.toString())
+                    .setIdempotencyKey("idem-key-1")
+                    .setTitle("Write diagram")
+                    .setDescription("Secret notes")
+                    .setPriority(ProtoTodoPriority.HIGH)
+                    .addTags("docs")
+                    .build(),
             )
         }
 
         fun traceListTodos() = tracer.trace("GET /api/todos", transactionalReadOnly = true) {
-            todoController.listTodos(
-                completed = null,
-                priority = null,
-                tag = null,
-                q = null,
-                dueBefore = null,
-                dueAfter = null,
-                sortBy = null,
-                sortOrder = null,
-                projectId = null,
-                assigneeId = null,
+            todoStub.listTodos(
+                ListTodosRequest.newBuilder()
+                    .setUserId(activeUserId.toString())
+                    .build(),
             )
         }
 
         fun traceGetTodo(id: UUID) = tracer.trace("GET /api/todos/{id}", transactionalReadOnly = true) {
-            todoController.getTodo(id)
+            todoStub.getTodo(
+                GetTodoRequest.newBuilder()
+                    .setId(id.toString())
+                    .setUserId(activeUserId.toString())
+                    .build(),
+            )
         }
 
         fun traceUpdateTodo(id: UUID) = tracer.trace("PUT /api/todos/{id}", transactionalReadOnly = false) {
-            todoController.updateTodo(
-                id,
-                UpdateTodoRequest(
-                    title = "Write diagram v2",
-                    completed = true,
-                    description = "Updated secret notes",
-                    priority = ApiTodoPriority.MEDIUM,
-                    tags = listOf("docs"),
-                ),
+            todoStub.updateTodo(
+                UpdateTodoRequest.newBuilder()
+                    .setId(id.toString())
+                    .setUserId(activeUserId.toString())
+                    .setTitle("Write diagram v2")
+                    .setCompleted(true)
+                    .setDescription("Updated secret notes")
+                    .setPriority(ProtoTodoPriority.MEDIUM)
+                    .addTags("docs")
+                    .build(),
             )
         }
 
@@ -428,98 +430,198 @@ class ExternalCallSequenceDiagramGeneratorTest {
             "PATCH /api/todos/{id} (reopen)",
             transactionalReadOnly = false,
         ) {
-            todoController.patchTodo(
-                id,
-                PatchTodoRequest(
-                    completed = false,
-                    description = "Reopened notes",
-                ),
+            todoStub.patchTodo(
+                PatchTodoRequest.newBuilder()
+                    .setId(id.toString())
+                    .setUserId(activeUserId.toString())
+                    .setCompleted(false)
+                    .setDescription("Reopened notes")
+                    .build(),
             )
         }
 
         fun traceAdminStats() = tracer.trace("GET /api/admin/stats", transactionalReadOnly = true) {
-            adminController.getAdminStats()
+            todoStub.getAdminStats(GetAdminStatsRequest.getDefaultInstance())
         }
 
         fun traceAdminUsers() = tracer.trace("GET /api/admin/users", transactionalReadOnly = true) {
-            adminController.getAdminUsers()
+            userRepo.findAll()
         }
 
         fun traceDeleteTodo(id: UUID) = tracer.trace("DELETE /api/todos/{id}", transactionalReadOnly = false) {
-            todoController.deleteTodo(id)
+            todoStub.deleteTodo(
+                DeleteTodoRequest.newBuilder()
+                    .setId(id.toString())
+                    .setUserId(activeUserId.toString())
+                    .build(),
+            )
         }
 
         fun traceSubtaskLifecycle(todoId: UUID) {
             val subtaskId = tracer.trace("POST /api/todos/{id}/subtasks", transactionalReadOnly = false) {
-                requireNotNull(
-                    todoSubtaskController.createTodoSubtask(
-                        todoId,
-                        CreateTodoSubtaskRequest("Step 1"),
-                    ).body?.id,
+                UUID.fromString(
+                    todoStub.createSubtask(
+                        CreateSubtaskRequest.newBuilder()
+                            .setTodoId(todoId.toString())
+                            .setUserId(activeUserId.toString())
+                            .setTitle("Step 1")
+                            .build(),
+                    ).id,
                 )
             }
             tracer.trace("GET /api/todos/{id}/subtasks", transactionalReadOnly = true) {
-                todoSubtaskController.listTodoSubtasks(todoId)
+                todoStub.listSubtasks(
+                    ListSubtasksRequest.newBuilder()
+                        .setTodoId(todoId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
             tracer.trace("PATCH /api/todos/{id}/subtasks/{subtaskId}", transactionalReadOnly = false) {
-                todoSubtaskController.patchTodoSubtask(
-                    todoId,
-                    subtaskId,
-                    PatchTodoSubtaskRequest(completed = true),
+                todoStub.patchSubtask(
+                    PatchSubtaskRequest.newBuilder()
+                        .setTodoId(todoId.toString())
+                        .setSubtaskId(subtaskId.toString())
+                        .setUserId(activeUserId.toString())
+                        .setCompleted(true)
+                        .build(),
                 )
             }
             tracer.trace("DELETE /api/todos/{id}/subtasks/{subtaskId}", transactionalReadOnly = false) {
-                todoSubtaskController.deleteTodoSubtask(todoId, subtaskId)
+                todoStub.deleteSubtask(
+                    DeleteSubtaskRequest.newBuilder()
+                        .setTodoId(todoId.toString())
+                        .setSubtaskId(subtaskId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
         }
 
         fun traceCommentLifecycle(todoId: UUID) {
             val commentId = tracer.trace("POST /api/todos/{id}/comments", transactionalReadOnly = false) {
-                requireNotNull(
-                    todoCommentController.createTodoComment(
-                        todoId,
-                        CreateTodoCommentRequest("Review notes"),
-                    ).body?.id,
+                UUID.fromString(
+                    todoStub.createComment(
+                        CreateCommentRequest.newBuilder()
+                            .setTodoId(todoId.toString())
+                            .setUserId(activeUserId.toString())
+                            .setContent("Review notes")
+                            .build(),
+                    ).id,
                 )
             }
             tracer.trace("GET /api/todos/{id}/comments", transactionalReadOnly = true) {
-                todoCommentController.listTodoComments(todoId)
+                todoStub.listComments(
+                    ListCommentsRequest.newBuilder()
+                        .setTodoId(todoId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
             tracer.trace("DELETE /api/todos/{id}/comments/{commentId}", transactionalReadOnly = false) {
-                todoCommentController.deleteTodoComment(todoId, commentId)
+                todoStub.deleteComment(
+                    DeleteCommentRequest.newBuilder()
+                        .setTodoId(todoId.toString())
+                        .setCommentId(commentId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
         }
 
         fun traceProjectLifecycle(collaboratorId: UUID) {
             val projectId = tracer.trace("POST /api/projects", transactionalReadOnly = false) {
-                requireNotNull(
-                    projectController.createProject(CreateProjectRequest("Shared", "Team project")).body?.id,
+                UUID.fromString(
+                    projectStub.createProject(
+                        CreateProjectRequest.newBuilder()
+                            .setUserId(activeUserId.toString())
+                            .setName("Shared")
+                            .setDescription("Team project")
+                            .build(),
+                    ).id,
                 )
             }
             tracer.trace("GET /api/projects", transactionalReadOnly = true) {
-                projectController.listProjects()
+                projectStub.listProjects(
+                    ListProjectsRequest.newBuilder().setUserId(activeUserId.toString()).build(),
+                )
             }
             tracer.trace("GET /api/projects/{projectId}", transactionalReadOnly = true) {
-                projectController.getProject(projectId)
+                projectStub.getProject(
+                    GetProjectRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
             tracer.trace("PUT /api/projects/{projectId}", transactionalReadOnly = false) {
-                projectController.updateProject(projectId, UpdateProjectRequest("Shared v2", "Updated"))
+                projectStub.updateProject(
+                    UpdateProjectRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setUserId(activeUserId.toString())
+                        .setName("Shared v2")
+                        .setDescription("Updated")
+                        .build(),
+                )
             }
+            traceProjectMemberLifecycle(projectId, collaboratorId)
+            tracer.trace("DELETE /api/projects/{projectId}", transactionalReadOnly = false) {
+                projectStub.deleteProject(
+                    DeleteProjectRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
+            }
+        }
+
+        private fun traceProjectMemberLifecycle(projectId: UUID, collaboratorId: UUID) {
             tracer.trace("POST /api/projects/{projectId}/members", transactionalReadOnly = false) {
-                projectController.addProjectMember(
-                    projectId,
-                    AddProjectMemberRequest(username = "bob", role = ApiProjectRole.MEMBER),
+                projectStub.addProjectMember(
+                    AddProjectMemberRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setActorUserId(activeUserId.toString())
+                        .setUsername("bob")
+                        .setRole(ProtoProjectRole.MEMBER)
+                        .build(),
                 )
             }
             tracer.trace("GET /api/projects/{projectId}/members", transactionalReadOnly = true) {
-                projectController.listProjectMembers(projectId)
+                projectStub.listProjectMembers(
+                    ListProjectMembersRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setUserId(activeUserId.toString())
+                        .build(),
+                )
             }
             tracer.trace("DELETE /api/projects/{projectId}/members/{userId}", transactionalReadOnly = false) {
-                projectController.removeProjectMember(projectId, collaboratorId)
+                projectStub.removeProjectMember(
+                    RemoveProjectMemberRequest.newBuilder()
+                        .setProjectId(projectId.toString())
+                        .setActorUserId(activeUserId.toString())
+                        .setTargetUserId(collaboratorId.toString())
+                        .build(),
+                )
             }
-            tracer.trace("DELETE /api/projects/{projectId}", transactionalReadOnly = false) {
-                projectController.deleteProject(projectId)
-            }
+        }
+
+        private fun registerUserThroughIdentityFlow(username: String, rawPassword: String): UUID {
+            val trimmed = username.trim()
+            check(!userRepo.existsByUsername(trimmed))
+            val saved = userRepo.save(
+                User(
+                    username = trimmed,
+                    passwordHash = passwordEncoder.encode(rawPassword),
+                ),
+            )
+            emailSender.send(
+                EmailNotification(
+                    to = "$trimmed@example.com",
+                    subject = "Welcome to Todo App",
+                    content = "Welcome to Todo App, $trimmed!",
+                ),
+            )
+            return requireNotNull(saved.id)
         }
 
         private companion object {
