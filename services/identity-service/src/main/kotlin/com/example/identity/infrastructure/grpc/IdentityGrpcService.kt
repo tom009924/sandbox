@@ -28,6 +28,7 @@ import com.example.identity.grpc.v1.UserMessage
 import com.example.identity.grpc.v1.UserSettingsMessage
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.UUID
 import com.example.identity.grpc.v1.TodoPriority as ProtoTodoPriority
@@ -149,6 +150,7 @@ class IdentityGrpcService(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> executeRpc(
         responseObserver: StreamObserver<T>,
         block: () -> T,
@@ -166,7 +168,14 @@ class IdentityGrpcService(
             responseObserver.onError(Status.NOT_FOUND.withDescription(ex.message).asRuntimeException())
         } catch (ex: IllegalArgumentException) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(ex.message).asRuntimeException())
+        } catch (ex: Exception) {
+            logger.error("Unexpected error while executing identity gRPC call", ex)
+            responseObserver.onError(Status.INTERNAL.withDescription("Internal server error").asRuntimeException())
         }
+    }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(IdentityGrpcService::class.java)
     }
 }
 

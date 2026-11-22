@@ -1,7 +1,6 @@
 package com.example.gateway.presentation
 
 import com.example.gateway.grpc.TodoGrpcClient
-import com.example.gateway.security.AuthenticatedUser
 import com.example.todo.grpc.v1.CreateCommentRequest
 import com.example.todo.grpc.v1.CreateSubtaskRequest
 import com.example.todo.grpc.v1.CreateTodoRequest
@@ -21,10 +20,10 @@ import com.example.todo.grpc.v1.UpdateTodoRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -58,45 +57,63 @@ enum class GatewaySortOrder {
 
 data class CreateTodoBody(
     @field:NotBlank
-    @field:Size(max = 255)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val title: String,
-    @field:Size(max = 2048)
+    @field:Size(max = MAX_DESCRIPTION_LENGTH)
+    @field:Pattern(regexp = NO_CONTROL_CHARS_PATTERN)
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: GatewayTodoPriority? = null,
     @field:Min(0)
     val estimatedMinutes: Int? = null,
-    val tags: List<String>? = null,
+    @field:Size(max = MAX_TAGS_COUNT)
+    val tags: List<
+        @Size(max = MAX_TAG_LENGTH)
+        String
+        >? = null,
     val projectId: UUID? = null,
     val assigneeId: UUID? = null,
 )
 
 data class UpdateTodoBody(
     @field:NotBlank
-    @field:Size(max = 255)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val title: String,
     val completed: Boolean,
-    @field:Size(max = 2048)
+    @field:Size(max = MAX_DESCRIPTION_LENGTH)
+    @field:Pattern(regexp = NO_CONTROL_CHARS_PATTERN)
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: GatewayTodoPriority? = null,
     @field:Min(0)
     val estimatedMinutes: Int? = null,
-    val tags: List<String>? = null,
+    @field:Size(max = MAX_TAGS_COUNT)
+    val tags: List<
+        @Size(max = MAX_TAG_LENGTH)
+        String
+        >? = null,
     val assigneeId: UUID? = null,
 )
 
 data class PatchTodoBody(
-    @field:Size(min = 1, max = 255)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val title: String? = null,
     val completed: Boolean? = null,
-    @field:Size(max = 2048)
+    @field:Size(max = MAX_DESCRIPTION_LENGTH)
+    @field:Pattern(regexp = NO_CONTROL_CHARS_PATTERN)
     val description: String? = null,
     val dueDate: LocalDate? = null,
     val priority: GatewayTodoPriority? = null,
     @field:Min(0)
     val estimatedMinutes: Int? = null,
-    val tags: List<String>? = null,
+    @field:Size(max = MAX_TAGS_COUNT)
+    val tags: List<
+        @Size(max = MAX_TAG_LENGTH)
+        String
+        >? = null,
     val assigneeId: UUID? = null,
 )
 
@@ -116,12 +133,14 @@ data class TodoResponse(
 
 data class CreateSubtaskBody(
     @field:NotBlank
-    @field:Size(max = 255)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val title: String,
 )
 
 data class PatchSubtaskBody(
-    @field:Size(min = 1, max = 255)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val title: String? = null,
     val completed: Boolean? = null,
     @field:Min(0)
@@ -138,7 +157,8 @@ data class TodoSubtaskResponse(
 
 data class CreateCommentBody(
     @field:NotBlank
-    @field:Size(max = 2000)
+    @field:Size(max = MAX_COMMENT_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val content: String,
 )
 
@@ -207,6 +227,12 @@ class TodoGatewayController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody body: CreateTodoBody,
     ): ResponseEntity<TodoResponse> {
+        if (idempotencyKey.isBlank() || idempotencyKey.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Idempotency-Key must be between 1 and $MAX_IDEMPOTENCY_KEY_LENGTH characters",
+            )
+        }
         val builder = CreateTodoRequest.newBuilder()
             .setUserId(currentUserId().toString())
             .setIdempotencyKey(idempotencyKey)
@@ -382,12 +408,6 @@ class TodoGatewayController(
                 activeTodos = stats.activeTodos,
             ),
         )
-    }
-
-    private fun currentUserId(): UUID {
-        val principal = SecurityContextHolder.getContext().authentication?.principal as? AuthenticatedUser
-            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated")
-        return principal.userId
     }
 }
 

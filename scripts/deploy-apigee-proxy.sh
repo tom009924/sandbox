@@ -8,14 +8,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUNDLE_ZIP="/tmp/apigee-bundle.zip"
 
-if [ ! -d "$REPO_ROOT/src/main/apigee" ]; then
-  echo "Error: Apigee workspace directory not found at $REPO_ROOT/src/main/apigee" >&2
+APIGEE_DIR="$REPO_ROOT/infra/apigee"
+if [ ! -d "$APIGEE_DIR" ]; then
+  echo "Error: Apigee workspace directory not found at $APIGEE_DIR" >&2
   exit 1
 fi
 
-echo "Packaging Apigee workspace bundle from: $REPO_ROOT/src/main/apigee"
+echo "Packaging Apigee workspace bundle from: $APIGEE_DIR"
 rm -f "$BUNDLE_ZIP"
-(cd "$REPO_ROOT" && zip -r "$BUNDLE_ZIP" src/main/apigee > /dev/null)
+STAGE_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGE_DIR"' EXIT
+mkdir -p "$STAGE_DIR/src/main"
+cp -R "$APIGEE_DIR" "$STAGE_DIR/src/main/apigee"
+(cd "$STAGE_DIR" && zip -r "$BUNDLE_ZIP" src/main/apigee > /dev/null)
 
 echo "Deploying workspace bundle to Apigee Emulator ($EMULATOR_HOST) in environment '$ENV_NAME'..."
 HTTP_STATUS=$(curl -s -o /tmp/apigee-deploy-response.json -w "%{http_code}" -X POST \

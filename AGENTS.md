@@ -5,12 +5,12 @@
 ## 共通ルール
 詳細なコーディング規約および設計方針は [.github/rules/guidelines.md](.github/rules/guidelines.md) を参照してください。
 
-- **Java/Kotlin**: Java 21, Kotlin 2.2, Spring Boot 4.0
-- **スタイル/検証**: `./gradlew detekt`（Detekt 静的解析をパスすること）
+- **Java/Kotlin / マイクロサービス**: Java 21, Kotlin 2.2, Spring Boot 4.0（`:services:api-gateway`、`:services:identity-service`、`:services:todo-service`、`:libs:grpc-common`、`:libs:identity-proto`、`:libs:todo-proto` のマルチモジュール gRPC 構成。インフラ定義は `infra/apigee/`, `infra/wiremock/`。詳細は [docs/architecture/microservices.md](docs/architecture/microservices.md) を参照）
+- **スタイル/検証**: `./gradlew detekt`（各マイクロサービスは `:services:api-gateway:detekt`, `:services:identity-service:detekt`）
 - **コード品質 (Qodana)**: CI で JetBrains Qodana（[qodana.yaml](qodana.yaml)）による静的コード解析が実行されます
 - **セキュリティ・OSS健全性・SBOM (Trivy, OWASP dep-scan, OpenSSF Scorecard)**: CI で Aqua Security Trivy（[trivy.yaml](trivy.yaml), [.trivyignore](.trivyignore)）による脆弱性・ライセンススキャンおよび CycloneDX SBOM の自動生成・保管、OWASP dep-scan（[.github/workflows/dep-scan.yml](.github/workflows/dep-scan.yml), [scripts/dep-scan.sh](scripts/dep-scan.sh)）による到達可能性解析（Reachability Analysis）・EPSS/KEV 優先度評価・VEX 生成、ならびに OpenSSF Scorecard（[.github/workflows/oss-health.yml](.github/workflows/oss-health.yml)）による依存OSSの持続可能性・活動性・放置リスク・サプライチェーンセキュリティ評価（JSONレポート保管）が実行されます。また Gradle Dependency Verification（`gradle/verification-metadata.xml`）により依存関係のチェックサム改ざんが防止されます
-- **OpenAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml) と実装コードを同期し、`./gradlew lintOpenApi` (Spectral) をパスすること
-- **全検証**: コミット前に必ず `./gradlew check` を実行すること
+- **OpenAPI / AsyncAPI**: API変更時は必ず [docs/openapi.yaml](docs/openapi.yaml)（分割スキーマ `docs/paths/`, `docs/components/` およびオーバーレイ `docs/overlays/`）と実装コード（`todo-api` および `services/api-gateway`）を同期し、`./gradlew lintOpenApi`・`./gradlew lintAsyncApi` (Redocly CLI) をパスすること
+- **全検証**: コミット前に必ず `./gradlew check`（ルート `todo-api` の unit / integration / `propertyTest` 含む）および変更したマイクロサービスの `./gradlew :services:api-gateway:check :services:identity-service:check` を実行すること
 - **テスト戦略・テスト環境検証**: 全体テスト方針は [docs/testing/test-strategy.md](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) を参照すること
 
 ## トークン消費・コンテキスト効率化 (ccusage 連携 & ベストプラクティス)

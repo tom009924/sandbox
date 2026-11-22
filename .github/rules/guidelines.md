@@ -4,11 +4,12 @@
 
 ## 1. 技術スタック
 - **言語**: Kotlin 2.2 (Java 21)
-- **フレームワーク**: Spring Boot 4.0 (Web, Data JPA, Validation)
-- **データベース**: Cloud Spanner (ローカル開発・テストではCloud Spanner Emulator)
+- **フレームワーク**: Spring Boot 4.0 (Web, Security, Validation, Flyway, Spring Cloud GCP Spanner), gRPC / Protobuf (`:libs:identity-proto`, `:libs:todo-proto`)
+- **サービス構成**: `:services:api-gateway`（BFF / REST Edge）、`:services:identity-service`（認証・ユーザー設定）、`:services:todo-service`（Todo・Project）、`:libs:grpc-common`（共通 gRPC インターセプタ）、`:libs:*-proto`（Protobuf 契約）、`infra/`（Apigee / WireMock）
+- **データベース**: Cloud Spanner + Flyway マイグレーション (ローカル開発・テストではCloud Spanner Emulator)
 - **静的解析・セキュリティ**: Detekt 1.23, JetBrains Qodana (Community JVM), Aqua Security Trivy (脆弱性・ライセンス・CycloneDX SBOM生成), OWASP dep-scan (到達可能性解析・EPSS/KEV評価・VEX生成), OpenSSF Scorecard (依存OSS健全性・持続性・サプライチェーン評価・JSON保管), Socket Security, Gradle Dependency Verification (チェックサム改ざん検証)
-- **テスト**: JUnit 5, MockMvc, REST Assured, Kotest, swagger-parser
-- **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), OpenAPI Arazzo 1.0.1 ([docs/workflows/todo-workflows.arazzo.yaml](docs/workflows/todo-workflows.arazzo.yaml)), Stoplight Spectral 6.16, Redocly CLI, OpenAPI Generator Validate
+- **テスト**: JUnit 5, MockMvc, REST Assured, Kotest Property (`propertyTest`), ArchUnit, swagger-parser
+- **API仕様・品質検証**: OpenAPI 3.0.3 ([docs/openapi.yaml](docs/openapi.yaml)), AsyncAPI 3.1.0 ([docs/asyncapi.yaml](docs/asyncapi.yaml)), OpenAPI Arazzo 1.0.1 ([docs/workflows/todo-workflows.arazzo.yaml](docs/workflows/todo-workflows.arazzo.yaml)), Redocly CLI, OpenAPI Generator Validate
 
 ## 2. コーディングルール
 1. **コードスタイル & 静的解析**:
@@ -19,9 +20,9 @@
    - 外部公開用API（正本・英語SSOT）は [`docs/openapi.yaml`](docs/openapi.yaml) に定義します。外部配布物に内部・管理者向け情報が漏洩しないよう、安全性の原則（Allowlist）に従い外部公開可能なAPIのみをベース仕様とします。
    - 内部専用・管理者向けエンドポイント（Admin API等）は OpenAPI Overlay 仕様（[`docs/overlays/admin.yaml`](docs/overlays/admin.yaml)）で拡張・合成し、内部完全版仕様（`docs/dist/openapi.admin.yaml`）を生成します。
    - 日本語版仕様（`docs/dist/openapi.ja.yaml`）は [`docs/overlays/ja.yaml`](docs/overlays/ja.yaml) により自動生成されます。
-   - `./gradlew lintOpenApi` または `./gradlew bundleOpenApi` を実行することで各仕様書が自動生成・Spectral検証されます。
+   - `./gradlew lintOpenApi` または `./gradlew bundleOpenApi` を実行することで各仕様書が自動生成・Redocly CLI で検証されます。
    - API の呼び出し順序や一連のユースケース（ユーザー登録、ログイン、Todo作成・更新、管理者監査など）は Arazzo ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](docs/workflows/todo-workflows.arazzo.yaml)）に定義し、`npm run lint:arazzo` または `./gradlew lintOpenApi` で検証します。
-   - `./gradlew lintOpenApi` で Spectral による全仕様（ベース・管理者向け・日英仕様）および Redocly による Arazzo ワークフローの静的検証をパスすること。
+   - `./gradlew lintOpenApi` で Redocly CLI による全仕様（ベース・管理者向け・日英仕様）および Arazzo ワークフローの静的検証をパスすること。
    - 統合テスト（`integrationTest`）で OpenAPI 仕様（内部完全版）との整合性、および**定義されたレスポンスと制約（`pattern`, `enum`, `minimum` 等）の 100% テストカバレッジ**が自動検証されます。
 3. **依存関係の管理とロック**:
    - Gradle Version Catalog (`gradle/libs.versions.toml`) および依存関係ロック（`dependencyLocking { lockAllConfigurations() }`）を採用しています。
@@ -37,9 +38,9 @@
 ## 3. テストと検証
 変更完了後は必ず次のコマンドで全検証を実行し、エラーがないことを確認すること:
 ```bash
-./gradlew check
+./gradlew check :services:api-gateway:check :services:identity-service:check
 ```
-※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis: `buildHealth`）、OpenAPIリンティング（Spectral: `lintOpenApi` / `openApiValidate`）、ユニットテスト、結合テストが一括実行されます。
+※ `check` タスクにより Detekt、ビルド健全性（Dependency Analysis: `buildHealth`）、OpenAPI / AsyncAPI リンティング（Redocly CLI: `lintOpenApi` / `lintAsyncApi` / `openApiValidate`）、ユニットテスト、結合テスト、プロパティベーステスト（`propertyTest`）、JaCoCo カバレッジ検証が一括実行されます。
 ※ エミュレータ接続を伴うテスト実行時は、ポート 9010 (Spanner) および 8085 (Pub/Sub) へのソケット接続が必要です。
 ※ ステージングやQA環境等のテスト環境における検証手順・チェックリスト・自動スモークテストは [docs/testing/test-environment-specification.md](docs/testing/test-environment-specification.md) に定義されています。
 

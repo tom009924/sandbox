@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IDENTITY_JAR="${IDENTITY_JAR:-services/identity-service/build/libs/app.jar}"
-TODO_JAR="${TODO_JAR:-build/libs/app.jar}"
+TODO_JAR="${TODO_JAR:-services/todo-service/build/libs/app.jar}"
 GATEWAY_JAR="${GATEWAY_JAR:-services/api-gateway/build/libs/app.jar}"
 
 IDENTITY_PID=""
@@ -66,4 +66,17 @@ if ! GATEWAY_BASE_URL=http://127.0.0.1:8082 node scripts/test-microservices-e2e.
   echo "=== api-gateway.log ==="
   cat api-gateway.log
   exit 1
+fi
+
+if [ "${SKIP_ARAZZO:-false}" != "true" ]; then
+  if ! SERVER_URL=http://127.0.0.1:8082 npm run test:arazzo; then
+    echo "Arazzo E2E via api-gateway failed."
+    echo "=== identity-service.log ==="
+    cat identity-service.log
+    echo "=== todo-api.log ==="
+    cat todo-api.log
+    echo "=== api-gateway.log ==="
+    cat api-gateway.log
+    exit 1
+  fi
 fi

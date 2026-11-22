@@ -15,10 +15,10 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 
 Apigee APIプロキシのローカル検証を行う場合は、Apigee Emulatorを起動できます。
 ```bash
-docker compose up -d apigee-emulator
+docker compose --profile apigee up -d apigee-emulator
 npm run deploy:apigee
 ```
-Apigee Emulatorはホスト側ポート `8088`（Management API / デプロイ用）および `8998`（Traffic / プロキシ呼出用）で起動します。リバースプロキシワークスペース（`src/main/apigee`）が同梱されており、`http://localhost:8998/v1/*` へのリクエストが Spring Boot バックエンド（`/api/*`）へルーティングされます（CORS ヘッダー付与対応）。また `src/integrationTest` には Apigee プロキシ経由の疎通・CORS 検証テスト（`ApigeeProxyIntegrationTest`）が含まれています。VS Code環境では Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）を通じたプロキシデバッグやトレースも可能です。
+Apigee Emulatorはホスト側ポート `8088`（Management API / デプロイ用）および `8998`（Traffic / プロキシ呼出用）で起動します。リバースプロキシワークスペース（`infra/apigee`）が同梱されており、`http://localhost:8998/v1/*` へのリクエストが Spring Boot バックエンド（`/api/*`）へルーティングされます（CORS ヘッダー付与対応）。また `services/todo-service/src/integrationTest` には Apigee プロキシ経由の疎通・CORS 検証テスト（`ApigeeProxyIntegrationTest`）が含まれています。VS Code環境では Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）を通じたプロキシデバッグやトレースも可能です。
 
 Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
@@ -99,7 +99,9 @@ Todo機能は依存関係を内側へ向けたレイヤード構成です。
 - `presentation`: REST Controller、HTTP DTO、例外からHTTPレスポンスへの変換
 - `application`: Todoのユースケースと業務処理
 - `domain`: Todoモデル、Repositoryポート、ドメイン例外
-- `infrastructure`: Spring Data JPA、永続化Entity、Repositoryアダプター
+- `infrastructure`: Spring Cloud GCP Spanner、Flywayマイグレーション、永続化Entity、Repositoryアダプター、gRPCサーバー/クライアント
+
+また、マルチモジュール構成として REST API Gateway（`:services:api-gateway`）、Identity Service（`:services:identity-service`）、Todo Service（`:services:todo-service`）、共通 gRPC ライブラリ（`:libs:grpc-common`）、および共有 Protobuf 契約（`:libs:identity-proto`, `:libs:todo-proto`）を備えています。サービス間トポロジー・セキュリティ境界の詳細は [`docs/architecture/microservices.md`](docs/architecture/microservices.md) および [`docs/adr/0002-rest-gateway-and-grpc-microservices.md`](docs/adr/0002-rest-gateway-and-grpc-microservices.md) を参照してください。
 
 ControllerはApplication Serviceを呼び出し、Domainが定義するRepositoryポートをInfrastructureが実装します。
 この依存方向とDomain/Applicationのフレームワーク非依存はArchUnitのアーキテクチャテストで検証します。
@@ -110,9 +112,9 @@ ControllerはApplication Serviceを呼び出し、Domainが定義するRepositor
 
 - **外部呼び出しシーケンス図（自動生成）**: [`docs/architecture/external-call-sequence.md`](docs/architecture/external-call-sequence.md)
   - `./gradlew generateExternalCallDiagrams` で動的トレース（`ExternalCallTracer`）から Mermaid シーケンス図を自動生成し、CI で差分チェック（`git diff --exit-code`）を行います。
-- **非同期イベント仕様（AsyncAPI 3.0.0）**: [`docs/asyncapi.yaml`](docs/asyncapi.yaml)
+- **非同期イベント仕様（AsyncAPI 3.1.0）**: [`docs/asyncapi.yaml`](docs/asyncapi.yaml)
   - Cloud Pub/Sub トピック（`todo-events`）へ発行する `TodoEvent`（`CREATED` / `UPDATED` / `DELETED`）のスキーマを定義しています。
-- **同期 REST API / E2E ワークフロー**: [`docs/openapi.yaml`](docs/openapi.yaml)（Spectral 検証）、[`docs/workflows/README.md`](docs/workflows/README.md)（Arazzo から `npm run generate:diagrams` で自動生成）
+- **同期 REST API / E2E ワークフロー**: [`docs/openapi.yaml`](docs/openapi.yaml)（Redocly CLI 検証）、[`docs/workflows/README.md`](docs/workflows/README.md)（Arazzo から `npm run generate:diagrams` で自動生成）
 
 更新リクエスト:
 
@@ -145,10 +147,10 @@ MockMvcによるコントローラーテストを実行します。静的解析�
 ```
 
 Detektは自動修正可能なルールを実行時に自動修正します。
-OpenAPI仕様書（`docs/openapi.yaml`）の静的解析（Stoplight Spectralによる命名規則や必須メタデータの検証）は次で実行できます。
+OpenAPI仕様書（`docs/openapi.yaml`）および AsyncAPI仕様書（`docs/asyncapi.yaml`）の静的解析（Redocly CLI による命名規則や必須メタデータの検証）は次で実行できます。
 
 ```bash
-./gradlew lintOpenApi
+./gradlew lintOpenApi lintAsyncApi
 ```
 
 CI では JetBrains Qodana（設定: [`qodana.yaml`](qodana.yaml)）による静的コード解析および品質チェックが `.github/workflows/qodana.yml` で実行されます。ローカルで実行する場合は Docker を利用できます:
@@ -178,7 +180,7 @@ export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew integrationTest
 ```
 
-`check`を実行するとDetekt、ユニットテスト、インテグレーションテストを順に実行します。
+`check`を実行するとDetekt、依存関係健全性検証、OpenAPI/AsyncAPIリンティング、ユニットテスト、インテグレーションテスト、プロパティベーステスト（`propertyTest`）、JaCoCoカバレッジ検証を順に実行します。マイクロサービスの検証は `./gradlew :services:api-gateway:check :services:identity-service:check`、結合E2E（Arazzo含む）は `bash scripts/run-microservices-e2e.sh` で実行できます。
 
 ### Arazzo ワークフローテスト（E2E / スモーク）
 

@@ -7,6 +7,8 @@ private const val DEFAULT_IDENTITY_GRPC_PORT = 9091
 private const val DEFAULT_TODO_GRPC_PORT = 9092
 private const val DEFAULT_GRPC_TIMEOUT_SECONDS = 5L
 private const val DEFAULT_TODO_GRPC_TIMEOUT_SECONDS = 10L
+private const val DEFAULT_KEEP_ALIVE_TIME_SECONDS = 30L
+private const val DEFAULT_KEEP_ALIVE_TIMEOUT_SECONDS = 10L
 
 @ConfigurationProperties(prefix = "gateway.identity")
 data class IdentityGrpcProperties(
@@ -14,6 +16,9 @@ data class IdentityGrpcProperties(
     val grpcPort: Int = DEFAULT_IDENTITY_GRPC_PORT,
     val internalApiKey: String = "internal-secret-key",
     val timeout: Duration = Duration.ofSeconds(DEFAULT_GRPC_TIMEOUT_SECONDS),
+    val useTls: Boolean = false,
+    val keepAliveTime: Duration = Duration.ofSeconds(DEFAULT_KEEP_ALIVE_TIME_SECONDS),
+    val keepAliveTimeout: Duration = Duration.ofSeconds(DEFAULT_KEEP_ALIVE_TIMEOUT_SECONDS),
 )
 
 @ConfigurationProperties(prefix = "gateway.todo")
@@ -22,4 +27,7 @@ data class TodoGrpcProperties(
     val grpcPort: Int = DEFAULT_TODO_GRPC_PORT,
     val internalApiKey: String = "internal-secret-key",
     val timeout: Duration = Duration.ofSeconds(DEFAULT_TODO_GRPC_TIMEOUT_SECONDS),
+    val useTls: Boolean = false,
+    val keepAliveTime: Duration = Duration.ofSeconds(DEFAULT_KEEP_ALIVE_TIME_SECONDS),
+    val keepAliveTimeout: Duration = Duration.ofSeconds(DEFAULT_KEEP_ALIVE_TIMEOUT_SECONDS),
 )

@@ -1,5 +1,6 @@
 package com.example.identity.infrastructure.grpc
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.identity.application.AdminUserService
 import com.example.identity.application.AuthService
 import com.example.identity.application.TokenIssuer

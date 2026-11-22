@@ -55,11 +55,11 @@ jobs:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
           PUBSUB_REQUIRED: "true"
-        run: ./gradlew check bootJar cyclonedxBom --no-daemon -PdetektAutoCorrect=false
+        run: ./gradlew :services:todo-service:check :services:todo-service:bootJar :services:todo-service:cyclonedxBom lintOpenApi lintAsyncApi buildHealth --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated docs and diagrams are up-to-date
         run: |
-          ./gradlew generateExternalCallDiagrams --no-daemon
+          ./gradlew :services:todo-service:generateExternalCallDiagrams --no-daemon
           git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-call-sequence.md
 
       - name: Upload CycloneDX SBOM
@@ -67,14 +67,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom
-          path: build/reports/cyclonedx/bom.json
+          path: services/todo-service/build/reports/cyclonedx/bom.json
           retention-days: 14
 
       - name: Upload todo-api JAR
         uses: actions/upload-artifact@v4
         with:
           name: jar-todo-api
-          path: build/libs/app.jar
+          path: services/todo-service/build/libs/app.jar
           retention-days: 1
 
   verify-microservices:
@@ -103,8 +103,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run checks and build JAR
-        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar --no-daemon -PdetektAutoCorrect=false
+      - name: Run checks, build JAR, and generate SBOM
+        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom --no-daemon -PdetektAutoCorrect=false
+
+      - name: Upload ${{ matrix.service }} CycloneDX SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-cyclonedx-sbom-${{ matrix.service }}
+          path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
+          retention-days: 14
 
       - name: Upload ${{ matrix.service }} JAR
         uses: actions/upload-artifact@v4
@@ -221,6 +229,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
 
       - name: Download service JARs
         uses: actions/download-artifact@v4

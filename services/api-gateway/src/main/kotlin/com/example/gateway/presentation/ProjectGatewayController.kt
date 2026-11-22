@@ -1,7 +1,6 @@
 package com.example.gateway.presentation
 
 import com.example.gateway.grpc.TodoGrpcClient
-import com.example.gateway.security.AuthenticatedUser
 import com.example.todo.grpc.v1.AddProjectMemberRequest
 import com.example.todo.grpc.v1.CreateProjectRequest
 import com.example.todo.grpc.v1.DeleteProjectRequest
@@ -14,10 +13,10 @@ import com.example.todo.grpc.v1.RemoveProjectMemberRequest
 import com.example.todo.grpc.v1.UpdateProjectRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -25,7 +24,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -39,22 +37,28 @@ enum class GatewayProjectRole {
 
 data class CreateProjectBody(
     @field:NotBlank
-    @field:Size(max = 100)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val name: String,
-    @field:Size(max = 500)
+    @field:Size(max = MAX_DESCRIPTION_LENGTH)
+    @field:Pattern(regexp = NO_CONTROL_CHARS_PATTERN)
     val description: String? = null,
 )
 
 data class UpdateProjectBody(
     @field:NotBlank
-    @field:Size(max = 100)
+    @field:Size(max = MAX_TITLE_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val name: String,
-    @field:Size(max = 500)
+    @field:Size(max = MAX_DESCRIPTION_LENGTH)
+    @field:Pattern(regexp = NO_CONTROL_CHARS_PATTERN)
     val description: String? = null,
 )
 
 data class AddProjectMemberBody(
     @field:NotBlank
+    @field:Size(min = 1, max = MAX_PROJECT_MEMBER_USERNAME_LENGTH)
+    @field:Pattern(regexp = NON_WHITESPACE_PATTERN)
     val username: String,
     val role: GatewayProjectRole? = null,
 )
@@ -175,12 +179,6 @@ class ProjectGatewayController(
                 .build(),
         )
         return ResponseEntity.noContent().build()
-    }
-
-    private fun currentUserId(): UUID {
-        val principal = SecurityContextHolder.getContext().authentication?.principal as? AuthenticatedUser
-            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated")
-        return principal.userId
     }
 }
 
