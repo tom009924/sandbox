@@ -19,30 +19,34 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
    ```
 2. 全検証の実行（依存関係キャッシュ済みなら `--offline` で高速実行可能）:
    ```bash
-   ./gradlew --offline check
+   ./gradlew --offline check :services:api-gateway:check :services:identity-service:check
    ```
 
 ### 2. 個別タスクの実行
 
-- **静的コード解析のみ (Detekt・エミュレータ不要・サンドボックス内で実行可能)**:
+- **静的コード解析のみ (Detekt・エミュレータ不要)**:
   ```bash
-  ./gradlew --offline detekt
+  ./gradlew --offline detekt :services:api-gateway:detekt :services:identity-service:detekt
   ```
   ※ 自動修正可能なスタイル違反は自動で修正されます。
-- **OpenAPI 仕様の静的解析のみ (Spectral・エミュレータ不要)**:
+- **OpenAPI / AsyncAPI 仕様の静的解析のみ (Redocly CLI・エミュレータ不要)**:
   ```bash
-  ./gradlew lintOpenApi
+  ./gradlew lintOpenApi lintAsyncApi
   ```
-  ※ OpenAPI 仕様の構文、命名規則（kebab-case/camelCase）、必須メタデータなどを検証します。
-- **ユニットテストのみ (MockMvc)**:
+  ※ OpenAPI / AsyncAPI / Arazzo 仕様の構文、命名規則、必須メタデータなどを検証します。
+- **ユニットテストのみ (MockMvc / in-process gRPC)**:
   ```bash
-  ./gradlew --offline test
+  ./gradlew --offline test :services:api-gateway:test :services:identity-service:test
   # 特定のテストクラスに絞って高速実行（トークン・実行時間節約）:
   ./gradlew --offline test --tests "com.example.todo.application.TodoServiceTest"
   ```
-- **結合テストのみ (REST Assured + OpenAPI Validator)**:
+- **結合テスト・プロパティベーステスト (REST Assured + OpenAPI Validator / Kotest Property)**:
   ```bash
-  ./gradlew --offline integrationTest
+  ./gradlew --offline integrationTest propertyTest
+  ```
+- **マイクロサービス結合 E2E (Gateway + gRPC + Arazzo)**:
+  ```bash
+  bash scripts/run-microservices-e2e.sh
   ```
 - **OpenAPI スペックカバレッジの計測と標準出力**:
   ```bash
@@ -100,11 +104,11 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
    - リクエスト/レスポンスのフィールド欠落、余分なフィールド、型不整合、ステータスコード不一致などが原因です。
    - `verifyAllOpenApiConstraintsCovered()` で失敗した場合は、OpenAPI 仕様に追加された `pattern` や `enum`、`minimum` 等の制約に対する異常系（400）テストが `TodoApiTestCases.kt` に不足しています。対応するテストケースを追加してください。
 
-3. **Cloud Spanner Emulator のスキーマエラー (`Cannot add NOT NULL column`)**:
-   - JPA Entity に新規カラム（特に `NOT NULL`）を追加した場合、Spanner の制約により `ddl-auto=update` でのスキーマ変更が失敗します。
+3. **Cloud Spanner Emulator のスキーマエラー (`Cannot add NOT NULL column` / Flyway 競合)**:
+   - Spanner テーブル定義や Flyway マイグレーション（`src/main/resources/db/migration/`）を変更した場合、既存のインメモリDBスキーマと衝突することがあります。
    - エミュレータコンテナを再起動してインメモリのデータベースを初期化してください:
      ```bash
-     docker restart kotlin-devcontainer-spanner-emulator-1
+     docker compose restart spanner-emulator
      ```
    - ※ 再起動直後はポート 9010 への接続受付が完了するまで数秒待ってからテストを実行してください。
 
@@ -128,4 +132,4 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 
 7. **エージェント環境（サンドボックス）でのネットワーク / ポート接続**:
    - 単体テスト（MockMvc）や結合テスト（REST Assured）は、ローカルエミュレータ（Spanner: 9010, Pub/Sub: 8085）やランダム HTTP ポートへのソケット接続を伴うため、エージェント環境ではネットワーク許可（`BypassSandbox: true`）が必要です。
-   - Detekt、Spectral リンティング（`lintOpenApi`）、OpenAPI バリデーション（`openApiValidate`）は標準サンドボックス内で実行可能です。
+   - Detekt、Redocly CLI リンティング（`lintOpenApi`, `lintAsyncApi`）、OpenAPI バリデーション（`openApiValidate`）はエミュレータ不要で実行可能です。
