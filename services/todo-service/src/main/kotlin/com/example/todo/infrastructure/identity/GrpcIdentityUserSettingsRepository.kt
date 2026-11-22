@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.identity
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.identity.grpc.v1.GetUserSettingsRequest
 import com.example.identity.grpc.v1.IdentityServiceGrpc
 import com.example.identity.grpc.v1.UserSettingsMessage
@@ -23,7 +24,7 @@ class GrpcIdentityUserSettingsRepository(
 
     private fun stub(): IdentityServiceGrpc.IdentityServiceBlockingStub {
         val headers = Metadata().apply {
-            put(GrpcIdentityUserRepository.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
+            put(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return IdentityServiceGrpc.newBlockingStub(channel)
             .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))

@@ -7,7 +7,8 @@ on:
   # pull_request:
   #   branches: [main]
   #   paths:
-  #     - "src/**"
+  #     - "services/**"
+  #     - "libs/**"
   #     - "build.gradle.kts"
   #     - "settings.gradle.kts"
   #     - "gradle/**"
@@ -19,7 +20,8 @@ on:
   # push:
   #   branches: [main]
   #   paths:
-  #     - "src/**"
+  #     - "services/**"
+  #     - "libs/**"
   #     - "build.gradle.kts"
   #     - "settings.gradle.kts"
   #     - "gradle/**"

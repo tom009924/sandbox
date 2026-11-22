@@ -1,5 +1,6 @@
 package com.example.todo.infrastructure.identity
 
+import com.example.grpc.common.InternalApiKeyGrpcInterceptor
 import com.example.identity.grpc.v1.BatchGetUsersRequest
 import com.example.identity.grpc.v1.CountUsersRequest
 import com.example.identity.grpc.v1.CountUsersResponse
@@ -46,7 +47,7 @@ class GrpcIdentityClientTest {
                 headers: Metadata,
                 next: ServerCallHandler<ReqT, RespT>,
             ): ServerCall.Listener<ReqT> {
-                val provided = headers.get(GrpcIdentityUserRepository.INTERNAL_API_KEY_METADATA_KEY)
+                val provided = headers.get(InternalApiKeyGrpcInterceptor.INTERNAL_API_KEY_METADATA_KEY)
                 return if (provided == internalApiKey) {
                     next.startCall(call, headers)
                 } else {

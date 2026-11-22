@@ -3,6 +3,7 @@ package com.example.identity.presentation
 import com.example.identity.application.AuthService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -16,16 +17,21 @@ import java.util.UUID
 data class RegisterRequest(
     @field:NotBlank
     @field:Size(min = 3, max = 50)
+    @field:Pattern(regexp = ".*\\S.*")
     val username: String,
     @field:NotBlank
-    @field:Size(min = 8, max = 100)
+    @field:Size(min = 6, max = 100)
+    @field:Pattern(regexp = ".*\\S.*")
     val password: String,
 )
 
 data class LoginRequest(
     @field:NotBlank
+    @field:Size(max = 255)
+    @field:Pattern(regexp = "^\\S+$")
     val username: String,
     @field:NotBlank
+    @field:Size(max = 255)
     val password: String,
 )
 
