@@ -1,6 +1,7 @@
 package com.example.gateway.grpc
 
 import com.example.gateway.config.TodoGrpcProperties
+import com.example.grpc.common.TracingGrpcClientInterceptor
 import com.example.todo.grpc.v1.AddProjectMemberRequest
 import com.example.todo.grpc.v1.AdminStatsMessage
 import com.example.todo.grpc.v1.CreateCommentRequest
@@ -46,7 +47,16 @@ class TodoGrpcClient(
 
     constructor(properties: TodoGrpcProperties) : this(
         channel = NettyChannelBuilder.forAddress(properties.grpcHost, properties.grpcPort)
-            .usePlaintext()
+            .apply {
+                if (properties.useTls) {
+                    useTransportSecurity()
+                } else {
+                    usePlaintext()
+                }
+            }
+            .keepAliveTime(properties.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
+            .keepAliveTimeout(properties.keepAliveTimeout.toMillis(), TimeUnit.MILLISECONDS)
+            .keepAliveWithoutCalls(true)
             .build(),
         internalApiKey = properties.internalApiKey,
         timeoutMillis = properties.timeout.toMillis(),
@@ -57,7 +67,10 @@ class TodoGrpcClient(
             put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return TodoServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
+            .withInterceptors(
+                MetadataUtils.newAttachHeadersInterceptor(headers),
+                TracingGrpcClientInterceptor(),
+            )
             .withDeadlineAfter(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 
@@ -66,7 +79,10 @@ class TodoGrpcClient(
             put(INTERNAL_API_KEY_METADATA_KEY, internalApiKey)
         }
         return ProjectServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers))
+            .withInterceptors(
+                MetadataUtils.newAttachHeadersInterceptor(headers),
+                TracingGrpcClientInterceptor(),
+            )
             .withDeadlineAfter(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 

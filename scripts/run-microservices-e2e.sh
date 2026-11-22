@@ -67,3 +67,16 @@ if ! GATEWAY_BASE_URL=http://127.0.0.1:8082 node scripts/test-microservices-e2e.
   cat api-gateway.log
   exit 1
 fi
+
+if [ "${SKIP_ARAZZO:-false}" != "true" ]; then
+  if ! SERVER_URL=http://127.0.0.1:8082 npm run test:arazzo; then
+    echo "Arazzo E2E via api-gateway failed."
+    echo "=== identity-service.log ==="
+    cat identity-service.log
+    echo "=== todo-api.log ==="
+    cat todo-api.log
+    echo "=== api-gateway.log ==="
+    cat api-gateway.log
+    exit 1
+  fi
+fi
