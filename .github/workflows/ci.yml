@@ -4,7 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, "feat/**"]
+    paths-ignore:
+      - "README.md"
+      - "AGENTS.md"
+      - "docs/adr/**"
+      - "docs/testing/**"
+      - "docs/architecture/microservices.md"
+      - ".github/copilot-instructions.md"
+      - ".github/rules/**"
+      - ".github/skills/**"
   workflow_dispatch:
 
 permissions:
@@ -14,10 +22,49 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx2g"
+
 jobs:
+  lint-and-specs:
+    name: Lint, Specs & Build Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Detekt, API spec linters, and Dependency Analysis
+        run: |
+          ./gradlew detekt :services:identity-service:detekt :services:api-gateway:detekt \
+            lintOpenApi lintAsyncApi openApiValidate buildHealth \
+            --no-daemon -PdetektAutoCorrect=false
+
+      - name: Verify generated OpenAPI and workflow docs are up-to-date
+        run: git diff --exit-code docs/dist docs/workflows/README.md
+
   verify-monolith:
     name: Verify todo-api (Monolith)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       spanner-emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
@@ -50,17 +97,20 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run checks, build JAR, and generate SBOM
+      - name: Run tests, coverage, build JAR, and generate SBOM
         env:
           SPANNER_EMULATOR_HOST: localhost:9010
           PUBSUB_EMULATOR_HOST: localhost:8085
           PUBSUB_REQUIRED: "true"
-        run: ./gradlew check bootJar cyclonedxBom --no-daemon -PdetektAutoCorrect=false
+        run: |
+          ./gradlew check bootJar cyclonedxBom \
+            -x detekt -x lintOpenApi -x lintAsyncApi -x openApiValidate -x buildHealth \
+            --no-daemon -PdetektAutoCorrect=false
 
-      - name: Verify generated docs and diagrams are up-to-date
+      - name: Verify external call sequence diagram is up-to-date
         run: |
           ./gradlew generateExternalCallDiagrams --no-daemon
-          git diff --exit-code docs/dist docs/workflows/README.md docs/architecture/external-call-sequence.md
+          git diff --exit-code docs/architecture/external-call-sequence.md
 
       - name: Upload CycloneDX SBOM
         if: always()
@@ -80,6 +130,7 @@ jobs:
   verify-microservices:
     name: Verify ${{ matrix.service }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -103,8 +154,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run checks and build JAR
-        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar --no-daemon -PdetektAutoCorrect=false
+      - name: Run tests and build JAR
+        run: ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar -x detekt --no-daemon -PdetektAutoCorrect=false
 
       - name: Upload ${{ matrix.service }} JAR
         uses: actions/upload-artifact@v4
@@ -117,6 +168,7 @@ jobs:
     name: E2E (Arazzo Workflows)
     needs: [verify-monolith]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       spanner-emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
@@ -127,16 +179,6 @@ jobs:
         command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
         ports:
           - 8085:8085
-      apigee-emulator:
-        image: gcr.io/apigee-release/hybrid/apigee-emulator:public-image-2.0.2
-        ports:
-          - 8088:8080
-          - 8998:8998
-        env:
-          APIGEE_ORG: hybrid
-          APIGEE_ENV: test
-          LISTEN_ADDRESS: 0.0.0.0
-        options: --add-host=host.docker.internal:host-gateway
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -197,6 +239,7 @@ jobs:
     name: E2E (Gateway + Microservices)
     needs: [verify-monolith, verify-microservices]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       spanner-emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
