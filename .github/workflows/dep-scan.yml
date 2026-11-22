@@ -4,7 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    paths:
+      - "**/build.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/libs.versions.toml"
+      - "**/gradle.lockfile"
+      - "gradle.lockfile"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/dep-scan.sh"
+      - ".github/workflows/dep-scan.yml"
   schedule:
     - cron: "0 1 * * 1"
   workflow_dispatch:
@@ -20,6 +29,7 @@ jobs:
   dep-scan:
     name: OWASP dep-scan Reachability & VEX Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -29,19 +39,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Run OWASP dep-scan (Gradle & Node.js with Reachability / VEX)
+      - name: Compute weekly cache key
+        id: cache-key
+        run: echo "week=$(date -u +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache OWASP dep-scan app-only VDB
+        uses: actions/cache@v4
+        with:
+          path: /tmp/depscan-vdb
+          key: depscan-vdb-app-${{ steps.cache-key.outputs.week }}
+          restore-keys: |
+            depscan-vdb-app-
+
+      - name: Run OWASP dep-scan (Gradle & Node.js with App-Only VDB & Reachability / VEX)
         run: |
-          mkdir -p build/reports/depscan
-          chmod -R 777 build/reports/depscan
+          mkdir -p build/reports/depscan /tmp/depscan-vdb
+          chmod -R 777 build/reports/depscan /tmp/depscan-vdb
           docker run --rm \
+            -e VDB_HOME=/vdb \
             -v "${GITHUB_WORKSPACE}:/app" \
+            -v "/tmp/depscan-vdb:/vdb" \
             ghcr.io/owasp-dep-scan/dep-scan:latest \
-            depscan \
-            --src /app \
-            --reports-dir /app/build/reports/depscan \
-            --type gradle,nodejs \
-            --explain \
-            --profile research || true
+            sh -c "depscan-vdb download --scope app && depscan --src /app --reports-dir /app/build/reports/depscan --type gradle,nodejs --explain --profile research" || true
 
       - name: Summarize OWASP dep-scan reports in Job Summary
         if: always()
