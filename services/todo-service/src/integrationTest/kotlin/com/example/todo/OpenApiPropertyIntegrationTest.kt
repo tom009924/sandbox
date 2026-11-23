@@ -4,12 +4,10 @@ import com.example.todo.domain.model.AuthenticatedUser
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
-import com.example.todo.infrastructure.persistence.SpringDataProjectMemberRepository
-import com.example.todo.infrastructure.persistence.SpringDataProjectRepository
 import com.example.todo.infrastructure.security.JwtTokenProvider
-import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import com.example.todo.support.IntegrationDatabaseCleaner
+import com.example.todo.support.SharedEmailWireMock
+import com.example.todo.support.SharedOpenApiSpec
 import io.kotest.property.Arb
 import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.constant
@@ -18,9 +16,6 @@ import io.restassured.RestAssured.given
 import io.restassured.builder.RequestSpecBuilder
 import io.restassured.http.ContentType
 import io.restassured.specification.RequestSpecification
-import io.swagger.v3.parser.OpenAPIV3Parser
-import io.swagger.v3.parser.core.models.ParseOptions
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
@@ -48,8 +43,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
     private val userRepository: UserRepository,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val springDataProjectMemberRepository: SpringDataProjectMemberRepository,
-    private val springDataProjectRepository: SpringDataProjectRepository,
+    private val databaseCleaner: IntegrationDatabaseCleaner,
     private val objectMapper: ObjectMapper,
 ) {
     @LocalServerPort
@@ -59,11 +53,8 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
 
     @BeforeEach
     fun setup() {
-        todoRepository.findAll().forEach(todoRepository::delete)
-        springDataProjectMemberRepository.deleteAll()
-        springDataProjectRepository.deleteAll()
-        userRepository.deleteAll()
-        wireMockServer.resetRequests()
+        databaseCleaner.cleanAll()
+        SharedEmailWireMock.resetRequests()
 
         val user = userRepository.save(User(username = "pbt_user", passwordHash = "hash"))
         val userId = requireNotNull(user.id)
@@ -72,7 +63,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
             .setPort(port)
             .addHeader("Authorization", "Bearer $token")
             .setContentType(ContentType.JSON)
-            .addFilter(openApiValidationFilter)
+            .addFilter(SharedOpenApiSpec.validationFilter)
             .build()
     }
 
@@ -185,10 +176,7 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
         outcome?.getOrThrow()
     }
 
-    private fun requireSchema(name: String) =
-        requireNotNull(openAPI.components?.schemas?.get(name)) {
-            "Schema '$name' not found in $OPEN_API_SPEC_PATH"
-        }
+    private fun requireSchema(name: String) = SharedOpenApiSpec.requireSchema(name)
 
     private companion object {
         const val DEFAULT_VALID_ITERATIONS = 100
@@ -198,47 +186,11 @@ class OpenApiPropertyIntegrationTest @Autowired constructor(
             System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_VALID_ITERATIONS
         val invalidIterations: Int =
             System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_INVALID_ITERATIONS
-        const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
-
-        val openAPI = requireNotNull(
-            OpenAPIV3Parser().read(
-                OPEN_API_SPEC_PATH,
-                null,
-                ParseOptions().apply {
-                    isResolve = true
-                    isResolveFully = true
-                },
-            ),
-        ) {
-            "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
-        }
-
-        val openApiValidationFilter = OpenApiValidationFilter(openAPI)
-
-        private val wireMockServer = WireMockServer(wireMockConfig().dynamicPort()).apply {
-            start()
-            stubFor(
-                WireMock.post(WireMock.urlEqualTo("/api/v1/emails"))
-                    .willReturn(
-                        WireMock.aResponse()
-                            .withStatus(HttpStatus.ACCEPTED.value())
-                            .withHeader("Content-Type", "application/json")
-                            .withBody("""{"id":"msg-pbt","status":"QUEUED"}"""),
-                    ),
-            )
-        }
 
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("notification.email.base-url") { wireMockServer.baseUrl() }
-            registry.add("notification.email.api-key") { "test-api-key" }
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun stopWireMock() {
-            wireMockServer.stop()
+            SharedEmailWireMock.registerProperties(registry)
         }
     }
 }
