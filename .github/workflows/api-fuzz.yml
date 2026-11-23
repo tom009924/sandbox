@@ -67,6 +67,9 @@ jobs:
           node-version: "22"
           cache: "npm"
 
+      - name: Install Node dependencies
+        run: npm ci
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
