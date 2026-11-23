@@ -19,6 +19,8 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.rest.assured)
     testImplementation(libs.swagger.parser)
+    testImplementation(libs.kotest.property)
+    testImplementation("com.fasterxml.jackson.core:jackson-databind")
     detektPlugins(libs.detekt.formatting)
 }
 

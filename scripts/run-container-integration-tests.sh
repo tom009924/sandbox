@@ -18,8 +18,16 @@ if ! "${COMPOSE_CMD[@]}" up --build -d --wait; then
   exit 1
 fi
 
-if ! ./gradlew :integration-tests:test --no-daemon "$@"; then
+if ! ./gradlew :integration-tests:test :integration-tests:propertyTest --no-daemon "$@"; then
   echo "Container integration tests failed. Service logs:"
   "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway
   exit 1
+fi
+
+if [ "${SKIP_ARAZZO:-false}" != "true" ]; then
+  if ! SERVER_URL=http://127.0.0.1:8082 npm run test:arazzo; then
+    echo "Arazzo E2E via containerized api-gateway failed. Service logs:"
+    "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway
+    exit 1
+  fi
 fi
