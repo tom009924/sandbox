@@ -110,7 +110,7 @@ class ContainerMicroservicesSmokeTest {
     private fun fetchAdminTotalTodos(): Int =
         given()
             .baseUri(ContainerTestConfig.gatewayBaseUrl)
-            .header("X-Admin-Api-Key", ContainerTestConfig.adminApiKey)
+            .header("X-Admin-Key", ContainerTestConfig.adminApiKey)
             .`when`()
             .get("/api/admin/stats")
             .then()
