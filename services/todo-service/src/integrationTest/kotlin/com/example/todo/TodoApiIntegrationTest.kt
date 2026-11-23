@@ -7,22 +7,18 @@ import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.User
 import com.example.todo.domain.repository.TodoRepository
 import com.example.todo.domain.repository.UserRepository
-import com.example.todo.infrastructure.persistence.SpringDataProjectMemberRepository
-import com.example.todo.infrastructure.persistence.SpringDataProjectRepository
-import com.example.todo.infrastructure.persistence.SpringDataUserSettingsRepository
 import com.example.todo.infrastructure.pubsub.PubSubProperties
 import com.example.todo.infrastructure.security.JwtTokenProvider
 import com.example.todo.sideeffect.DatabaseSideEffectInspector
 import com.example.todo.sideeffect.DbOperation
 import com.example.todo.sideeffect.ExternalSideEffectVerifier
-import com.github.tomakehurst.wiremock.WireMockServer
+import com.example.todo.support.IntegrationDatabaseCleaner
+import com.example.todo.support.SharedEmailWireMock
+import com.example.todo.support.SharedOpenApiSpec
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.http.RequestMethod
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
-import io.swagger.v3.parser.OpenAPIV3Parser
-import io.swagger.v3.parser.core.models.ParseOptions
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
@@ -52,15 +48,13 @@ import java.util.UUID
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = ["identity.service.enabled=false"],
 )
-@Suppress("TooManyFunctions", "LargeClass", "LongParameterList")
+@Suppress("TooManyFunctions", "LargeClass")
 class TodoApiIntegrationTest @Autowired constructor(
     private val todoRepository: TodoRepository,
     private val userRepository: UserRepository,
     private val pubSubReceiver: PubSubTestReceiver,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val springDataUserSettingsRepository: SpringDataUserSettingsRepository,
-    private val springDataProjectMemberRepository: SpringDataProjectMemberRepository,
-    private val springDataProjectRepository: SpringDataProjectRepository,
+    private val databaseCleaner: IntegrationDatabaseCleaner,
 ) {
     @LocalServerPort
     private var port: Int = 0
@@ -72,12 +66,8 @@ class TodoApiIntegrationTest @Autowired constructor(
     @BeforeEach
     fun cleanDatabase() {
         DatabaseSideEffectInspector.stopTracking()
-        todoRepository.findAll().forEach(todoRepository::delete)
-        springDataProjectMemberRepository.deleteAll()
-        springDataProjectRepository.deleteAll()
-        userRepository.deleteAll()
-        springDataUserSettingsRepository.deleteAll()
-        wireMockServer.resetRequests()
+        databaseCleaner.cleanAll()
+        SharedEmailWireMock.resetRequests()
         if (pubSubReceiver.isAvailable) {
             pubSubReceiver.drain()
         }
@@ -86,7 +76,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         defaultToken = jwtTokenProvider.generateToken(AuthenticatedUser(defaultUserId, user.username))
 
         sideEffectVerifier = ExternalSideEffectVerifier(
-            wireMockServer = wireMockServer,
+            wireMockServer = SharedEmailWireMock.server,
             pubSubReceiver = pubSubReceiver,
             initialAllowedDatabaseTables = setOf("idempotency_records"),
         )
@@ -140,7 +130,7 @@ class TodoApiIntegrationTest @Autowired constructor(
         val stored = userRepository.findById(userId)
         assertTrue(stored != null)
 
-        wireMockServer.verify(
+        SharedEmailWireMock.server.verify(
             WireMock.postRequestedFor(WireMock.urlEqualTo("/api/v1/emails"))
                 .withHeader("Authorization", WireMock.equalTo("Bearer test-api-key"))
                 .withRequestBody(WireMock.matchingJsonPath("$.to", WireMock.equalTo("newuser@example.com")))
@@ -1493,50 +1483,14 @@ class TodoApiIntegrationTest @Autowired constructor(
         const val UPDATED_ESTIMATED_MINUTES = 45
         const val MIN_ESTIMATED_MINUTES = 0
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
-        const val OPEN_API_SPEC_PATH = "docs/dist/openapi.admin.yaml"
-
-        val openAPI = requireNotNull(
-            OpenAPIV3Parser().read(
-                OPEN_API_SPEC_PATH,
-                null,
-                ParseOptions().apply {
-                    isResolve = true
-                    isResolveFully = true
-                },
-            ),
-        ) {
-            "Failed to parse OpenAPI spec from $OPEN_API_SPEC_PATH"
-        }
-
-        val coverageDefinition = OpenApiCoverageDefinition.from(openAPI)
+        val coverageDefinition = OpenApiCoverageDefinition.from(SharedOpenApiSpec.openAPI)
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
-
-        val openApiValidationFilter = OpenApiValidationFilter(openAPI)
-
-        private val wireMockServer = WireMockServer(wireMockConfig().dynamicPort()).apply {
-            start()
-            stubFor(
-                WireMock.post(WireMock.urlEqualTo("/api/v1/emails"))
-                    .willReturn(
-                        WireMock.aResponse()
-                            .withStatus(202)
-                            .withHeader("Content-Type", "application/json")
-                            .withBody("""{"id":"msg-integration-test","status":"QUEUED"}"""),
-                    ),
-            )
-        }
+        val openApiValidationFilter = SharedOpenApiSpec.validationFilter
 
         @JvmStatic
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("notification.email.base-url") { wireMockServer.baseUrl() }
-            registry.add("notification.email.api-key") { "test-api-key" }
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun stopWireMock() {
-            wireMockServer.stop()
+            SharedEmailWireMock.registerProperties(registry)
         }
 
         @JvmStatic
