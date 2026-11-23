@@ -22,7 +22,7 @@ class ProjectRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, and delete project`() {
+    fun saveFindAndDeleteProject() {
         val creatorId = UUID.randomUUID()
         val now = Instant.parse("2025-04-18T10:00:00Z")
         val saved = adapter.save(

@@ -22,8 +22,8 @@ class UserRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save and find user by id and username`() {
-        val username = "user_${UUID.randomUUID().toString().take(8)}"
+    fun saveAndFindUserByIdAndUsername() {
+        val username = "user_${UUID.randomUUID().toString().take(USERNAME_SUFFIX_LENGTH)}"
         val user = User(
             id = null,
             username = username,
@@ -53,8 +53,12 @@ class UserRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findById returns null when user not found`() {
+    fun findByIdReturnsNullWhenUserNotFound() {
         assertNull(adapter.findById(UUID.randomUUID()))
         assertNull(adapter.findByUsername("unknown_${UUID.randomUUID()}"))
+    }
+
+    private companion object {
+        const val USERNAME_SUFFIX_LENGTH = 8
     }
 }

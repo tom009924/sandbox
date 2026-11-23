@@ -93,7 +93,20 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     dependsOn(tasks.test)
     shouldRunAfter(tasks.test)
     useJUnitPlatform {
-        excludeTags("property")
+        excludeTags("property", "apigee")
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("apigeeIntegrationTest") {
+    description = "Runs Apigee emulator proxy integration tests."
+    group = "verification"
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    useJUnitPlatform {
+        includeTags("apigee")
     }
     testLogging {
         showStandardStreams = true
