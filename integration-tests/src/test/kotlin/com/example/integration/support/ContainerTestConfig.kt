@@ -10,8 +10,8 @@ object ContainerTestConfig {
     val wireMockBaseUrl: String =
         System.getenv("WIREMOCK_BASE_URL") ?: "http://127.0.0.1:8089"
 
-    val spannerEmulatorHost: String =
-        System.getenv("SPANNER_EMULATOR_HOST") ?: "127.0.0.1:9010"
+    val spannerRestBaseUrl: String =
+        System.getenv("SPANNER_EMULATOR_REST_URL") ?: "http://127.0.0.1:9020"
 
     val spannerProjectId: String =
         System.getenv("SPANNER_PROJECT_ID") ?: "todo-project"
