@@ -1,6 +1,6 @@
 # プロジェクト テスト戦略 (Test Strategy)
 
-本ドキュメントは、本リポジトリ（Kotlin / Spring Boot / Cloud Spanner / Pub/Sub）における品質保証の基本方針、テスト階層（テストピラミッド）、責務の切り分け基準、および CI/CD における品質ゲートを定義する全体戦略です。
+本ドキュメントは、本リポジトリ（Kotlin / Spring Boot / gRPC マイクロサービス / Cloud Spanner / Pub/Sub）における品質保証の基本方針、テスト階層（テストピラミッド）、責務の切り分け基準、および CI/CD における品質ゲートを定義する全体戦略です。
 
 ---
 
@@ -29,15 +29,16 @@ flowchart TD
         L3_3["非機能検証 (負荷 / HPA / マイグレーション)"]
     end
 
-    subgraph Level2["Level 2: 統合テスト (src/integrationTest)"]
+    subgraph Level2["Level 2: 統合・契約・モデルベーステスト (src/integrationTest & E2E)"]
         L2_1["OpenAPI 仕様・スキーマ整合性 (100% カバレッジ)"]
-        L2_2["Spanner / PubSub Emulator による DB/イベント連携"]
-        L2_3["バリデーション・異常系・トランザクション"]
+        L2_2["Spanner / PubSub Emulator による DB/イベント・副作用検証"]
+        L2_3["PBT (OpenAPI Property) & MBT (OMG DMN 1.3)"]
+        L2_4["マイクロサービス結合 E2E (api-gateway + identity + todo)"]
     end
 
-    subgraph Level1["Level 1: 単体テスト (src/test)"]
-        L1_1["ドメインロジック / ユーティリティ計算"]
-        L1_2["POJO マッピング / 独立したサービスクラス"]
+    subgraph Level1["Level 1: 単体・アーキテクチャテスト (src/test)"]
+        L1_1["ドメインロジック / DMN 決定モデル / サービスクラス"]
+        L1_2["gRPC サービス / セキュリティ / ArchUnit 規約検証"]
     end
 
     Level1 --> Level2
@@ -46,8 +47,10 @@ flowchart TD
 
 | テスト階層 | 配置場所 | 実行環境 / ツール | 実行時間目安 | 主な責務 |
 | :--- | :--- | :--- | :--- | :--- |
-| **単体テスト (Unit)** | `src/test/` | CI / ローカル (JUnit 5) | 数秒 | 個々の関数、マッパー、独立したビジネスロジックの正当性 |
-| **統合テスト (Integration)** | `src/integrationTest/` | CI (Emulator) | 1〜3分 | OpenAPI 適合性、DB 永続化、Pub/Sub 送受信、異常系・境界値 |
+| **単体・規約テスト (Unit / ArchUnit)** | 各モジュール `src/test/` | CI / ローカル (JUnit 5 / ArchUnit) | 数秒 | ドメイン・アプリケーションロジック、gRPC サービス、セキュリティ、レイヤー・スライス規約 |
+| **統合テスト (Integration)** | `services/todo-service/src/integrationTest/` | CI (Spanner / PubSub Emulator) | 1〜3分 | OpenAPI 適合性 (100% カバレッジ)、DB 永続化・動的クエリ検証、Pub/Sub 送受信、副作用検証 |
+| **プロパティ・モデルベーステスト (PBT / MBT)** | `services/todo-service/src/integrationTest/` (`@Tag("property")`) | CI (`./gradlew propertyTest`) | 1〜2分 | OpenAPI スキーマ駆動のランダム入力検証 (Kotest Property)、OMG DMN 1.3 決定モデルの全ルール検証 |
+| **マイクロサービス E2E** | `scripts/run-microservices-e2e.sh` | CI / ローカル (3サービス実プロセス起動) | 約30秒 | `api-gateway` → `identity-service` / `todo-service` 間の実 gRPC 通信・認証・業務フロー貫通 |
 | **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
 | **非機能テスト (Non-Functional)** | 負荷・運用スクリプト | テスト環境 (k6 等) | 数十分 | ピークトラフィック耐性、無停止デプロイ、マイグレーション |
 
@@ -73,16 +76,16 @@ flowchart TD
 
 ## 4. スライステスト強制機構 (Enforced Slice Testing)
 
-本リポジトリでは、API の入口（Controller）および永続化の出口（Repository / Adapter）において、クラスやクエリメソッドが増加した場合でもテスト漏れが発生しないよう、以下の**二重の強制機構**を導入しています。
+本リポジトリでは、API の入口（gRPC Service）および永続化の出口（Repository / Adapter）において、クラスやクエリメソッドが増加した場合でもテスト漏れが発生しないよう、以下の**二重の強制機構**を導入しています。
 
 ### 1. 静的強制 (ArchUnit: `SliceTestConventionsTest`)
-- **Controller スライステスト強制**:
-  すべての `@RestController` 実装クラスに対して、対応する `*ControllerTest` が存在することを静的検証。
+- **gRPC Service スライステスト強制**:
+  `infrastructure.grpc` 配下のすべての `*GrpcService` 実装クラスに対して、対応する `*GrpcServiceTest` が存在することを静的検証。
 - **RepositoryAdapter スライステスト強制**:
   すべての `*RepositoryAdapter` 実装クラスに対して、対応する `*RepositoryAdapterTest` が存在することを静的検証。
 - **SpringDataRepository 整合性強制**:
   すべての `SpringData*Repository` インターフェースに対して、対応する `*RepositoryAdapter` が存在することを静的検証。
-- 新規クラスの追加時にテストクラスの作成を忘れた場合、`./gradlew test` の段階でビルドが即座に失敗します。
+- 新規クラスの追加時にテストクラスの作成を忘れた場合、ビルドの段階で即座に失敗します。
 
 ### 2. 動的クエリ実行保証 (Dynamic Smoke Test: `AllRepositoriesDynamicSmokeTest`)
 - `ApplicationContext` から `SpannerRepository` を継承する全 Bean を動的に自動検出。
@@ -111,11 +114,10 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph Gate1["Gate 1: PR Gate (CI)"]
-        G1_1["Detekt 静的解析パス"]
-        G1_2["./gradlew check (全テスト成功)"]
-        G1_3["OpenAPI & Arazzo Lint (Redocly/Spectral)"]
-        G1_4["Trivy / Qodana スキャンパス"]
-        G1_5["Arazzo E2E ワークフロー実行 (npm run test:arazzo)"]
+        G1_1["Detekt / Build Health / OpenAPI・AsyncAPI・DMN Lint"]
+        G1_2["各サービス check (Unit / Integration / PBT / MBT / JaCoCo)"]
+        G1_3["マイクロサービス結合 E2E (scripts/run-microservices-e2e.sh)"]
+        G1_4["Trivy / Qodana / OWASP dep-scan"]
     end
 
     subgraph Gate2["Gate 2: Deploy Gate (CD)"]
