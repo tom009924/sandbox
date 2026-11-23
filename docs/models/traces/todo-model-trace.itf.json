@@ -1,0 +1,361 @@
+{
+  "#meta": {
+    "format": "ITF",
+    "format-description": "https://apalache-mc.org/docs/adr/015adr-trace.html",
+    "source": "docs/models/todo.qnt",
+    "description": "Deterministic Informal Trace Format (ITF) execution trace generated from todo_model covering CRUD, idempotency replay/conflict, maxActiveTodos limit, subtasks, and invariants."
+  },
+  "vars": [
+    "maxActiveTodos",
+    "todos",
+    "idempotencyKeys",
+    "lastAction",
+    "lastStatus",
+    "lastTargetId",
+    "lastSubtaskId",
+    "lastKey",
+    "lastFingerprint",
+    "lastCompleted"
+  ],
+  "states": [
+    {
+      "#meta": { "index": 0 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": { "#map": [] },
+      "idempotencyKeys": { "#map": [] },
+      "lastAction": "init",
+      "lastStatus": { "#bigint": "0" },
+      "lastTargetId": "",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 1 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": { "#map": [] },
+      "idempotencyKeys": { "#map": [] },
+      "lastAction": "getTodo",
+      "lastStatus": { "#bigint": "404" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 2 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodo",
+      "lastStatus": { "#bigint": "201" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "key-1",
+      "lastFingerprint": "fp-a",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 3 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodo",
+      "lastStatus": { "#bigint": "201" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "key-1",
+      "lastFingerprint": "fp-a",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 4 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodo",
+      "lastStatus": { "#bigint": "409" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "key-1",
+      "lastFingerprint": "fp-b",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 5 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": [] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodo",
+      "lastStatus": { "#bigint": "201" },
+      "lastTargetId": "todo-2",
+      "lastSubtaskId": "",
+      "lastKey": "key-2",
+      "lastFingerprint": "fp-a",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 6 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": [] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodo",
+      "lastStatus": { "#bigint": "400" },
+      "lastTargetId": "",
+      "lastSubtaskId": "",
+      "lastKey": "key-3",
+      "lastFingerprint": "fp-a",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 7 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": ["sub-1"] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "createTodoSubtask",
+      "lastStatus": { "#bigint": "201" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "sub-1",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 8 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": false, "subtasks": { "#set": ["sub-1"] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "listTodoSubtasks",
+      "lastStatus": { "#bigint": "200" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 9 },
+      "maxActiveTodos": { "#bigint": "2" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": true, "subtasks": { "#set": ["sub-1"] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "updateTodo",
+      "lastStatus": { "#bigint": "200" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": true
+    },
+    {
+      "#meta": { "index": 10 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": true, "subtasks": { "#set": ["sub-1"] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "updateUserSettings",
+      "lastStatus": { "#bigint": "200" },
+      "lastTargetId": "",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 11 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": true, "subtasks": { "#set": ["sub-1"] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "patchTodo",
+      "lastStatus": { "#bigint": "400" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 12 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-1", { "completed": true, "subtasks": { "#set": [] } }],
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "deleteTodoSubtask",
+      "lastStatus": { "#bigint": "204" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "sub-1",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": true
+    },
+    {
+      "#meta": { "index": 13 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "deleteTodo",
+      "lastStatus": { "#bigint": "204" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 14 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "getTodo",
+      "lastStatus": { "#bigint": "404" },
+      "lastTargetId": "todo-1",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    },
+    {
+      "#meta": { "index": 15 },
+      "maxActiveTodos": { "#bigint": "1" },
+      "todos": {
+        "#map": [
+          ["todo-2", { "completed": false, "subtasks": { "#set": [] } }]
+        ]
+      },
+      "idempotencyKeys": {
+        "#map": [
+          ["key-1", { "todoId": "todo-1", "fingerprint": "fp-a" }],
+          ["key-2", { "todoId": "todo-2", "fingerprint": "fp-a" }]
+        ]
+      },
+      "lastAction": "listTodos",
+      "lastStatus": { "#bigint": "200" },
+      "lastTargetId": "",
+      "lastSubtaskId": "",
+      "lastKey": "",
+      "lastFingerprint": "",
+      "lastCompleted": false
+    }
+  ]
+}

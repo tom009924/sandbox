@@ -39,3 +39,24 @@ npm run generate:scxml-kotlin
 # SCXML モデルベース統合テストを実行
 ./gradlew :services:todo-service:propertyTest --tests "com.example.todo.mbt.ScxmlTodoModelBasedIntegrationTest"
 ```
+
+## Quint (TLA+ 互換) 形式仕様モデル
+
+- [`todo.qnt`](todo.qnt): Todo API の形式仕様モデル（状態変数・OpenAPI `operationId` 対応アクション・不変条件）
+- [`traces/todo-model-trace.itf.json`](traces/todo-model-trace.itf.json): モデルから生成された標準 Informal Trace Format (ITF) 実行トレース
+
+### コマンド
+
+```bash
+# OpenAPI operationId との整合性チェック（lint:openapi:check に組み込み済み）
+npm run lint:quint
+
+# Quint CLI でモデル不変条件の検証および新規 ITF トレースを生成（Quint CLI 導入環境）
+quint typecheck docs/models/todo.qnt
+quint run docs/models/todo.qnt \
+  --invariant=activeTodosWithinLimit \
+  --out-itf=docs/models/traces/todo-model-trace.itf.json
+
+# ITF トレースを実 API にリプレイし OpenAPI 契約と不変条件を検証
+./gradlew :services:todo-service:propertyTest --tests "com.example.todo.mbt.QuintTodoModelBasedIntegrationTest"
+```
