@@ -23,7 +23,7 @@ class ProjectMemberRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, query, and delete project members`() {
+    fun saveQueryAndDeleteProjectMembers() {
         val projectId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val now = Instant.parse("2025-04-18T10:00:00Z")

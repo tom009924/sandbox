@@ -22,7 +22,7 @@ class TodoSubtaskRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, update, and delete todo subtasks`() {
+    fun saveFindUpdateAndDeleteTodoSubtasks() {
         val todoId = UUID.randomUUID()
         val second = adapter.save(TodoSubtask(todoId = todoId, title = "Step 2", position = 1))
         val first = adapter.save(TodoSubtask(todoId = todoId, title = "Step 1", position = 0))

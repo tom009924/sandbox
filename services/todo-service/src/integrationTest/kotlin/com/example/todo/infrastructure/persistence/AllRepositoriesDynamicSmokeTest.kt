@@ -16,7 +16,8 @@ class AllRepositoriesDynamicSmokeTest @Autowired constructor(
     private val applicationContext: ApplicationContext,
 ) {
     @TestFactory
-    fun `all declared query methods in all Spanner repositories must be executable`(): List<DynamicNode> {
+    @Suppress("SpreadOperator")
+    fun allDeclaredQueryMethodsInAllSpannerRepositoriesMustBeExecutable(): List<DynamicNode> {
         val repositoryBeans = applicationContext.getBeansOfType(SpannerRepository::class.java)
 
         return repositoryBeans.map { (beanName, repositoryInstance) ->

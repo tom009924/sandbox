@@ -22,7 +22,7 @@ class TodoCommentRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, and delete todo comments`() {
+    fun saveFindAndDeleteTodoComments() {
         val todoId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val t1 = Instant.parse("2025-04-18T10:00:00Z")

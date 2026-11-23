@@ -24,7 +24,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save inserts new entity and updates existing entity`() {
+    fun saveInsertsNewEntityAndUpdatesExistingEntity() {
         val userId = UUID.randomUUID()
         val newTodo = Todo(
             id = null,
@@ -48,7 +48,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findById and findByIdAndUserId find entity properly`() {
+    fun findByIdAndFindByIdAndUserIdFindEntityProperly() {
         val userId = UUID.randomUUID()
         val saved = adapter.save(
             Todo(id = null, userId = userId, title = "Find Me", priority = TodoPriority.MEDIUM),
@@ -67,7 +67,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findAllByUserId and count queries execute properly`() {
+    fun findAllByUserIdAndCountQueriesExecuteProperly() {
         val userId = UUID.randomUUID()
         val todo1 = adapter.save(
             Todo(
