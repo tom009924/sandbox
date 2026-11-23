@@ -326,6 +326,7 @@ tasks.register("detekt") {
         ":services:api-gateway:detekt",
         ":services:identity-service:detekt",
         ":services:todo-service:detekt",
+        ":integration-tests:detekt",
     )
 }
 
@@ -373,6 +374,12 @@ tasks.register("integrationTest") {
     description = "Runs integration tests for todo-service."
     group = "verification"
     dependsOn(":services:todo-service:integrationTest")
+}
+
+tasks.register("containerIntegrationTest") {
+    description = "Runs cross-service container integration tests against running Docker Compose services."
+    group = "verification"
+    dependsOn(":integration-tests:test")
 }
 
 tasks.register("propertyTest") {
