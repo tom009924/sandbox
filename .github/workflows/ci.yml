@@ -87,6 +87,17 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Set up Node.js
+        if: matrix.service == 'todo-service'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        if: matrix.service == 'todo-service'
+        run: npm ci
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
