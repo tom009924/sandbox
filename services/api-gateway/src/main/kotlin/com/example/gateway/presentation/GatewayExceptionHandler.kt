@@ -78,10 +78,18 @@ class GatewayExceptionHandler {
 
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception): ResponseEntity<Map<String, String>> {
+        if (isInvalidRequestParameterException(ex)) {
+            return handleBadRequest()
+        }
         logger.error("Unhandled gateway exception", ex)
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(mapOf("message" to "Internal server error"))
     }
+
+    private fun isInvalidRequestParameterException(ex: Throwable): Boolean =
+        generateSequence(ex) { it.cause }.any {
+            it.javaClass.name == TOMCAT_INVALID_PARAMETER_EXCEPTION
+        }
 
     private fun mapGrpcStatus(code: Status.Code): HttpStatus = when (code) {
         Status.Code.INVALID_ARGUMENT,
@@ -94,5 +102,10 @@ class GatewayExceptionHandler {
         Status.Code.DEADLINE_EXCEEDED -> HttpStatus.GATEWAY_TIMEOUT
         Status.Code.UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE
         else -> HttpStatus.INTERNAL_SERVER_ERROR
+    }
+
+    private companion object {
+        const val TOMCAT_INVALID_PARAMETER_EXCEPTION =
+            "org.apache.tomcat.util.http.InvalidParameterException"
     }
 }

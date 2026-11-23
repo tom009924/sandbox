@@ -75,6 +75,21 @@ class ApiGatewaySecurityAndErrorTest {
         val notFound = handler.handleNotFound()
         assertEquals(HttpStatus.NOT_FOUND, notFound.statusCode)
         assertEquals("Not found", notFound.body?.get("message"))
+
+        val tomcatInvalidParam = Class.forName("org.apache.tomcat.util.http.InvalidParameterException")
+            .getConstructor(String::class.java)
+            .newInstance("Invalid query chunk [=]") as Exception
+        val invalidParamResponse = handler.handleGenericException(tomcatInvalidParam)
+        assertEquals(HttpStatus.BAD_REQUEST, invalidParamResponse.statusCode)
+        assertEquals("Invalid request parameters", invalidParamResponse.body?.get("message"))
+
+        val wrappedInvalidParam = IllegalStateException("wrapper", tomcatInvalidParam)
+        val wrappedResponse = handler.handleGenericException(wrappedInvalidParam)
+        assertEquals(HttpStatus.BAD_REQUEST, wrappedResponse.statusCode)
+
+        val unexpectedError = handler.handleGenericException(IllegalStateException("unexpected"))
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, unexpectedError.statusCode)
+        assertEquals("Internal server error", unexpectedError.body?.get("message"))
     }
 
     @Test

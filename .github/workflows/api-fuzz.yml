@@ -145,6 +145,8 @@ jobs:
           wait_for_health "api-gateway" "http://127.0.0.1:8082/actuator/health" "api-gateway.log"
 
           if ! bash scripts/run-schemathesis.sh; then
+            echo "=== api-gateway.log (errors) ==="
+            grep -n -A 15 "ERROR" api-gateway.log | tail -n 100 || true
             echo "=== api-gateway.log (last 100 lines) ==="
             tail -n 100 api-gateway.log || true
             echo "=== todo-api.log (last 100 lines) ==="
