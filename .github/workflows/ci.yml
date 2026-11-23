@@ -63,17 +63,7 @@ jobs:
   verify-monolith:
     name: Verify todo-service
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      spanner-emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:latest
-        ports:
-          - 9010:9010
-      pubsub-emulator:
-        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
-        ports:
-          - 8085:8085
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -96,11 +86,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run tests, coverage, build JAR, and generate SBOM
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-          PUBSUB_EMULATOR_HOST: localhost:8085
-          PUBSUB_REQUIRED: "true"
+      - name: Run unit tests, coverage, build JAR, and generate SBOM
         run: |
           ./gradlew :services:todo-service:check :services:todo-service:bootJar :services:todo-service:cyclonedxBom \
             -x detekt -x openApiValidate \
@@ -170,55 +156,6 @@ jobs:
           name: jar-${{ matrix.service }}
           path: ${{ matrix.jar-path }}
           retention-days: 1
-
-  e2e-microservices:
-    name: E2E (Gateway + Microservices)
-    needs: [verify-monolith, verify-microservices]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    services:
-      spanner-emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:latest
-        ports:
-          - 9010:9010
-      pubsub-emulator:
-        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
-        ports:
-          - 8085:8085
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Download service JARs
-        uses: actions/download-artifact@v4
-        with:
-          pattern: jar-*
-          path: .ci-jars
-
-      - name: Run combined microservices E2E test
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-          PUBSUB_EMULATOR_HOST: localhost:8085
-          IDENTITY_JAR: .ci-jars/jar-identity-service/app.jar
-          TODO_JAR: .ci-jars/jar-todo-api/app.jar
-          GATEWAY_JAR: .ci-jars/jar-api-gateway/app.jar
-        run: bash scripts/run-microservices-e2e.sh
 
   container-integration-tests:
     name: Container Integration Tests

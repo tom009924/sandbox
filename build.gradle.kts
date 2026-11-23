@@ -362,18 +362,15 @@ tasks.register("cyclonedxBom") {
 }
 
 tasks.register("openApiGenerate") {
-    description = "Generates OpenAPI server interfaces and models across services."
+    description = "Generates OpenAPI server interfaces and models for api-gateway."
     group = "openapi tools"
-    dependsOn(
-        ":services:api-gateway:openApiGenerate",
-        ":services:todo-service:openApiGenerate",
-    )
+    dependsOn(":services:api-gateway:openApiGenerate")
 }
 
 tasks.register("integrationTest") {
-    description = "Runs integration tests for todo-service."
+    description = "Runs cross-service containerized integration tests."
     group = "verification"
-    dependsOn(":services:todo-service:integrationTest")
+    dependsOn(":integration-tests:test")
 }
 
 tasks.register("containerIntegrationTest") {
@@ -383,9 +380,9 @@ tasks.register("containerIntegrationTest") {
 }
 
 tasks.register("propertyTest") {
-    description = "Runs property-based tests for todo-service."
+    description = "Runs container-backed property and model-based tests."
     group = "verification"
-    dependsOn(":services:todo-service:propertyTest")
+    dependsOn(":integration-tests:propertyTest")
 }
 
 tasks.register("generateExternalCallDiagrams") {

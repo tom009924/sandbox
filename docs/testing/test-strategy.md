@@ -47,11 +47,10 @@ flowchart TD
 
 | テスト階層 | 配置場所 | 実行環境 / ツール | 実行時間目安 | 主な責務 |
 | :--- | :--- | :--- | :--- | :--- |
-| **単体・規約テスト (Unit / ArchUnit)** | 各モジュール `src/test/` | CI / ローカル (JUnit 5 / ArchUnit) | 数秒 | ドメイン・アプリケーションロジック、gRPC サービス、セキュリティ、レイヤー・スライス規約 |
-| **統合テスト (Integration)** | `services/todo-service/src/integrationTest/` | CI (Spanner / PubSub Emulator) | 1〜3分 | OpenAPI 適合性 (100% カバレッジ)、DB 永続化・動的クエリ検証、Pub/Sub 送受信、副作用検証 |
-| **プロパティ・モデルベーステスト (PBT / MBT)** | `services/todo-service/src/integrationTest/` (`@Tag("property")`) | CI (`./gradlew propertyTest`) | 1〜2分 | OpenAPI スキーマ駆動のランダム入力検証 (Kotest Property)、OMG DMN 1.3 決定モデルの全ルール検証 |
-| **マイクロサービス E2E** | `scripts/run-microservices-e2e.sh` | CI / ローカル (3サービス実プロセス起動) | 約30秒 | `api-gateway` → `identity-service` / `todo-service` 間の実 gRPC 通信・認証・業務フロー貫通 |
-| **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
+| **単体・規約テスト (Unit / ArchUnit)** | 各モジュール `src/test/` | CI / ローカル (JUnit 5 / ArchUnit) | 数秒 | ドメイン・アプリケーションロジック、gRPC サービス、セキュリティ、レイヤー・スライス規約（エミュレータ不要） |
+| **コンテナ統合テスト (Integration / 契約)** | `integration-tests/` (`docker-compose.test.yml`) | CI / ローカル (`bash scripts/run-container-integration-tests.sh`) | 2〜3分 | 全 3 マイクロサービス実コンテナ起動による OpenAPI 100% カバレッジ適合性、実 gRPC 通信、DB 永続化、WireMock メール送信検証 |
+| **プロパティ・モデルベーステスト (PBT / MBT)** | `integration-tests/` (`@Tag("property")`) | CI / ローカル (`./gradlew propertyTest`) | 1〜2分 | 実コンテナ環境に対する OpenAPI スキーマ駆動のランダム入力検証 (Kotest Property) および OMG DMN 1.3 決定モデルの全ルール検証 |
+| **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / CI / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
 | **非機能テスト (Non-Functional)** | 負荷・運用スクリプト | テスト環境 (k6 等) | 数十分 | ピークトラフィック耐性、無停止デプロイ、マイグレーション |
 
 ---
