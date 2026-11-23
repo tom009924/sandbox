@@ -28,6 +28,10 @@ object SpannerDatabaseCleaner {
         cleanDatabase(ContainerTestConfig.todoDatabase, todoTables)
     }
 
+    fun cleanTodosOnly() {
+        cleanDatabase(ContainerTestConfig.todoDatabase, listOf("todo_comments", "todo_subtasks", "todos"))
+    }
+
     private fun cleanDatabase(database: String, tables: List<String>) {
         val jdbcUrl =
             "jdbc:cloudspanner:/projects/${ContainerTestConfig.spannerProjectId}" +
