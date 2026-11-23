@@ -219,3 +219,39 @@ jobs:
           TODO_JAR: .ci-jars/jar-todo-api/app.jar
           GATEWAY_JAR: .ci-jars/jar-api-gateway/app.jar
         run: bash scripts/run-microservices-e2e.sh
+
+  container-integration-tests:
+    name: Container Integration Tests
+    needs: [verify-monolith, verify-microservices]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download service JARs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: jar-*
+          path: .ci-jars
+
+      - name: Place service JARs for Docker builds
+        run: |
+          mkdir -p services/identity-service/build/libs services/todo-service/build/libs services/api-gateway/build/libs
+          cp .ci-jars/jar-identity-service/app.jar services/identity-service/build/libs/app.jar
+          cp .ci-jars/jar-todo-api/app.jar services/todo-service/build/libs/app.jar
+          cp .ci-jars/jar-api-gateway/app.jar services/api-gateway/build/libs/app.jar
+
+      - name: Run container-backed integration tests
+        env:
+          SKIP_BOOT_JAR: "true"
+        run: bash scripts/run-container-integration-tests.sh
