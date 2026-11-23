@@ -107,7 +107,7 @@ class ContainerDmnModelBasedTest {
     }
 
     private fun executeActiveTodoLimitRule(rule: DmnRuleSpec): Int {
-        val (_, spec) = registerUserAndSpec("dmn_active_${rule.id}")
+        val (_, spec) = registerUserAndSpec(shortUsername("dmn_a"))
         updateMaxActiveTodos(spec, maxActiveTodos = 1)
 
         return when (rule.id) {
@@ -154,8 +154,8 @@ class ContainerDmnModelBasedTest {
     }
 
     private fun executeProjectMemberRemovalRule(rule: DmnRuleSpec): Int {
-        val ownerUsername = "dmn_owner_${rule.id}"
-        val memberUsername = "dmn_member_${rule.id}"
+        val ownerUsername = shortUsername("dmn_o")
+        val memberUsername = shortUsername("dmn_m")
         val (ownerId, ownerSpec) = registerUserAndSpec(ownerUsername)
         val (memberId, memberSpec) = registerUserAndSpec(memberUsername)
         val projectId = createProject(ownerSpec, "Project ${rule.id}")
@@ -171,9 +171,9 @@ class ContainerDmnModelBasedTest {
     }
 
     private fun executeTodoAssigneeRule(rule: DmnRuleSpec): Int {
-        val ownerUsername = "dmn_assign_owner_${rule.id}"
-        val memberUsername = "dmn_assign_member_${rule.id}"
-        val outsiderUsername = "dmn_assign_outsider_${rule.id}"
+        val ownerUsername = shortUsername("dmn_ao")
+        val memberUsername = shortUsername("dmn_am")
+        val outsiderUsername = shortUsername("dmn_ax")
         val (ownerId, ownerSpec) = registerUserAndSpec(ownerUsername)
         val (memberId, _) = registerUserAndSpec(memberUsername)
         val (outsiderId, _) = registerUserAndSpec(outsiderUsername)
@@ -327,9 +327,13 @@ class ContainerDmnModelBasedTest {
             .extract()
             .statusCode()
 
+    private fun shortUsername(prefix: String): String =
+        "${prefix}_${UUID.randomUUID().toString().replace("-", "").take(SHORT_SUFFIX_LEN)}"
+
     private companion object {
         const val HTTP_OK = 200
         const val HTTP_CREATED = 201
+        const val SHORT_SUFFIX_LEN = 8
         const val DMN_MODEL_PATH = "docs/models/todo-decisions.dmn"
     }
 }
