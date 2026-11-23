@@ -30,10 +30,9 @@ object SpannerDatabaseCleaner {
 
     private fun cleanDatabase(database: String, tables: List<String>) {
         val jdbcUrl =
-            "jdbc:cloudspanner://${ContainerTestConfig.spannerEmulatorHost}" +
-                "/projects/${ContainerTestConfig.spannerProjectId}" +
+            "jdbc:cloudspanner:/projects/${ContainerTestConfig.spannerProjectId}" +
                 "/instances/${ContainerTestConfig.spannerInstanceId}" +
-                "/databases/$database?autoConfigEmulator=true;usePlainText=true"
+                "/databases/$database?autoConfigEmulator=true"
 
         DriverManager.getConnection(jdbcUrl).use { connection ->
             connection.createStatement().use { statement ->
