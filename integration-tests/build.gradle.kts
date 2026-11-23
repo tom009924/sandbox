@@ -34,6 +34,9 @@ tasks.withType<Test>().configureEach {
     workingDir = rootProject.projectDir
     environment("SPANNER_EMULATOR_HOST", System.getenv("SPANNER_EMULATOR_HOST") ?: "127.0.0.1:9010")
     environment("PUBSUB_EMULATOR_HOST", System.getenv("PUBSUB_EMULATOR_HOST") ?: "127.0.0.1:8085")
+    environment("SPANNER_DISABLE_BUILTIN_METRICS", "true")
+    environment("SPANNER_DISABLE_DIRECT_ACCESS_GRPC_BUILTIN_METRICS", "true")
+    environment("SPANNER_DISABLE_GRPC_GCP_OTEL_METRICS", "true")
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

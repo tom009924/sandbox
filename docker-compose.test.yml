@@ -18,6 +18,9 @@ services:
     environment:
       SPANNER_EMULATOR_HOST: spanner-emulator:9010
       SPANNER_DATABASE: identity-database
+      SPANNER_DISABLE_BUILTIN_METRICS: "true"
+      SPANNER_DISABLE_DIRECT_ACCESS_GRPC_BUILTIN_METRICS: "true"
+      SPANNER_DISABLE_GRPC_GCP_OTEL_METRICS: "true"
       NOTIFICATION_EMAIL_BASE_URL: http://wiremock:8080
       NOTIFICATION_EMAIL_API_KEY: test-api-key
     depends_on:
@@ -41,6 +44,9 @@ services:
     environment:
       SPANNER_EMULATOR_HOST: spanner-emulator:9010
       SPANNER_DATABASE: todo-database
+      SPANNER_DISABLE_BUILTIN_METRICS: "true"
+      SPANNER_DISABLE_DIRECT_ACCESS_GRPC_BUILTIN_METRICS: "true"
+      SPANNER_DISABLE_GRPC_GCP_OTEL_METRICS: "true"
       PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
       IDENTITY_SERVICE_ENABLED: "true"
       IDENTITY_SERVICE_GRPC_HOST: identity-service
