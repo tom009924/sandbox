@@ -50,3 +50,13 @@ tasks.register<Test>("propertyTest") {
         includeTags("property")
     }
 }
+
+tasks.register<Test>("apigeeIntegrationTest") {
+    description = "Runs Apigee emulator proxy integration tests."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform {
+        includeTags("apigee")
+    }
+}
