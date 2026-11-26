@@ -99,13 +99,15 @@ jobs:
 
       - name: Upload CycloneDX SBOM
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom
           path: services/todo-service/build/reports/cyclonedx/bom.json
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload todo-service JAR
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jar-todo-api
@@ -144,13 +146,15 @@ jobs:
 
       - name: Upload ${{ matrix.service }} CycloneDX SBOM
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom-${{ matrix.service }}
           path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload ${{ matrix.service }} JAR
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jar-${{ matrix.service }}
@@ -185,6 +189,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Download service JARs
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: jar-*
@@ -192,12 +197,16 @@ jobs:
 
       - name: Place service JARs for Docker builds
         run: |
-          mkdir -p services/identity-service/build/libs services/todo-service/build/libs services/api-gateway/build/libs
-          cp .ci-jars/jar-identity-service/app.jar services/identity-service/build/libs/app.jar
-          cp .ci-jars/jar-todo-api/app.jar services/todo-service/build/libs/app.jar
-          cp .ci-jars/jar-api-gateway/app.jar services/api-gateway/build/libs/app.jar
+          if [ -f .ci-jars/jar-identity-service/app.jar ] && [ -f .ci-jars/jar-todo-api/app.jar ] && [ -f .ci-jars/jar-api-gateway/app.jar ]; then
+            mkdir -p services/identity-service/build/libs services/todo-service/build/libs services/api-gateway/build/libs
+            cp .ci-jars/jar-identity-service/app.jar services/identity-service/build/libs/app.jar
+            cp .ci-jars/jar-todo-api/app.jar services/todo-service/build/libs/app.jar
+            cp .ci-jars/jar-api-gateway/app.jar services/api-gateway/build/libs/app.jar
+            echo "SKIP_BOOT_JAR=true" >> "$GITHUB_ENV"
+          else
+            echo "Service JAR artifacts unavailable; falling back to local bootJar build."
+            echo "SKIP_BOOT_JAR=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Run container-backed integration tests
-        env:
-          SKIP_BOOT_JAR: "true"
         run: bash scripts/run-container-integration-tests.sh
