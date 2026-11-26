@@ -113,9 +113,10 @@ jobs:
 
       - name: Upload OWASP dep-scan VEX, BOM & SARIF artifacts
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: owasp-depscan-reports
           path: build/reports/depscan/
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 3
