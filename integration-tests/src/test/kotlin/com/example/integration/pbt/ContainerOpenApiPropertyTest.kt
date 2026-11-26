@@ -15,6 +15,7 @@ import io.restassured.http.ContentType
 import io.restassured.specification.RequestSpecification
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -31,20 +32,10 @@ import kotlin.coroutines.startCoroutine
 @Tag("property")
 class ContainerOpenApiPropertyTest {
 
-    private lateinit var authorizedSpec: RequestSpecification
-
     @BeforeEach
     fun setup() {
-        SpannerDatabaseCleaner.cleanAll()
+        SpannerDatabaseCleaner.cleanPreservingUser(pbtUserId)
         WireMockAdminClient.resetRequests()
-
-        val token = registerAndLogin("pbt_user", "password123")
-        authorizedSpec = RequestSpecBuilder()
-            .setBaseUri(ContainerTestConfig.gatewayBaseUrl)
-            .addHeader("Authorization", "Bearer $token")
-            .setContentType(ContentType.JSON)
-            .addFilter(ContainerOpenApiSpec.validationFilter)
-            .build()
     }
 
     @Test
@@ -93,6 +84,7 @@ class ContainerOpenApiPropertyTest {
     fun validCreateProjectRequestMatchesOpenApiSpecAndRoundTrips() = runProperty {
         val schema = ContainerOpenApiSpec.requireSchema("CreateProjectRequest")
         val arb = OpenApiSchemaArbitrary.validObject(schema)
+        var createdSinceCleanup = 0
 
         checkAll(PropTestConfig(iterations = validIterations), arb) { payload ->
             val projectId = given()
@@ -106,29 +98,12 @@ class ContainerOpenApiPropertyTest {
                 .path<String>("id")
 
             assertNotNull(projectId)
+            createdSinceCleanup++
+            if (createdSinceCleanup >= CLEANUP_BATCH_SIZE) {
+                SpannerDatabaseCleaner.cleanProjectsAndTodos()
+                createdSinceCleanup = 0
+            }
         }
-    }
-
-    private fun registerAndLogin(username: String, password: String): String {
-        given()
-            .baseUri(ContainerTestConfig.gatewayBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","password":"$password"}""")
-            .`when`()
-            .post("/api/auth/register")
-            .then()
-            .statusCode(HTTP_CREATED)
-
-        return given()
-            .baseUri(ContainerTestConfig.gatewayBaseUrl)
-            .contentType(ContentType.JSON)
-            .body("""{"username":"$username","password":"$password"}""")
-            .`when`()
-            .post("/api/auth/login")
-            .then()
-            .statusCode(HTTP_OK)
-            .extract()
-            .path("token")
     }
 
     private fun postTodoAndExpectCreated(payload: Map<String, Any?>): String =
@@ -189,5 +164,44 @@ class ContainerOpenApiPropertyTest {
             System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_VALID_ITERATIONS
         val invalidIterations: Int =
             System.getenv("PBT_ITERATIONS")?.toIntOrNull() ?: DEFAULT_INVALID_ITERATIONS
+        lateinit var pbtUserId: UUID
+        lateinit var authorizedSpec: RequestSpecification
+
+        @JvmStatic
+        @BeforeAll
+        fun setupPbtUser() {
+            SpannerDatabaseCleaner.cleanAll()
+            WireMockAdminClient.resetRequests()
+
+            val userId = given()
+                .baseUri(ContainerTestConfig.gatewayBaseUrl)
+                .contentType(ContentType.JSON)
+                .body("""{"username":"pbt_user","password":"password123"}""")
+                .`when`()
+                .post("/api/auth/register")
+                .then()
+                .statusCode(HTTP_CREATED)
+                .extract()
+                .path<String>("id")
+
+            val token = given()
+                .baseUri(ContainerTestConfig.gatewayBaseUrl)
+                .contentType(ContentType.JSON)
+                .body("""{"username":"pbt_user","password":"password123"}""")
+                .`when`()
+                .post("/api/auth/login")
+                .then()
+                .statusCode(HTTP_OK)
+                .extract()
+                .path<String>("token")
+
+            pbtUserId = UUID.fromString(userId)
+            authorizedSpec = RequestSpecBuilder()
+                .setBaseUri(ContainerTestConfig.gatewayBaseUrl)
+                .addHeader("Authorization", "Bearer $token")
+                .setContentType(ContentType.JSON)
+                .addFilter(ContainerOpenApiSpec.validationFilter)
+                .build()
+        }
     }
 }

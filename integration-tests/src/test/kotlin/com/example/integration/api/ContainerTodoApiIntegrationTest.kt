@@ -22,6 +22,7 @@ import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -36,16 +37,13 @@ import java.util.UUID
 @Suppress("TooManyFunctions", "LargeClass")
 class ContainerTodoApiIntegrationTest {
 
-    private lateinit var defaultUserId: UUID
-    private lateinit var defaultToken: String
-
     @BeforeEach
     fun cleanDatabase() {
-        SpannerDatabaseCleaner.cleanAll()
-        val (userId, token) = ContainerApiClient.registerAndLogin("default_user")
-        defaultUserId = userId
-        defaultToken = token
-        WireMockAdminClient.resetRequests()
+        if (databaseDirty) {
+            SpannerDatabaseCleaner.cleanPreservingUser(defaultUserId)
+            WireMockAdminClient.resetRequests()
+        }
+        databaseDirty = true
     }
 
     @Test
@@ -339,6 +337,9 @@ class ContainerTodoApiIntegrationTest {
             .statusCode(HTTP_BAD_REQUEST)
 
         assertEquals(expectedCount, ContainerApiClient.listTodoCount(defaultToken))
+        if (!tc.needsExistingTodo) {
+            databaseDirty = false
+        }
     }
 
     @Test
@@ -390,6 +391,7 @@ class ContainerTodoApiIntegrationTest {
             .request(tc.method.name, "/api/todos/$MISSING_TODO_ID")
             .then()
             .statusCode(HTTP_NOT_FOUND)
+        databaseDirty = false
     }
 
     @Test
@@ -869,6 +871,20 @@ class ContainerTodoApiIntegrationTest {
         val MISSING_TODO_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         val coverageDefinition = OpenApiCoverageDefinition.from(ContainerOpenApiSpec.openAPI)
         val openApiCoverageFilter = OpenApiCoverageFilter(coverageDefinition)
+        lateinit var defaultUserId: UUID
+        lateinit var defaultToken: String
+        var databaseDirty: Boolean = true
+
+        @JvmStatic
+        @BeforeAll
+        fun setupDefaultUser() {
+            SpannerDatabaseCleaner.cleanAll()
+            val (userId, token) = ContainerApiClient.registerAndLogin("default_user")
+            defaultUserId = userId
+            defaultToken = token
+            WireMockAdminClient.resetRequests()
+            databaseDirty = false
+        }
 
         @JvmStatic
         @AfterAll
