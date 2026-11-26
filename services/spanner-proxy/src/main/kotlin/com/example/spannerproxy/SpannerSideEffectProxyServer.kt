@@ -162,9 +162,12 @@ class SpannerSideEffectProxyServer(
                         if (tracking) {
                             runCatching {
                                 inspectPayload(serverCall.methodDescriptor.fullMethodName, message)
+                            }.onFailure { err ->
+                                System.err.println("spanner-proxy inspectPayload error: ${err.message}")
                             }
                         }
                         clientCall.sendMessage(message)
+                        serverCall.request(1)
                     }
 
                     override fun onHalfClose() = clientCall.halfClose()

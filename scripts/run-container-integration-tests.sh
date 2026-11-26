@@ -24,7 +24,7 @@ fi
 
 if ! ./gradlew :integration-tests:test :integration-tests:propertyTest -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=256m" "$@"; then
   echo "Container integration tests failed. Service logs:"
-  "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway
+  "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway spanner-proxy
   exit 1
 fi
 
