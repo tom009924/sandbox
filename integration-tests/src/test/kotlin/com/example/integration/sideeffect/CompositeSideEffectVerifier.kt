@@ -43,27 +43,39 @@ class CompositeSideEffectVerifier(
         allowedTables.add(table.lowercase())
     }
 
-    fun verifyDatabase(operation: DbOperation, table: String, count: Int = 1) {
+    fun verifyDatabase(
+        operation: DbOperation,
+        table: String,
+        count: Int = 1,
+        maxWait: Duration = Duration.ofSeconds(DEFAULT_DB_WAIT_SECONDS),
+    ) {
         val targetTable = table.lowercase()
-        val unverified = SpannerProxyAdminClient.fetchMutations()
-            .withIndex()
-            .filter { (idx, _) -> idx !in verifiedMutationIndices }
-        val matching = unverified.filter { (_, mutation) ->
-            val matchesOp = mutation.operation == operation ||
-                (
-                    mutation.operation == DbOperation.UPSERT &&
-                        (operation == DbOperation.INSERT || operation == DbOperation.UPDATE)
-                    )
-            matchesOp && mutation.table == targetTable
-        }
+        val deadline = System.nanoTime() + maxWait.toNanos()
+        while (true) {
+            val unverified = SpannerProxyAdminClient.fetchMutations()
+                .withIndex()
+                .filter { (idx, _) -> idx !in verifiedMutationIndices }
+            val matching = unverified.filter { (_, mutation) ->
+                val matchesOp = mutation.operation == operation ||
+                    (
+                        mutation.operation == DbOperation.UPSERT &&
+                            (operation == DbOperation.INSERT || operation == DbOperation.UPDATE)
+                        )
+                matchesOp && mutation.table == targetTable
+            }
 
-        assertEquals(
-            count,
-            matching.size,
-            "Expected $count $operation operations on table '$targetTable', but found ${matching.size}. " +
-                "All unverified mutations: ${unverified.map { it.value }}",
-        )
-        matching.take(count).forEach { (idx, _) -> verifiedMutationIndices.add(idx) }
+            if (matching.size >= count || System.nanoTime() >= deadline) {
+                assertEquals(
+                    count,
+                    matching.size,
+                    "Expected $count $operation operations on table '$targetTable', but found ${matching.size}. " +
+                        "All unverified mutations: ${unverified.map { it.value }}",
+                )
+                matching.take(count).forEach { (idx, _) -> verifiedMutationIndices.add(idx) }
+                return
+            }
+            Thread.sleep(POLL_INTERVAL_MS)
+        }
     }
 
     fun verifyHttpRequest(
@@ -149,6 +161,7 @@ class CompositeSideEffectVerifier(
     }
 
     private companion object {
+        const val DEFAULT_DB_WAIT_SECONDS = 3L
         const val DEFAULT_PUBSUB_WAIT_SECONDS = 3L
         const val POLL_INTERVAL_MS = 50L
     }

@@ -183,7 +183,9 @@ class SpannerSideEffectProxyServer(
     private fun inspectPayload(fullMethodName: String, messageBytes: ByteArray) {
         when {
             fullMethodName.endsWith("/Commit") -> inspectCommit(messageBytes)
-            fullMethodName.endsWith("/ExecuteSql") -> inspectSql(ExecuteSqlRequest.parseFrom(messageBytes).sql)
+            fullMethodName.endsWith("/ExecuteSql") ||
+                fullMethodName.endsWith("/ExecuteStreamingSql") ->
+                inspectSql(ExecuteSqlRequest.parseFrom(messageBytes).sql)
             fullMethodName.endsWith("/ExecuteBatchDml") -> {
                 ExecuteBatchDmlRequest.parseFrom(messageBytes).statementsList.forEach {
                     inspectSql(it.sql)
