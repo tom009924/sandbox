@@ -388,6 +388,21 @@ tasks.register("propertyTest") {
     dependsOn(":integration-tests:propertyTest")
 }
 
+tasks.register("persistenceIntegrationTest") {
+    description = "Runs Spanner persistence slice and dynamic smoke tests across services."
+    group = "verification"
+    dependsOn(
+        ":services:identity-service:persistenceIntegrationTest",
+        ":services:todo-service:persistenceIntegrationTest",
+    )
+}
+
+tasks.register("apigeeIntegrationTest") {
+    description = "Runs Apigee emulator proxy integration tests."
+    group = "verification"
+    dependsOn(":integration-tests:apigeeIntegrationTest")
+}
+
 tasks.register("generateExternalCallDiagrams") {
     description = "Generates Mermaid external call sequence diagrams for todo-service."
     group = "documentation"

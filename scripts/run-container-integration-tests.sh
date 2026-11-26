@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMPOSE_CMD=(docker compose --profile wiremock -f docker-compose.yml -f docker-compose.test.yml)
+COMPOSE_PROFILES=(--profile wiremock)
+if [ "${ENABLE_APIGEE:-false}" = "true" ]; then
+  COMPOSE_PROFILES+=(--profile apigee)
+fi
+
+COMPOSE_CMD=(docker compose "${COMPOSE_PROFILES[@]}" -f docker-compose.yml -f docker-compose.test.yml)
 
 cleanup() {
   "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
@@ -22,7 +27,14 @@ if ! "${COMPOSE_CMD[@]}" up --build -d --wait; then
   exit 1
 fi
 
-if ! ./gradlew :integration-tests:test :integration-tests:propertyTest -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=256m" "$@"; then
+GRADLE_TEST_TASKS=(:integration-tests:test :integration-tests:propertyTest)
+if [ "${ENABLE_APIGEE:-false}" = "true" ]; then
+  GRADLE_TEST_TASKS+=(:integration-tests:apigeeIntegrationTest)
+  export APIGEE_REQUIRED="true"
+  export APIGEE_BACKEND_URL="${APIGEE_BACKEND_URL:-http://api-gateway:8082/api}"
+fi
+
+if ! ./gradlew "${GRADLE_TEST_TASKS[@]}" -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=256m" "$@"; then
   echo "Container integration tests failed. Service logs:"
   "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway spanner-proxy
   exit 1
