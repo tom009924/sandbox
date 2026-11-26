@@ -60,6 +60,23 @@ tasks.withType<Test>().configureEach {
     workingDir = rootProject.projectDir
 }
 
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("persistence")
+    }
+}
+
+val persistenceIntegrationTest = tasks.register<Test>("persistenceIntegrationTest") {
+    description = "Runs Spanner persistence slice and dynamic smoke tests (requires Spanner Emulator)."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    systemProperty("todo.grpc.enabled", "false")
+    useJUnitPlatform {
+        includeTags("persistence")
+    }
+}
+
 tasks.register<Test>("generateExternalCallDiagrams") {
     description = "Generates Mermaid external call sequence diagrams from dynamic traces."
     group = "documentation"
@@ -78,6 +95,7 @@ tasks.register<Test>("generateExternalCallDiagrams") {
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.test)
+    mustRunAfter(persistenceIntegrationTest)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")

@@ -21,6 +21,9 @@ allprojects {
     version = "1.0.0"
 
     repositories {
+        maven {
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2")
+        }
         mavenCentral()
     }
 
@@ -383,6 +386,21 @@ tasks.register("propertyTest") {
     description = "Runs container-backed property and model-based tests."
     group = "verification"
     dependsOn(":integration-tests:propertyTest")
+}
+
+tasks.register("persistenceIntegrationTest") {
+    description = "Runs Spanner persistence slice and dynamic smoke tests across services."
+    group = "verification"
+    dependsOn(
+        ":services:identity-service:persistenceIntegrationTest",
+        ":services:todo-service:persistenceIntegrationTest",
+    )
+}
+
+tasks.register("apigeeIntegrationTest") {
+    description = "Runs Apigee emulator proxy integration tests."
+    group = "verification"
+    dependsOn(":integration-tests:apigeeIntegrationTest")
 }
 
 tasks.register("generateExternalCallDiagrams") {

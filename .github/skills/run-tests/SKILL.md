@@ -10,23 +10,20 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 ## 主な実行コマンド
 
 ### 1. 全検証の実行（推奨）
-最初にエミュレータ（Spanner / Pub/Sub）をバックグラウンド起動し、続いて静的解析 (Detekt) → ユニットテスト → 統合テスト (OpenAPI 検証含む) を一括実行します。
-※ `build.gradle.kts` で `SPANNER_EMULATOR_HOST=localhost:9010` と `PUBSUB_EMULATOR_HOST=localhost:8085` がデフォルト設定されているため、個別の `export` は不要です。
-
-1. エミュレータの起動:
+1. ユニットテスト・ArchUnit・静的解析・OpenAPI/AsyncAPI リンティングの一括実行（エミュレータ不要）:
    ```bash
-   docker compose up -d
+   ./gradlew --offline check
    ```
-2. 全検証の実行（依存関係キャッシュ済みなら `--offline` で高速実行可能）:
+2. 全マイクロサービス実コンテナ統合テスト（OpenAPI 100% カバレッジ / 副作用検証 / PBT / DMN MBT / Arazzo E2E）の一括実行:
    ```bash
-   ./gradlew --offline check :services:api-gateway:check :services:identity-service:check
+   bash scripts/run-container-integration-tests.sh
    ```
 
 ### 2. 個別タスクの実行
 
 - **静的コード解析のみ (Detekt・エミュレータ不要)**:
   ```bash
-  ./gradlew --offline detekt :services:api-gateway:detekt :services:identity-service:detekt
+  ./gradlew --offline detekt
   ```
   ※ 自動修正可能なスタイル違反は自動で修正されます。
 - **OpenAPI / AsyncAPI 仕様の静的解析のみ (Redocly CLI・エミュレータ不要)**:
@@ -36,23 +33,30 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ※ OpenAPI / AsyncAPI / Arazzo 仕様の構文、命名規則、必須メタデータなどを検証します。
 - **ユニットテストのみ (MockMvc / in-process gRPC)**:
   ```bash
-  ./gradlew --offline test :services:api-gateway:test :services:identity-service:test
+  ./gradlew --offline test
   # 特定のテストクラスに絞って高速実行（トークン・実行時間節約）:
-  ./gradlew --offline test --tests "com.example.todo.application.TodoServiceTest"
+  ./gradlew --offline :services:todo-service:test --tests "com.example.todo.application.TodoServiceTest"
   ```
-- **結合テスト・プロパティベーステスト (REST Assured + OpenAPI Validator / Kotest Property)**:
+- **Spanner 永続化スライステスト・動的クエリスモークテスト (`@Tag("persistence")`・Spanner Emulator 必須)**:
+  ```bash
+  docker compose up -d spanner-emulator
+  ./gradlew --offline :services:todo-service:persistenceIntegrationTest :services:identity-service:persistenceIntegrationTest
+  ```
+- **コンテナ統合テスト・プロパティベーステスト (起動済み `docker-compose.test.yml` スタックに対して実行)**:
   ```bash
   ./gradlew --offline integrationTest propertyTest
   ```
-- **マイクロサービス結合 E2E (Gateway + gRPC + Arazzo)**:
+- **マイクロサービス実コンテナ統合 E2E 一括実行 (`api-gateway` + `identity-service` + `todo-service` + `spanner-proxy` + Arazzo)**:
   ```bash
-  bash scripts/run-microservices-e2e.sh
+  bash scripts/run-container-integration-tests.sh
+  # Apigee Emulator プロキシ統合テストも同時に実行する場合:
+  ENABLE_APIGEE=true bash scripts/run-container-integration-tests.sh
   ```
 - **OpenAPI スペックカバレッジの計測と標準出力**:
   ```bash
   npm run coverage:spec
   # または Gradle 直接実行:
-  ./gradlew --offline integrationTest --tests "com.example.todo.TodoApiIntegrationTest"
+  ./gradlew --offline :integration-tests:test --tests "com.example.integration.api.ContainerTodoApiIntegrationTest"
   ```
   ※ 一時ファイル作成を行わず、OpenAPI 仕様に対するエンドポイント、レスポンスステータスコード、リクエストパラメータ、バリデーション制約の網羅率をインメモリで集計してターミナル（標準出力）に直接出力します。
 - **トークン・セッション使用量・コストの計測 (ccusage)**:
@@ -65,7 +69,7 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
   ※ オフラインモード（`-O`）で即座に実行され、エージェント環境下でもネットワーク待機なしでトークン消費量やコストを確認できます。
 - **Arazzo ワークフローテスト（E2E / スモーク・ローカルまたは実環境）**:
   ```bash
-  # 起動中のアプリケーション（localhost:8080）に対して実行（一意のユーザー名で自己完結）
+  # 起動中の api-gateway（localhost:8082）に対して実行（一意のユーザー名で自己完結）
   npm run test:arazzo
 
   # 実環境（ステージング等）に対して実行
@@ -102,7 +106,7 @@ description: プロジェクトのユニットテスト、静的解析 (Detekt)�
 2. **統合テストで OpenAPI 検証エラーが発生した場合**:
    - `OpenApiValidationFilter` のリクエスト/レスポンススキーマ検証エラーメッセージを確認してください。
    - リクエスト/レスポンスのフィールド欠落、余分なフィールド、型不整合、ステータスコード不一致などが原因です。
-   - `verifyAllOpenApiConstraintsCovered()` で失敗した場合は、OpenAPI 仕様に追加された `pattern` や `enum`、`minimum` 等の制約に対する異常系（400）テストが `TodoApiTestCases.kt` に不足しています。対応するテストケースを追加してください。
+   - `reportAndVerifyOpenApiCoverage()` で失敗した場合は、OpenAPI 仕様に追加された `pattern` や `enum`、`minimum` 等の制約に対する異常系（400）テストが `integration-tests/src/test/kotlin/com/example/integration/api/TodoApiTestCases.kt` に不足しています。対応するテストケースを追加してください。
 
 3. **Cloud Spanner Emulator のスキーマエラー (`Cannot add NOT NULL column` / Flyway 競合)**:
    - Spanner テーブル定義や Flyway マイグレーション（`src/main/resources/db/migration/`）を変更した場合、既存のインメモリDBスキーマと衝突することがあります。

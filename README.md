@@ -18,7 +18,7 @@ Apigee APIプロキシのローカル検証を行う場合は、Apigee Emulator�
 docker compose --profile apigee up -d apigee-emulator
 npm run deploy:apigee
 ```
-Apigee Emulatorはホスト側ポート `8088`（Management API / デプロイ用）および `8998`（Traffic / プロキシ呼出用）で起動します。リバースプロキシワークスペース（`infra/apigee`）が同梱されており、`http://localhost:8998/v1/*` へのリクエストが Spring Boot バックエンド（`/api/*`）へルーティングされます（CORS ヘッダー付与対応）。また `services/todo-service/src/integrationTest` には Apigee プロキシ経由の疎通・CORS 検証テスト（`ApigeeProxyIntegrationTest`）が含まれています。VS Code環境では Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）を通じたプロキシデバッグやトレースも可能です。
+Apigee Emulatorはホスト側ポート `8088`（Management API / デプロイ用）および `8998`（Traffic / プロキシ呼出用）で起動します。リバースプロキシワークスペース（`infra/apigee`）が同梱されており、`http://localhost:8998/v1/*` へのリクエストが `api-gateway`（`/api/*`）へルーティングされます（CORS ヘッダー付与対応）。また `:integration-tests` には Apigee プロキシ経由の疎通・CORS 検証テスト（`ContainerApigeeProxyIntegrationTest`）が含まれています。VS Code環境では Cloud Code 拡張機能（`GoogleCloudTools.cloudcode`）を通じたプロキシデバッグやトレースも可能です。
 
 Spanner Emulatorはデータベースとインスタンスを自動作成します。停止する場合は `docker compose down` を実行してください。Emulatorのデータは停止すると消去されます。
 実Spannerに接続する場合は `SPANNER_JDBC_URL` を設定し、Spanner JDBC Driverが利用するGoogle Cloud認証を構成してください。
@@ -171,23 +171,20 @@ npm run depscan
 npm run depscan:reachability
 ```
 
-MockMvcテストとREST AssuredによるHTTP統合テストはCloud Spanner EmulatorおよびCloud Pub/Sub Emulatorを利用します。テスト実行前にEmulatorを起動し、`SPANNER_EMULATOR_HOST` および `PUBSUB_EMULATOR_HOST` を設定してください。HTTP統合テストでは `swagger-parser` と Kotest を使い、レスポンスを `docs/dist/openapi.admin.yaml` のスキーマと照合します。また、OpenAPI仕様書で定義されたすべてのエンドポイント、レスポンスステータスコード、リクエスト制約がテストされているかも自動検証します。
+全マイクロサービス（`api-gateway`、`identity-service`、`todo-service`）およびエミュレータ群（`spanner-emulator`、`spanner-proxy`、`pubsub-emulator`、`wiremock`）を実コンテナで一括起動し、REST Assured + `swagger-parser` / Kotest Property による OpenAPI 100% カバレッジ統合テスト・副作用検証・プロパティベーステスト・DMN モデルベーステスト・Arazzo E2E を実行するには次を実行します:
 
 ```bash
-docker compose up -d spanner-emulator pubsub-emulator
-export SPANNER_EMULATOR_HOST=localhost:9010
-export PUBSUB_EMULATOR_HOST=localhost:8085
-./gradlew integrationTest
+bash scripts/run-container-integration-tests.sh
 ```
 
-`check`を実行するとDetekt、依存関係健全性検証、OpenAPI/AsyncAPIリンティング、ユニットテスト、インテグレーションテスト、プロパティベーステスト（`propertyTest`）、JaCoCoカバレッジ検証を順に実行します。マイクロサービスの検証は `./gradlew :services:api-gateway:check :services:identity-service:check`、結合E2E（Arazzo含む）は `bash scripts/run-microservices-e2e.sh` で実行できます。
+`./gradlew check` を実行すると、全モジュールの Detekt、依存関係健全性検証（`buildHealth`）、OpenAPI/AsyncAPI リンティング、ユニットテスト・ArchUnit、および JaCoCo カバレッジ検証を実行します。
 
 ### Arazzo ワークフローテスト（E2E / スモーク）
 
-Redocly Respect を利用し、`docs/workflows/todo-workflows.arazzo.yaml` で定義された一連の業務シナリオ（登録、ログイン、設定、TODO CRUD、管理者監査）を自動実行します。
+Redocly Respect を利用し、`docs/workflows/todo-workflows.arazzo.yaml` で定義された一連の業務シナリオ（登録、ログイン、設定、TODO CRUD、プロジェクト協業、管理者監査）を自動実行します。
 
 ```bash
-# 起動中のローカル環境（http://localhost:8080）に対して実行
+# 起動中のローカル環境（http://localhost:8082）に対して実行
 npm run test:arazzo
 
 # 実環境（ステージング環境等）に対して実行

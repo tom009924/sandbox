@@ -10,6 +10,18 @@ object ContainerTestConfig {
     val wireMockBaseUrl: String =
         System.getenv("WIREMOCK_BASE_URL") ?: "http://127.0.0.1:8089"
 
+    val spannerProxyBaseUrl: String =
+        System.getenv("SPANNER_PROXY_BASE_URL") ?: "http://127.0.0.1:9030"
+
+    val pubSubBaseUrl: String =
+        System.getenv("PUBSUB_EMULATOR_BASE_URL") ?: "http://127.0.0.1:8085"
+
+    val pubSubProjectId: String =
+        System.getenv("PUBSUB_PROJECT_ID") ?: "todo-project"
+
+    val pubSubTopicId: String =
+        System.getenv("PUBSUB_TOPIC_ID") ?: "todo-events"
+
     val spannerRestBaseUrl: String =
         System.getenv("SPANNER_EMULATOR_REST_URL") ?: "http://127.0.0.1:9020"
 

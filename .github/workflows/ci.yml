@@ -64,18 +64,26 @@ jobs:
     name: Verify ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      spanner-emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
     strategy:
       fail-fast: false
       matrix:
         include:
           - service: todo-service
             gradle-project: :services:todo-service
+            extra-tasks: ":services:todo-service:persistenceIntegrationTest :services:spanner-proxy:bootJar"
             extra-exclude: -x openApiValidate
           - service: identity-service
             gradle-project: :services:identity-service
+            extra-tasks: ":services:identity-service:persistenceIntegrationTest"
             extra-exclude: ""
           - service: api-gateway
             gradle-project: :services:api-gateway
+            extra-tasks: ""
             extra-exclude: ""
     steps:
       - name: Check out repository
@@ -102,8 +110,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run tests, build JAR, and generate SBOM
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
         run: |
-          ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom \
+          ./gradlew ${{ matrix.extra-tasks }} ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom \
             -x detekt ${{ matrix.extra-exclude }} \
             --no-daemon -PdetektAutoCorrect=false
 
@@ -115,17 +125,28 @@ jobs:
 
       - name: Upload ${{ matrix.service }} CycloneDX SBOM
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom-${{ matrix.service }}
           path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload ${{ matrix.service }} JAR
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jar-${{ matrix.service }}
           path: services/${{ matrix.service }}/build/libs/app.jar
+          retention-days: 1
+
+      - name: Upload spanner-proxy JAR
+        if: matrix.service == 'todo-service'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-spanner-proxy
+          path: services/spanner-proxy/build/libs/app.jar
           retention-days: 1
 
   container-integration-tests:
@@ -156,6 +177,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Download service JARs
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: jar-*
@@ -163,12 +185,22 @@ jobs:
 
       - name: Place service JARs for Docker builds
         run: |
-          mkdir -p services/identity-service/build/libs services/todo-service/build/libs services/api-gateway/build/libs
-          cp .ci-jars/jar-identity-service/app.jar services/identity-service/build/libs/app.jar
-          cp .ci-jars/jar-todo-service/app.jar services/todo-service/build/libs/app.jar
-          cp .ci-jars/jar-api-gateway/app.jar services/api-gateway/build/libs/app.jar
+          if [ -f .ci-jars/jar-identity-service/app.jar ] && [ -f .ci-jars/jar-todo-service/app.jar ] && [ -f .ci-jars/jar-api-gateway/app.jar ]; then
+            mkdir -p services/identity-service/build/libs services/todo-service/build/libs services/api-gateway/build/libs
+            cp .ci-jars/jar-identity-service/app.jar services/identity-service/build/libs/app.jar
+            cp .ci-jars/jar-todo-service/app.jar services/todo-service/build/libs/app.jar
+            cp .ci-jars/jar-api-gateway/app.jar services/api-gateway/build/libs/app.jar
+            if [ -f .ci-jars/jar-spanner-proxy/app.jar ]; then
+              mkdir -p services/spanner-proxy/build/libs
+              cp .ci-jars/jar-spanner-proxy/app.jar services/spanner-proxy/build/libs/app.jar
+            fi
+            echo "SKIP_BOOT_JAR=true" >> "$GITHUB_ENV"
+          else
+            echo "Service JAR artifacts unavailable; falling back to local bootJar build."
+            echo "SKIP_BOOT_JAR=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Run container-backed integration tests
         env:
-          SKIP_BOOT_JAR: "true"
+          ENABLE_APIGEE: "true"
         run: bash scripts/run-container-integration-tests.sh

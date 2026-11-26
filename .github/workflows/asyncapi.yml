@@ -44,5 +44,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint AsyncAPI spec with Spectral
+      - name: Lint AsyncAPI spec with Redocly
         run: npm run lint:asyncapi
