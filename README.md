@@ -194,6 +194,21 @@ npm run test:arazzo
 SERVER_URL=https://staging.api.example.com npm run test:arazzo
 ```
 
+### OpenAPI ファジングテスト（Schemathesis）
+
+[Schemathesis](https://schemathesis.io/) を利用し、バンドル済み OpenAPI 仕様（`docs/dist/openapi.yaml`）から境界値・異常系・ランダム入力を自動生成して API エンドポイント（デフォルトは `api-gateway`: `http://127.0.0.1:8082`）をファジングします。設定は [`schemathesis.toml`](schemathesis.toml)、CI は [`.github/workflows/api-fuzz.yml`](.github/workflows/api-fuzz.yml) で管理しています。
+
+```bash
+# 起動中の api-gateway に対して 5xx 検出ファジングを実行（JWT を自動取得）
+npm run test:fuzz
+
+# レスポンススキーマ準拠・不正入力拒否を含む全チェックを実行
+npm run test:fuzz:strict
+
+# 件数や対象パスを絞って実行
+SCHEMATHESIS_MAX_EXAMPLES=50 npm run test:fuzz -- --include-path-regex "^/api/todos"
+```
+
 全体のテスト方針やピラミッド設計は [テスト戦略ドキュメント](docs/testing/test-strategy.md)、デプロイ後の環境検証およびリリース前チェックは [テスト環境仕様書・管理台帳](docs/testing/test-environment-specification.md) を参照してください。
 
 ## AI コーディングエージェント設定

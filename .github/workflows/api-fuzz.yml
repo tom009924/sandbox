@@ -1,0 +1,166 @@
+name: OpenAPI Fuzzing (Schemathesis)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "docs/openapi.yaml"
+      - "docs/paths/**"
+      - "docs/components/**"
+      - "docs/dist/openapi.yaml"
+      - "services/**"
+      - "schemathesis.toml"
+      - "scripts/run-schemathesis.sh"
+      - ".github/workflows/api-fuzz.yml"
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      max_examples:
+        description: "Max generated examples per operation"
+        required: false
+        default: "50"
+      checks:
+        description: "Schemathesis checks (e.g. not_a_server_error or all)"
+        required: false
+        default: "not_a_server_error"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx2g"
+
+jobs:
+  schemathesis-fuzz:
+    name: Schemathesis OpenAPI Fuzzing
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      spanner-emulator:
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        ports:
+          - 9010:9010
+      pubsub-emulator:
+        image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+        command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+        ports:
+          - 8085:8085
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build microservice JARs
+        run: |
+          ./gradlew \
+            :services:identity-service:bootJar \
+            :services:todo-service:bootJar \
+            :services:api-gateway:bootJar \
+            -x test --no-daemon
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Schemathesis
+        run: uv tool install schemathesis
+
+      - name: Start microservices and run Schemathesis
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+          PUBSUB_EMULATOR_HOST: localhost:8085
+          SCHEMATHESIS_CHECKS: ${{ github.event.inputs.checks || 'not_a_server_error' }}
+          SCHEMATHESIS_MAX_EXAMPLES: ${{ github.event.inputs.max_examples || (github.event_name == 'schedule' && '100' || '20') }}
+          SCHEMATHESIS_SEED: ${{ github.event_name == 'pull_request' && '42' || '' }}
+          SCHEMATHESIS_JUNIT_PATH: build/reports/schemathesis/junit.xml
+        run: |
+          set -euo pipefail
+
+          IDENTITY_PID=""
+          TODO_PID=""
+          GATEWAY_PID=""
+          cleanup() {
+            kill "${IDENTITY_PID:-}" "${TODO_PID:-}" "${GATEWAY_PID:-}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          wait_for_health() {
+            local name="$1"
+            local url="$2"
+            local log_file="$3"
+            for _ in $(seq 1 30); do
+              if [ "$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)" = "200" ]; then
+                echo "$name is healthy ($url)"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "$name failed to become healthy ($url)"
+            cat "$log_file"
+            return 1
+          }
+
+          SPANNER_DATABASE=identity-database \
+            java -jar services/identity-service/build/libs/app.jar > identity-service.log 2>&1 &
+          IDENTITY_PID=$!
+          wait_for_health "identity-service" "http://127.0.0.1:8081/actuator/health" "identity-service.log"
+
+          IDENTITY_SERVICE_ENABLED=true \
+          IDENTITY_SERVICE_GRPC_HOST=127.0.0.1 \
+          IDENTITY_SERVICE_GRPC_PORT=9091 \
+          TODO_GRPC_ENABLED=true \
+          TODO_GRPC_PORT=9092 \
+            java -jar services/todo-service/build/libs/app.jar > todo-api.log 2>&1 &
+          TODO_PID=$!
+          wait_for_health "todo-api" "http://127.0.0.1:8080/actuator/health" "todo-api.log"
+
+          IDENTITY_GRPC_HOST=127.0.0.1 \
+          IDENTITY_GRPC_PORT=9091 \
+          TODO_GRPC_HOST=127.0.0.1 \
+          TODO_GRPC_PORT=9092 \
+            java -jar services/api-gateway/build/libs/app.jar > api-gateway.log 2>&1 &
+          GATEWAY_PID=$!
+          wait_for_health "api-gateway" "http://127.0.0.1:8082/actuator/health" "api-gateway.log"
+
+          if ! bash scripts/run-schemathesis.sh; then
+            echo "=== api-gateway.log (errors) ==="
+            grep -n -A 15 "ERROR" api-gateway.log | tail -n 100 || true
+            echo "=== api-gateway.log (last 100 lines) ==="
+            tail -n 100 api-gateway.log || true
+            echo "=== todo-api.log (last 100 lines) ==="
+            tail -n 100 todo-api.log || true
+            echo "=== identity-service.log (last 100 lines) ==="
+            tail -n 100 identity-service.log || true
+            exit 1
+          fi
+
+      - name: Upload Schemathesis report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schemathesis-report
+          path: build/reports/schemathesis/
+          if-no-files-found: ignore
+          retention-days: 14
