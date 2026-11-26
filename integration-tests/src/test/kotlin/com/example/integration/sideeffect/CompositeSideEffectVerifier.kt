@@ -82,24 +82,31 @@ class CompositeSideEffectVerifier(
         method: String,
         urlPattern: String,
         count: Int = 1,
+        maxWait: Duration = Duration.ofSeconds(DEFAULT_HTTP_WAIT_SECONDS),
     ): List<RecordedWireMockRequest> {
         val regex = Regex(urlPattern)
-        val unverified = WireMockAdminClient.fetchRequests()
-            .withIndex()
-            .filter { (idx, _) -> idx !in verifiedHttpRequestIndices }
-        val matching = unverified.filter { (_, req) ->
-            req.method.equals(method, ignoreCase = true) && regex.matches(req.url)
-        }
+        val deadline = System.nanoTime() + maxWait.toNanos()
+        while (true) {
+            val unverified = WireMockAdminClient.fetchRequests()
+                .withIndex()
+                .filter { (idx, _) -> idx !in verifiedHttpRequestIndices }
+            val matching = unverified.filter { (_, req) ->
+                req.method.equals(method, ignoreCase = true) && regex.matches(req.url)
+            }
 
-        assertEquals(
-            count,
-            matching.size,
-            "Expected $count $method requests matching '$urlPattern', but found ${matching.size}. " +
-                "All unverified requests: ${unverified.map { it.value }}",
-        )
-        val selected = matching.take(count)
-        selected.forEach { (idx, _) -> verifiedHttpRequestIndices.add(idx) }
-        return selected.map { it.value }
+            if (matching.size >= count || System.nanoTime() >= deadline) {
+                assertEquals(
+                    count,
+                    matching.size,
+                    "Expected $count $method requests matching '$urlPattern', but found ${matching.size}. " +
+                        "All unverified requests: ${unverified.map { it.value }}",
+                )
+                val selected = matching.take(count)
+                selected.forEach { (idx, _) -> verifiedHttpRequestIndices.add(idx) }
+                return selected.map { it.value }
+            }
+            Thread.sleep(POLL_INTERVAL_MS)
+        }
     }
 
     fun verifyPubSub(
@@ -162,6 +169,7 @@ class CompositeSideEffectVerifier(
 
     private companion object {
         const val DEFAULT_DB_WAIT_SECONDS = 3L
+        const val DEFAULT_HTTP_WAIT_SECONDS = 3L
         const val DEFAULT_PUBSUB_WAIT_SECONDS = 3L
         const val POLL_INTERVAL_MS = 50L
     }

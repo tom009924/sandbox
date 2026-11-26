@@ -9,6 +9,9 @@ import com.example.integration.support.SpannerDatabaseCleaner
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -19,6 +22,7 @@ import java.util.UUID
  * Verifies side effects across Spanner (`spanner-proxy`), WireMock, and Pub/Sub Emulator
  * through the containerized `api-gateway` -> `identity-service` / `todo-service` stack.
  */
+@Suppress("TooManyFunctions")
 class ContainerSideEffectVerificationIntegrationTest {
 
     private val verifier = CompositeSideEffectVerifier(
@@ -48,7 +52,6 @@ class ContainerSideEffectVerificationIntegrationTest {
             .then()
             .statusCode(HTTP_CREATED)
 
-        // 未検証の副作用（users / user_settings / WireMock メール送信）が検知されること
         val error = assertThrows(AssertionError::class.java) {
             verifier.assertNoUnverifiedSideEffects()
         }
@@ -61,27 +64,14 @@ class ContainerSideEffectVerificationIntegrationTest {
 
     @Test
     fun todoLifecycleProducesVerifiedSpannerAndPubSubSideEffects() {
-        verifier.stopTracking()
-        val (_, token) = ContainerApiClient.registerAndLogin("todo_sideeffect_user")
-        verifier.startTracking()
+        val token = registerUntrackedUser("todo_sideeffect_user")
 
         // 1. Create
-        val todoId = UUID.fromString(
-            given()
-                .baseUri(ContainerTestConfig.gatewayBaseUrl)
-                .header("Authorization", "Bearer $token")
-                .header("Idempotency-Key", UUID.randomUUID().toString())
-                .contentType(ContentType.JSON)
-                .body("""{"title":"SideEffect Todo","priority":"HIGH"}""")
-                .`when`()
-                .post("/api/todos")
-                .then()
-                .statusCode(HTTP_CREATED)
-                .extract()
-                .path<String>("id"),
-        )
+        val todoId = createTodoAs(token, "SideEffect Todo")
         verifier.verifyDatabase(DbOperation.INSERT, "todos")
-        verifier.verifyPubSub("CREATED", todoId)
+        val createdEvent = verifier.verifyPubSub("CREATED", todoId)
+        assertNotNull(createdEvent.eventId)
+        assertEquals("SideEffect Todo", createdEvent.todoTitle)
         verifier.assertNoUnverifiedSideEffects()
 
         // 2. Update
@@ -95,7 +85,9 @@ class ContainerSideEffectVerificationIntegrationTest {
             .then()
             .statusCode(HTTP_OK)
         verifier.verifyDatabase(DbOperation.UPDATE, "todos")
-        verifier.verifyPubSub("UPDATED", todoId)
+        val updatedEvent = verifier.verifyPubSub("UPDATED", todoId)
+        assertNotNull(updatedEvent.eventId)
+        assertEquals("Updated SideEffect Todo", updatedEvent.todoTitle)
         verifier.assertNoUnverifiedSideEffects()
 
         // 3. Delete
@@ -107,7 +99,194 @@ class ContainerSideEffectVerificationIntegrationTest {
             .then()
             .statusCode(HTTP_NO_CONTENT)
         verifier.verifyDatabase(DbOperation.DELETE, "todos")
-        verifier.verifyPubSub("DELETED", todoId)
+        val deletedEvent = verifier.verifyPubSub("DELETED", todoId)
+        assertNotNull(deletedEvent.eventId)
+        assertNull(deletedEvent.todoTitle)
+        verifier.assertNoUnverifiedSideEffects()
+    }
+
+    @Test
+    fun userSettingsUpdateProducesVerifiedSpannerSideEffectWithoutExternalNoise() {
+        val token = registerUntrackedUser("settings_sideeffect_user")
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .contentType(ContentType.JSON)
+            .body("""{"defaultPriority":"HIGH","defaultEstimatedMinutes":25,"maxActiveTodos":5}""")
+            .`when`()
+            .put("/api/user/settings")
+            .then()
+            .statusCode(HTTP_OK)
+
+        verifier.verifyDatabase(DbOperation.UPSERT, "user_settings")
+        verifier.assertNoUnverifiedSideEffects()
+    }
+
+    @Test
+    fun projectAndMemberLifecycleProducesVerifiedSpannerSideEffects() {
+        verifier.stopTracking()
+        val (_, ownerToken) = ContainerApiClient.registerAndLogin("project_owner_se")
+        val (memberId, _) = ContainerApiClient.registerAndLogin("project_member_se")
+        verifier.startTracking()
+
+        val projectId = given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $ownerToken")
+            .contentType(ContentType.JSON)
+            .body("""{"name":"SideEffect Project","description":"Initial"}""")
+            .`when`()
+            .post("/api/projects")
+            .then()
+            .statusCode(HTTP_CREATED)
+            .extract()
+            .path<String>("id")
+        verifier.verifyDatabase(DbOperation.INSERT, "projects")
+        verifier.verifyDatabase(DbOperation.INSERT, "project_members")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $ownerToken")
+            .contentType(ContentType.JSON)
+            .body("""{"username":"project_member_se","role":"MEMBER"}""")
+            .`when`()
+            .post("/api/projects/$projectId/members")
+            .then()
+            .statusCode(HTTP_CREATED)
+        verifier.verifyDatabase(DbOperation.INSERT, "project_members")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $ownerToken")
+            .contentType(ContentType.JSON)
+            .body("""{"name":"Renamed SideEffect Project","description":"Updated"}""")
+            .`when`()
+            .put("/api/projects/$projectId")
+            .then()
+            .statusCode(HTTP_OK)
+        verifier.verifyDatabase(DbOperation.UPDATE, "projects")
+        verifier.assertNoUnverifiedSideEffects()
+
+        removeMemberAndDeleteProject(ownerToken, projectId, memberId)
+    }
+
+    @Test
+    fun todoSubtaskAndCommentLifecycleProducesVerifiedSpannerSideEffects() {
+        verifier.stopTracking()
+        val (_, token) = ContainerApiClient.registerAndLogin("collab_sideeffect_user")
+        val todoId = ContainerApiClient.seedTodo(token, title = "Parent Todo")
+        verifier.startTracking()
+
+        val subtaskId = given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .contentType(ContentType.JSON)
+            .body("""{"title":"Subtask 1"}""")
+            .`when`()
+            .post("/api/todos/$todoId/subtasks")
+            .then()
+            .statusCode(HTTP_CREATED)
+            .extract()
+            .path<String>("id")
+        verifier.verifyDatabase(DbOperation.INSERT, "todo_subtasks")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .contentType(ContentType.JSON)
+            .body("""{"completed":true}""")
+            .`when`()
+            .patch("/api/todos/$todoId/subtasks/$subtaskId")
+            .then()
+            .statusCode(HTTP_OK)
+        verifier.verifyDatabase(DbOperation.UPDATE, "todo_subtasks")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .delete("/api/todos/$todoId/subtasks/$subtaskId")
+            .then()
+            .statusCode(HTTP_NO_CONTENT)
+        verifier.verifyDatabase(DbOperation.DELETE, "todo_subtasks")
+        verifier.assertNoUnverifiedSideEffects()
+
+        verifyCommentLifecycleSideEffects(token, todoId)
+    }
+
+    private fun registerUntrackedUser(username: String): String {
+        verifier.stopTracking()
+        val (_, token) = ContainerApiClient.registerAndLogin(username)
+        verifier.startTracking()
+        return token
+    }
+
+    private fun createTodoAs(token: String, title: String): UUID =
+        UUID.fromString(
+            given()
+                .baseUri(ContainerTestConfig.gatewayBaseUrl)
+                .header("Authorization", "Bearer $token")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .contentType(ContentType.JSON)
+                .body("""{"title":"$title","priority":"HIGH"}""")
+                .`when`()
+                .post("/api/todos")
+                .then()
+                .statusCode(HTTP_CREATED)
+                .extract()
+                .path<String>("id"),
+        )
+
+    private fun removeMemberAndDeleteProject(ownerToken: String, projectId: String, memberId: UUID) {
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $ownerToken")
+            .`when`()
+            .delete("/api/projects/$projectId/members/$memberId")
+            .then()
+            .statusCode(HTTP_NO_CONTENT)
+        verifier.verifyDatabase(DbOperation.DELETE, "project_members")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $ownerToken")
+            .`when`()
+            .delete("/api/projects/$projectId")
+            .then()
+            .statusCode(HTTP_NO_CONTENT)
+        verifier.verifyDatabase(DbOperation.DELETE, "project_members")
+        verifier.verifyDatabase(DbOperation.DELETE, "projects")
+        verifier.assertNoUnverifiedSideEffects()
+    }
+
+    private fun verifyCommentLifecycleSideEffects(token: String, todoId: UUID) {
+        val commentId = given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .contentType(ContentType.JSON)
+            .body("""{"content":"SideEffect comment"}""")
+            .`when`()
+            .post("/api/todos/$todoId/comments")
+            .then()
+            .statusCode(HTTP_CREATED)
+            .extract()
+            .path<String>("id")
+        verifier.verifyDatabase(DbOperation.INSERT, "todo_comments")
+        verifier.assertNoUnverifiedSideEffects()
+
+        given()
+            .baseUri(ContainerTestConfig.gatewayBaseUrl)
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .delete("/api/todos/$todoId/comments/$commentId")
+            .then()
+            .statusCode(HTTP_NO_CONTENT)
+        verifier.verifyDatabase(DbOperation.DELETE, "todo_comments")
         verifier.assertNoUnverifiedSideEffects()
     }
 
