@@ -9,6 +9,9 @@ import io.restassured.http.ContentType
  */
 object SpannerDatabaseCleaner {
     private const val HTTP_OK = 200
+    private const val HTTP_CONFLICT = 409
+    private const val MAX_CLEANUP_RETRIES = 5
+    private const val RETRY_DELAY_MS = 100L
 
     private val identityTables = listOf(
         "user_settings",
@@ -53,35 +56,54 @@ object SpannerDatabaseCleaner {
             .path<String>("name")
 
         try {
-            val transactionId = given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"options":{"readWrite":{}}}""")
-                .`when`()
-                .post("/v1/$sessionName:beginTransaction")
-                .then()
-                .statusCode(HTTP_OK)
-                .extract()
-                .path<String>("id")
-
             val statements = tables.joinToString(",") { """{"sql":"DELETE FROM $it WHERE TRUE"}""" }
-            given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"transaction":{"id":"$transactionId"},"statements":[$statements],"seqno":"1"}""")
-                .`when`()
-                .post("/v1/$sessionName:executeBatchDml")
-                .then()
-                .statusCode(HTTP_OK)
+            var attempt = 0
+            while (true) {
+                attempt++
+                val transactionId = given()
+                    .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+                    .contentType(ContentType.JSON)
+                    .body("""{"options":{"readWrite":{}}}""")
+                    .`when`()
+                    .post("/v1/$sessionName:beginTransaction")
+                    .then()
+                    .statusCode(HTTP_OK)
+                    .extract()
+                    .path<String>("id")
 
-            given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"transactionId":"$transactionId"}""")
-                .`when`()
-                .post("/v1/$sessionName:commit")
-                .then()
-                .statusCode(HTTP_OK)
+                val dmlStatus = given()
+                    .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+                    .contentType(ContentType.JSON)
+                    .body("""{"transaction":{"id":"$transactionId"},"statements":[$statements],"seqno":"1"}""")
+                    .`when`()
+                    .post("/v1/$sessionName:executeBatchDml")
+                    .statusCode()
+
+                if (dmlStatus == HTTP_CONFLICT && attempt < MAX_CLEANUP_RETRIES) {
+                    Thread.sleep(RETRY_DELAY_MS)
+                    continue
+                }
+                check(dmlStatus == HTTP_OK) {
+                    "SpannerDatabaseCleaner executeBatchDml failed with HTTP $dmlStatus on $database"
+                }
+
+                val commitStatus = given()
+                    .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+                    .contentType(ContentType.JSON)
+                    .body("""{"transactionId":"$transactionId"}""")
+                    .`when`()
+                    .post("/v1/$sessionName:commit")
+                    .statusCode()
+
+                if (commitStatus == HTTP_CONFLICT && attempt < MAX_CLEANUP_RETRIES) {
+                    Thread.sleep(RETRY_DELAY_MS)
+                    continue
+                }
+                check(commitStatus == HTTP_OK) {
+                    "SpannerDatabaseCleaner commit failed with HTTP $commitStatus on $database"
+                }
+                break
+            }
         } finally {
             given()
                 .baseUri(ContainerTestConfig.spannerRestBaseUrl)

@@ -160,6 +160,7 @@ class SpannerSideEffectProxyServer(
                 object : ServerCall.Listener<ByteArray>() {
                     override fun onMessage(message: ByteArray) {
                         if (tracking) {
+                            System.err.println("spanner-proxy RPC: ${serverCall.methodDescriptor.fullMethodName}")
                             runCatching {
                                 inspectPayload(serverCall.methodDescriptor.fullMethodName, message)
                             }.onFailure { err ->
