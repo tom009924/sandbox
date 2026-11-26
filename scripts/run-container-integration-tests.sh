@@ -9,7 +9,11 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${SKIP_BOOT_JAR:-false}" != "true" ]; then
-  ./gradlew :bootJar --no-daemon
+  ./gradlew :bootJar :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
+elif [ ! -f services/spanner-proxy/build/libs/app.jar ]; then
+  ./gradlew :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
+else
+  ./gradlew :integration-tests:testClasses --no-daemon --max-workers=2
 fi
 
 if ! "${COMPOSE_CMD[@]}" up --build -d --wait; then
@@ -18,9 +22,9 @@ if ! "${COMPOSE_CMD[@]}" up --build -d --wait; then
   exit 1
 fi
 
-if ! ./gradlew :integration-tests:test :integration-tests:propertyTest --no-daemon "$@"; then
+if ! ./gradlew :integration-tests:test :integration-tests:propertyTest -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=256m" "$@"; then
   echo "Container integration tests failed. Service logs:"
-  "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway
+  "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway spanner-proxy
   exit 1
 fi
 

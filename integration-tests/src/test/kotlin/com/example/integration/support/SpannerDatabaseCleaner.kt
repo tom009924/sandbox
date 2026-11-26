@@ -9,6 +9,9 @@ import io.restassured.http.ContentType
  */
 object SpannerDatabaseCleaner {
     private const val HTTP_OK = 200
+    private const val HTTP_CONFLICT = 409
+    private const val MAX_CLEANUP_RETRIES = 5
+    private const val RETRY_DELAY_MS = 100L
 
     private val identityTables = listOf(
         "user_settings",
@@ -41,52 +44,85 @@ object SpannerDatabaseCleaner {
                 "/instances/${ContainerTestConfig.spannerInstanceId}" +
                 "/databases/$database"
 
-        val sessionName = given()
+        val sessionName = createSession(dbPath)
+        try {
+            val statements = tables.joinToString(",") { """{"sql":"DELETE FROM $it WHERE TRUE"}""" }
+            for (attempt in 1..MAX_CLEANUP_RETRIES) {
+                val isLastAttempt = attempt == MAX_CLEANUP_RETRIES
+                if (tryDeleteTables(sessionName, statements, database, isLastAttempt)) {
+                    break
+                }
+                Thread.sleep(RETRY_DELAY_MS)
+            }
+        } finally {
+            deleteSession(sessionName)
+        }
+    }
+
+    private fun createSession(dbPath: String): String = given()
+        .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+        .contentType(ContentType.JSON)
+        .body("{}")
+        .`when`()
+        .post("/v1/$dbPath/sessions")
+        .then()
+        .statusCode(HTTP_OK)
+        .extract()
+        .path("name")
+
+    private fun deleteSession(sessionName: String) {
+        given()
+            .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+            .`when`()
+            .delete("/v1/$sessionName")
+    }
+
+    private fun tryDeleteTables(
+        sessionName: String,
+        statements: String,
+        database: String,
+        isLastAttempt: Boolean,
+    ): Boolean {
+        val transactionId = given()
             .baseUri(ContainerTestConfig.spannerRestBaseUrl)
             .contentType(ContentType.JSON)
-            .body("{}")
+            .body("""{"options":{"readWrite":{}}}""")
             .`when`()
-            .post("/v1/$dbPath/sessions")
+            .post("/v1/$sessionName:beginTransaction")
             .then()
             .statusCode(HTTP_OK)
             .extract()
-            .path<String>("name")
+            .path<String>("id")
 
-        try {
-            val transactionId = given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"options":{"readWrite":{}}}""")
-                .`when`()
-                .post("/v1/$sessionName:beginTransaction")
-                .then()
-                .statusCode(HTTP_OK)
-                .extract()
-                .path<String>("id")
+        val dmlStatus = given()
+            .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+            .contentType(ContentType.JSON)
+            .body("""{"transaction":{"id":"$transactionId"},"statements":[$statements],"seqno":"1"}""")
+            .`when`()
+            .post("/v1/$sessionName:executeBatchDml")
+            .statusCode()
 
-            val statements = tables.joinToString(",") { """{"sql":"DELETE FROM $it WHERE TRUE"}""" }
-            given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"transaction":{"id":"$transactionId"},"statements":[$statements],"seqno":"1"}""")
-                .`when`()
-                .post("/v1/$sessionName:executeBatchDml")
-                .then()
-                .statusCode(HTTP_OK)
-
-            given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .contentType(ContentType.JSON)
-                .body("""{"transactionId":"$transactionId"}""")
-                .`when`()
-                .post("/v1/$sessionName:commit")
-                .then()
-                .statusCode(HTTP_OK)
-        } finally {
-            given()
-                .baseUri(ContainerTestConfig.spannerRestBaseUrl)
-                .`when`()
-                .delete("/v1/$sessionName")
+        if (dmlStatus == HTTP_CONFLICT && !isLastAttempt) {
+            return false
         }
+        check(dmlStatus == HTTP_OK) {
+            "SpannerDatabaseCleaner executeBatchDml failed with HTTP $dmlStatus on $database"
+        }
+
+        val commitStatus = given()
+            .baseUri(ContainerTestConfig.spannerRestBaseUrl)
+            .contentType(ContentType.JSON)
+            .body("""{"transactionId":"$transactionId"}""")
+            .`when`()
+            .post("/v1/$sessionName:commit")
+            .statusCode()
+
+        val retryCommit = commitStatus == HTTP_CONFLICT && !isLastAttempt
+        if (!retryCommit) {
+            check(commitStatus == HTTP_OK) {
+                "SpannerDatabaseCleaner commit failed with HTTP $commitStatus on $database"
+            }
+        }
+        return !retryCommit
     }
 }
