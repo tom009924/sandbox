@@ -51,9 +51,10 @@ jobs:
         run: npm run build:docs
 
       - name: Upload OpenAPI HTML docs artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: openapi-docs-html
           path: build/docs/*.html
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
