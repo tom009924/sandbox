@@ -20,3 +20,22 @@ npm run generate:dmn-kotlin
 # DMN モデルベース統合テストを実行
 ./gradlew :services:todo-service:propertyTest --tests "com.example.todo.mbt.DmnTodoModelBasedIntegrationTest"
 ```
+
+## W3C SCXML 状態遷移モデル
+
+- [`todo-lifecycle.scxml`](todo-lifecycle.scxml): Todo ライフサイクルの W3C SCXML 1.0 ステートチャート仕様
+- [`SCXML.md`](SCXML.md): SCXML モデルから自動生成された Mermaid 状態遷移図（`npm run generate:scxml-diagrams`）
+
+### コマンド
+
+```bash
+# SCXML モデル検証 & Mermaid 図の整合性チェック（lint:openapi:check に組み込み済み）
+npm run lint:scxml
+npm run generate:scxml-diagrams
+
+# SCXML から todo-service 用 Kotlin ドメイン状態機械を生成
+npm run generate:scxml-kotlin
+
+# SCXML モデルベース統合テストを実行
+./gradlew :services:todo-service:propertyTest --tests "com.example.todo.mbt.ScxmlTodoModelBasedIntegrationTest"
+```

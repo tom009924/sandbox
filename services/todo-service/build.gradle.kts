@@ -106,6 +106,7 @@ val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
             classDirectories.files.map {
                 fileTree(it) {
                     exclude(
+                        "**/domain/lifecycle/**",
                         "**/TodoApplicationKt.class",
                         "**/infrastructure/persistence/**",
                     )
@@ -189,14 +190,21 @@ tasks.named("openApiValidate") {
 
 sourceSets.main {
     kotlin.srcDir(layout.buildDirectory.dir("generated/dmn/src/main/kotlin"))
+    kotlin.srcDir(layout.buildDirectory.dir("generated/scxml/src/main/kotlin"))
 }
 
 tasks.compileKotlin {
-    dependsOn(rootProject.tasks.named("generateDmnModel"))
+    dependsOn(
+        rootProject.tasks.named("generateDmnModel"),
+        rootProject.tasks.named("generateScxmlModel"),
+    )
 }
 
 tasks.matching { it.name == "explodeCodeSourceMain" }.configureEach {
-    dependsOn(rootProject.tasks.named("generateDmnModel"))
+    dependsOn(
+        rootProject.tasks.named("generateDmnModel"),
+        rootProject.tasks.named("generateScxmlModel"),
+    )
 }
 
 tasks.check {

@@ -11,6 +11,9 @@ import com.example.todo.domain.exception.ActiveTodosLimitExceededException
 import com.example.todo.domain.exception.InvalidTodoAssigneeException
 import com.example.todo.domain.exception.ProjectNotFoundException
 import com.example.todo.domain.exception.TodoNotFoundException
+import com.example.todo.domain.lifecycle.TodoLifecycleEvent
+import com.example.todo.domain.lifecycle.TodoLifecycleModel
+import com.example.todo.domain.lifecycle.TodoLifecycleState
 import com.example.todo.domain.model.Todo
 import com.example.todo.domain.model.TodoPriority
 import com.example.todo.domain.model.UserSettings
@@ -133,8 +136,8 @@ class TodoService(
         ensureActiveTodoLimitAllowed(
             userId = userId,
             hasProject = command.projectId != null,
-            operation = "createTodo",
-            currentCompleted = false,
+            fromState = TodoLifecycleState.NOT_CREATED,
+            event = TodoLifecycleEvent.CREATE_TODO,
             targetCompleted = command.completed,
             settings = settings,
         )
@@ -168,8 +171,8 @@ class TodoService(
         ensureActiveTodoLimitAllowed(
             userId = userId,
             hasProject = todo.projectId != null,
-            operation = "updateTodo",
-            currentCompleted = todo.completed,
+            fromState = TodoLifecycleState.fromCompleted(todo.completed),
+            event = TodoLifecycleEvent.UPDATE_TODO,
             targetCompleted = command.completed,
         )
         val updated = todoRepository.save(
@@ -198,8 +201,8 @@ class TodoService(
         ensureActiveTodoLimitAllowed(
             userId = userId,
             hasProject = todo.projectId != null,
-            operation = "patchTodo",
-            currentCompleted = todo.completed,
+            fromState = TodoLifecycleState.fromCompleted(todo.completed),
+            event = TodoLifecycleEvent.PATCH_TODO,
             targetCompleted = newCompleted,
         )
         val newDescription = command.description?.let { cryptoHandler.encrypt(it) } ?: todo.description
@@ -229,22 +232,33 @@ class TodoService(
     private fun ensureActiveTodoLimitAllowed(
         userId: UUID,
         hasProject: Boolean,
-        operation: String,
-        currentCompleted: Boolean,
+        fromState: TodoLifecycleState,
+        event: TodoLifecycleEvent,
         targetCompleted: Boolean,
         settings: UserSettings? = null,
     ) {
-        val preCheck = TodoDecisionModel.evaluateActiveTodoLimitDecision(
-            ActiveTodoLimitDecisionInput(
-                hasProject = hasProject,
-                operation = operation,
-                currentCompleted = currentCompleted,
-                targetCompleted = targetCompleted,
-                hasMaxActiveLimit = false,
-                atOrAboveLimit = false,
-            ),
+        val targetState = TodoLifecycleState.fromCompleted(targetCompleted)
+        val currentCompleted = fromState == TodoLifecycleState.COMPLETED
+        val lifecycleRequiresCheck = TodoLifecycleModel.requiresActiveLimitCheck(
+            from = fromState,
+            event = event,
+            to = targetState,
         )
-        if (!preCheck.checkRequired) return
+        val preCheck = if (lifecycleRequiresCheck) {
+            TodoDecisionModel.evaluateActiveTodoLimitDecision(
+                ActiveTodoLimitDecisionInput(
+                    hasProject = hasProject,
+                    operation = event.operationId,
+                    currentCompleted = currentCompleted,
+                    targetCompleted = targetCompleted,
+                    hasMaxActiveLimit = false,
+                    atOrAboveLimit = false,
+                ),
+            )
+        } else {
+            null
+        }
+        if (preCheck?.checkRequired != true) return
         val effectiveSettings = settings
             ?: userSettingsRepository?.findByUserId(userId)
             ?: UserSettings.defaultFor(userId)
@@ -253,7 +267,7 @@ class TodoService(
         val decision = TodoDecisionModel.evaluateActiveTodoLimitDecision(
             ActiveTodoLimitDecisionInput(
                 hasProject = hasProject,
-                operation = operation,
+                operation = event.operationId,
                 currentCompleted = currentCompleted,
                 targetCompleted = targetCompleted,
                 hasMaxActiveLimit = true,
