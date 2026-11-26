@@ -26,11 +26,21 @@ class ContainerApigeeProxyIntegrationTest {
 
     @BeforeEach
     fun setupApigee() {
-        apigeeAvailable = isApigeeEmulatorReachable()
+        apigeeAvailable = waitForApigeeEmulator()
+        if (apigeeRequired) {
+            check(apigeeAvailable) {
+                "APIGEE_REQUIRED=true, but Apigee Emulator is not reachable on port $EMULATOR_MANAGEMENT_PORT"
+            }
+        }
         if (apigeeAvailable) {
-            val gatewayPort = URI(ContainerTestConfig.gatewayBaseUrl).port.takeIf { it > 0 } ?: DEFAULT_GATEWAY_PORT
-            deployProxyWithBackendPort(gatewayPort)
+            val targetUrl = resolveBackendTargetUrl()
+            deployProxyWithTargetUrl(targetUrl)
             backendReachableFromProxy = checkBackendReachability()
+            if (apigeeRequired) {
+                check(backendReachableFromProxy) {
+                    "APIGEE_REQUIRED=true, but backend ($targetUrl) is not reachable from Apigee Emulator"
+                }
+            }
         }
     }
 
@@ -136,6 +146,28 @@ class ContainerApigeeProxyIntegrationTest {
             .header("Access-Control-Allow-Origin", equalTo("*"))
     }
 
+    private fun waitForApigeeEmulator(): Boolean {
+        val maxAttempts = if (apigeeRequired) REQUIRED_WAIT_ATTEMPTS else 1
+        for (attempt in 1..maxAttempts) {
+            if (isApigeeEmulatorReachable()) {
+                return true
+            }
+            if (attempt < maxAttempts) {
+                Thread.sleep(REQUIRED_RETRY_DELAY_MS)
+            }
+        }
+        return false
+    }
+
+    private fun resolveBackendTargetUrl(): String {
+        val configured = System.getenv("APIGEE_BACKEND_URL")?.trim().orEmpty()
+        if (configured.isNotEmpty()) {
+            return configured
+        }
+        val gatewayPort = URI(ContainerTestConfig.gatewayBaseUrl).port.takeIf { it > 0 } ?: DEFAULT_GATEWAY_PORT
+        return "http://host.docker.internal:$gatewayPort/api"
+    }
+
     private fun isApigeeEmulatorReachable(): Boolean =
         runCatching {
             val url = URI("http://localhost:$EMULATOR_MANAGEMENT_PORT/").toURL()
@@ -157,8 +189,8 @@ class ContainerApigeeProxyIntegrationTest {
             response.statusCode != HTTP_SERVICE_UNAVAILABLE
         }.getOrDefault(false)
 
-    private fun deployProxyWithBackendPort(backendPort: Int) {
-        val zipBytes = buildWorkspaceZipWithPort(backendPort)
+    private fun deployProxyWithTargetUrl(targetUrl: String) {
+        val zipBytes = buildWorkspaceZipWithTargetUrl(targetUrl)
         val url = URI("http://localhost:$EMULATOR_MANAGEMENT_PORT/v1/emulator/deploy?environment=test").toURL()
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
@@ -171,26 +203,26 @@ class ContainerApigeeProxyIntegrationTest {
         }
     }
 
-    private fun buildWorkspaceZipWithPort(backendPort: Int): ByteArray {
+    private fun buildWorkspaceZipWithTargetUrl(targetUrl: String): ByteArray {
         val rootDir = File("infra/apigee")
         check(rootDir.exists()) { "Directory infra/apigee does not exist" }
 
         val byteOut = ByteArrayOutputStream()
         ZipOutputStream(byteOut).use { zipOut ->
             rootDir.walkTopDown().filter { it.isFile }.forEach { file ->
-                writeZipEntry(zipOut, rootDir, file, backendPort)
+                writeZipEntry(zipOut, rootDir, file, targetUrl)
             }
         }
         return byteOut.toByteArray()
     }
 
-    private fun writeZipEntry(zipOut: ZipOutputStream, rootDir: File, file: File, backendPort: Int) {
+    private fun writeZipEntry(zipOut: ZipOutputStream, rootDir: File, file: File, targetUrl: String) {
         val relativePath = "src/main/apigee/" + file.relativeTo(rootDir).path
         zipOut.putNextEntry(ZipEntry(relativePath))
         if (file.name == "default.xml" && file.parentFile?.name == "targets") {
             val content = file.readText().replace(
                 "http://host.docker.internal:8080/api",
-                "http://host.docker.internal:$backendPort/api",
+                targetUrl,
             )
             zipOut.write(content.toByteArray(Charsets.UTF_8))
         } else {
@@ -204,6 +236,8 @@ class ContainerApigeeProxyIntegrationTest {
         private const val EMULATOR_TRAFFIC_PORT = 8998
         private const val DEFAULT_GATEWAY_PORT = 8082
         private const val CONNECT_TIMEOUT_MS = 1500
+        private const val REQUIRED_WAIT_ATTEMPTS = 30
+        private const val REQUIRED_RETRY_DELAY_MS = 1000L
         private const val HTTP_OK = 200
         private const val HTTP_CREATED = 201
         private const val HTTP_UNAUTHORIZED = 401
@@ -212,5 +246,7 @@ class ContainerApigeeProxyIntegrationTest {
         private const val HTTP_SUCCESS_RANGE_START = 200
         private const val HTTP_SUCCESS_RANGE_END = 299
         private const val HTTP_CLIENT_ERROR_RANGE_END = 499
+        private val apigeeRequired: Boolean =
+            System.getenv("APIGEE_REQUIRED")?.equals("true", ignoreCase = true) == true
     }
 }
