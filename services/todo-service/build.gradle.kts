@@ -60,6 +60,22 @@ tasks.withType<Test>().configureEach {
     workingDir = rootProject.projectDir
 }
 
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("persistence")
+    }
+}
+
+tasks.register<Test>("persistenceIntegrationTest") {
+    description = "Runs Spanner persistence slice and dynamic smoke tests (requires Spanner Emulator)."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform {
+        includeTags("persistence")
+    }
+}
+
 tasks.register<Test>("generateExternalCallDiagrams") {
     description = "Generates Mermaid external call sequence diagrams from dynamic traces."
     group = "documentation"
