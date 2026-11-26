@@ -9,7 +9,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${SKIP_BOOT_JAR:-false}" != "true" ]; then
-  ./gradlew :bootJar :integration-tests:testClasses --no-daemon --max-workers=2
+  ./gradlew :bootJar :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
 elif [ ! -f services/spanner-proxy/build/libs/app.jar ]; then
   ./gradlew :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
 else
