@@ -5,12 +5,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class TodoCommentRepositoryAdapterTest @Autowired constructor(
     private val adapter: TodoCommentRepositoryAdapter,
@@ -22,7 +24,7 @@ class TodoCommentRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, and delete todo comments`() {
+    fun saveFindAndDeleteTodoComments() {
         val todoId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val t1 = Instant.parse("2025-04-18T10:00:00Z")

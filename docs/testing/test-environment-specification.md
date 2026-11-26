@@ -6,7 +6,7 @@
 
 ## 1. テスト環境テストの位置づけと運用フロー
 
-`src/integrationTest`（CI自動テスト）をパスしたコードがテスト環境にデプロイされた後、以下の運用フローで検証を実施します。
+コンテナ統合テスト（`integration-tests` / `scripts/run-container-integration-tests.sh`）をパスしたコードがテスト環境にデプロイされた後、以下の運用フローで検証を実施します。
 デプロイ直後のスモークテスト（基本機能疎通）および E2E シナリオ検証は、**Arazzo ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](../workflows/todo-workflows.arazzo.yaml)）を実行する `npm run test:arazzo` に一本化**します。
 
 ```mermaid
@@ -35,21 +35,23 @@ flowchart TD
 # ※ ARAZZO_USERNAME を指定しない場合は自動的に一意のサフィックス（arazzo-user-<timestamp>）が付与され、競合を防ぎます
 SERVER_URL=https://staging-api.example.com npm run test:arazzo
 
-# 2. ローカル開発環境（localhost:8080）への実行（起動後のクイック動作確認）
+# 2. ローカル開発環境（api-gateway: localhost:8082）への実行（起動後のクイック動作確認）
 npm run test:arazzo
 
 # 3. 特定のアカウント名を指定して実行する場合
 ARAZZO_USERNAME=custom-tester SERVER_URL=https://staging-api.example.com npm run test:arazzo
 ```
 
-### 自動検証される 2 大ワークフロー
+### 自動検証される 3 大ワークフロー
 1. **`user-todo-lifecycle` (一般ユーザー ライフサイクル)**
    - ユーザー登録 (`POST /api/auth/register`) $\rightarrow$ Spanner 書き込み検証
    - ログイン & JWT 取得 (`POST /api/auth/login`) $\rightarrow$ Secret 注入・署名検証
    - 設定取得 & 更新 (`GET/PUT /api/user/settings`)
    - TODO 作成 (`POST /api/todos`) $\rightarrow$ Idempotency-Key 制御 & Pub/Sub イベント発行
    - TODO 取得・更新・一覧・削除 (`GET/PUT/DELETE /api/todos/{id}`) $\rightarrow$ データ完全削除
-2. **`admin-audit-lifecycle` (管理者 ライフサイクル)**
+2. **`project-collaboration-lifecycle` (プロジェクト協業 ライフサイクル)**
+   - プロジェクト作成・メンバー招待・担当者割り当て TODO・サブタスク・コメント・クリーンアップの一連検証
+3. **`admin-audit-lifecycle` (管理者 ライフサイクル)**
    - API キー認証による管理者統計取得 (`GET /api/admin/stats`)
    - 登録ユーザー一覧取得 (`GET /api/admin/users`)
 

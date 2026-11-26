@@ -5,25 +5,27 @@ import com.example.todo.domain.model.UserSettings
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class UserSettingsRepositoryAdapterTest @Autowired constructor(
     private val adapter: UserSettingsRepositoryAdapter,
 ) {
     @Test
-    fun `save and find user settings by userId`() {
+    fun saveAndFindUserSettingsByUserId() {
         val userId = UUID.randomUUID()
         assertNull(adapter.findByUserId(userId))
 
         val settings = UserSettings(
             userId = userId,
             defaultPriority = TodoPriority.HIGH,
-            defaultEstimatedMinutes = 60,
-            maxActiveTodos = 10,
+            defaultEstimatedMinutes = DEFAULT_ESTIMATED_MINUTES,
+            maxActiveTodos = INITIAL_MAX_ACTIVE_TODOS,
         )
 
         val saved = adapter.save(settings)
@@ -32,11 +34,17 @@ class UserSettingsRepositoryAdapterTest @Autowired constructor(
         val found = adapter.findByUserId(userId)
         assertNotNull(found)
         assertEquals(TodoPriority.HIGH, found?.defaultPriority)
-        assertEquals(60, found?.defaultEstimatedMinutes)
-        assertEquals(10, found?.maxActiveTodos)
+        assertEquals(DEFAULT_ESTIMATED_MINUTES, found?.defaultEstimatedMinutes)
+        assertEquals(INITIAL_MAX_ACTIVE_TODOS, found?.maxActiveTodos)
 
-        val updated = adapter.save(settings.copy(maxActiveTodos = 20))
-        assertEquals(20, adapter.findByUserId(userId)?.maxActiveTodos)
-        assertEquals(20, updated.maxActiveTodos)
+        val updated = adapter.save(settings.copy(maxActiveTodos = UPDATED_MAX_ACTIVE_TODOS))
+        assertEquals(UPDATED_MAX_ACTIVE_TODOS, adapter.findByUserId(userId)?.maxActiveTodos)
+        assertEquals(UPDATED_MAX_ACTIVE_TODOS, updated.maxActiveTodos)
+    }
+
+    private companion object {
+        const val DEFAULT_ESTIMATED_MINUTES = 60
+        const val INITIAL_MAX_ACTIVE_TODOS = 10
+        const val UPDATED_MAX_ACTIVE_TODOS = 20
     }
 }

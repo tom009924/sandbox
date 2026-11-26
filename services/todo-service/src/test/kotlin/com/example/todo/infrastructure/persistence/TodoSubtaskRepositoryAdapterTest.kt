@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class TodoSubtaskRepositoryAdapterTest @Autowired constructor(
     private val adapter: TodoSubtaskRepositoryAdapter,
@@ -22,7 +24,7 @@ class TodoSubtaskRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, update, and delete todo subtasks`() {
+    fun saveFindUpdateAndDeleteTodoSubtasks() {
         val todoId = UUID.randomUUID()
         val second = adapter.save(TodoSubtask(todoId = todoId, title = "Step 2", position = 1))
         val first = adapter.save(TodoSubtask(todoId = todoId, title = "Step 1", position = 0))

@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.LocalDate
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class TodoRepositoryAdapterTest @Autowired constructor(
     private val adapter: TodoRepositoryAdapter,
@@ -24,7 +26,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save inserts new entity and updates existing entity`() {
+    fun saveInsertsNewEntityAndUpdatesExistingEntity() {
         val userId = UUID.randomUUID()
         val newTodo = Todo(
             id = null,
@@ -48,7 +50,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findById and findByIdAndUserId find entity properly`() {
+    fun findByIdAndFindByIdAndUserIdFindEntityProperly() {
         val userId = UUID.randomUUID()
         val saved = adapter.save(
             Todo(id = null, userId = userId, title = "Find Me", priority = TodoPriority.MEDIUM),
@@ -67,7 +69,7 @@ class TodoRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findAllByUserId and count queries execute properly`() {
+    fun findAllByUserIdAndCountQueriesExecuteProperly() {
         val userId = UUID.randomUUID()
         val todo1 = adapter.save(
             Todo(

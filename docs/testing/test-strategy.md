@@ -1,6 +1,6 @@
 # プロジェクト テスト戦略 (Test Strategy)
 
-本ドキュメントは、本リポジトリ（Kotlin / Spring Boot / Cloud Spanner / Pub/Sub）における品質保証の基本方針、テスト階層（テストピラミッド）、責務の切り分け基準、および CI/CD における品質ゲートを定義する全体戦略です。
+本ドキュメントは、本リポジトリ（Kotlin / Spring Boot / gRPC マイクロサービス / Cloud Spanner / Pub/Sub）における品質保証の基本方針、テスト階層（テストピラミッド）、責務の切り分け基準、および CI/CD における品質ゲートを定義する全体戦略です。
 
 ---
 
@@ -9,12 +9,12 @@
 本プロジェクトのテスト戦略は、以下の 3 原則に基づきます。
 
 1. **シフトレフト (Shift-Left) の徹底**
-   - 仕様違反、バリデーション漏れ、DB制約違反、例外ハンドリングの不具合は、すべてコミット前の CI（`integrationTest`）で 100% 検出できるように自動化し、後工程（ステージング環境や本番）への持ち越しを防ぐ。
+   - 仕様違反、バリデーション漏れ、DB制約違反、例外ハンドリングの不具合は、すべてコミット前の CI（`integration-tests` および `persistenceIntegrationTest`）で 100% 検出できるように自動化し、後工程（ステージング環境や本番）への持ち越しを防ぐ。
 2. **OpenAPI / Arazzo 仕様駆動 (Spec-First Quality)**
    - API 仕様書（[`docs/openapi.yaml`](../openapi.yaml)）および E2E ワークフロー仕様（[`docs/workflows/todo-workflows.arazzo.yaml`](../workflows/todo-workflows.arazzo.yaml)）を正本（Single Source of Truth）とし、実装コード・単体/統合テスト・実環境 E2E テスト（Redocly Respect）を完全に同期させる。
    - **個別のシェルスクリプト（curl等）を二重管理せず、Arazzo ワークフローをスモークテストおよび E2E テストの唯一の実行基盤とする。**
 3. **環境ポータビリティと責務分離**
-   - Arazzo ワークフローは、**ローカル開発時（`localhost:8080`）のクイック検証**と**実環境（ステージング）デプロイ後のスモーク・E2E検証**で全く同じシナリオを再利用する。
+   - Arazzo ワークフローは、**ローカル開発時（`localhost:8082`）のクイック検証**と**実環境（ステージング）デプロイ後のスモーク・E2E検証**で全く同じシナリオを再利用する。
    - 負荷・耐障害性・インフラ固有の挙動のみをテスト環境の非機能テストとして分離する。
 
 ---
@@ -29,15 +29,16 @@ flowchart TD
         L3_3["非機能検証 (負荷 / HPA / マイグレーション)"]
     end
 
-    subgraph Level2["Level 2: 統合テスト (src/integrationTest)"]
+    subgraph Level2["Level 2: コンテナ統合・契約・永続化・モデルベーステスト (:integration-tests & persistence)"]
         L2_1["OpenAPI 仕様・スキーマ整合性 (100% カバレッジ)"]
-        L2_2["Spanner / PubSub Emulator による DB/イベント連携"]
-        L2_3["バリデーション・異常系・トランザクション"]
+        L2_2["Spanner (spanner-proxy) / WireMock / PubSub 副作用検証 & 永続化スライス"]
+        L2_3["PBT (OpenAPI Property) & MBT (OMG DMN 1.3)"]
+        L2_4["実コンテナ結合 (api-gateway + identity-service + todo-service + Apigee)"]
     end
 
-    subgraph Level1["Level 1: 単体テスト (src/test)"]
-        L1_1["ドメインロジック / ユーティリティ計算"]
-        L1_2["POJO マッピング / 独立したサービスクラス"]
+    subgraph Level1["Level 1: 単体・アーキテクチャテスト (src/test)"]
+        L1_1["ドメインロジック / DMN 決定モデル / サービスクラス"]
+        L1_2["gRPC サービス / セキュリティ / ArchUnit 規約検証"]
     end
 
     Level1 --> Level2
@@ -46,9 +47,11 @@ flowchart TD
 
 | テスト階層 | 配置場所 | 実行環境 / ツール | 実行時間目安 | 主な責務 |
 | :--- | :--- | :--- | :--- | :--- |
-| **単体テスト (Unit)** | `src/test/` | CI / ローカル (JUnit 5) | 数秒 | 個々の関数、マッパー、独立したビジネスロジックの正当性 |
-| **統合テスト (Integration)** | `src/integrationTest/` | CI (Emulator) | 1〜3分 | OpenAPI 適合性、DB 永続化、Pub/Sub 送受信、異常系・境界値 |
-| **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
+| **単体・規約テスト (Unit / ArchUnit)** | 各モジュール `src/test/` | CI / ローカル (JUnit 5 / ArchUnit) | 数秒 | ドメイン・アプリケーションロジック、gRPC サービス、セキュリティ、レイヤー・スライス規約（エミュレータ不要） |
+| **Spanner 永続化スライステスト** | 各サービス `src/test/` (`@Tag("persistence")`) | CI / ローカル (`./gradlew persistenceIntegrationTest`) | 数十秒 | Spanner Emulator に対する全 `*RepositoryAdapterTest` および `AllRepositoriesDynamicSmokeTest` のクエリ実行保証 |
+| **コンテナ統合テスト (Integration / 契約 / 副作用)** | `integration-tests/` (`docker-compose.test.yml`) | CI / ローカル (`bash scripts/run-container-integration-tests.sh`) | 2〜3分 | 全マイクロサービス実コンテナ起動による OpenAPI 100% カバレッジ適合性、実 gRPC 通信、`spanner-proxy` / WireMock / Pub/Sub 副作用検証、Apigee プロキシ検証 |
+| **プロパティ・モデルベーステスト (PBT / MBT)** | `integration-tests/` (`@Tag("property")`) | CI / ローカル (`./gradlew propertyTest`) | 1〜2分 | 実コンテナ環境に対する OpenAPI スキーマ駆動のランダム入力検証 (Kotest Property) および OMG DMN 1.3 決定モデルの全ルール検証 |
+| **Arazzo ワークフロー (Smoke & E2E)** | `docs/workflows/` | ローカル / CI / テスト環境 (`npm run test:arazzo`) | 約10秒 | ローカル開発時の動作確認、デプロイ直後スモーク、一連の業務ライフサイクルの実機貫通 |
 | **非機能テスト (Non-Functional)** | 負荷・運用スクリプト | テスト環境 (k6 等) | 数十分 | ピークトラフィック耐性、無停止デプロイ、マイグレーション |
 
 ---
@@ -60,8 +63,8 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start["新しいテスト要件・シナリオ"] --> Q1{"GCP 実機環境や外部サードパーティ API、\n実際の負荷・UI 操作が必須か？"}
-    Q1 -- "No (コードとエミュレータで再現可能)" --> Q2{"Controller/DB/PubSub を跨ぐ結合、\nまたは API スキーマ検証か？"}
-    Q2 -- "Yes" --> ActionIntegration["`src/integrationTest` に自動テストとして追加"]
+    Q1 -- "No (コードとエミュレータで再現可能)" --> Q2{"サービス間 gRPC / DB / PubSub を跨ぐ結合、\nまたは API スキーマ・副作用検証か？"}
+    Q2 -- "Yes" --> ActionIntegration["`integration-tests/`（または永続化単体は `@Tag(\"persistence\")`）に追加"]
     Q2 -- "No (純粋なロジック・関数)" --> ActionUnit["`src/test` に単体テストとして追加"]
     
     Q1 -- "Yes" --> Q3{"API の一連の呼び出しシナリオや\n実環境疎通（スモーク）か？"}
@@ -73,16 +76,16 @@ flowchart TD
 
 ## 4. スライステスト強制機構 (Enforced Slice Testing)
 
-本リポジトリでは、API の入口（Controller）および永続化の出口（Repository / Adapter）において、クラスやクエリメソッドが増加した場合でもテスト漏れが発生しないよう、以下の**二重の強制機構**を導入しています。
+本リポジトリでは、API の入口（gRPC Service）および永続化の出口（Repository / Adapter）において、クラスやクエリメソッドが増加した場合でもテスト漏れが発生しないよう、以下の**二重の強制機構**を導入しています。
 
 ### 1. 静的強制 (ArchUnit: `SliceTestConventionsTest`)
-- **Controller スライステスト強制**:
-  すべての `@RestController` 実装クラスに対して、対応する `*ControllerTest` が存在することを静的検証。
+- **gRPC Service スライステスト強制**:
+  `infrastructure.grpc` 配下のすべての `*GrpcService` 実装クラスに対して、対応する `*GrpcServiceTest` が存在することを静的検証。
 - **RepositoryAdapter スライステスト強制**:
   すべての `*RepositoryAdapter` 実装クラスに対して、対応する `*RepositoryAdapterTest` が存在することを静的検証。
 - **SpringDataRepository 整合性強制**:
   すべての `SpringData*Repository` インターフェースに対して、対応する `*RepositoryAdapter` が存在することを静的検証。
-- 新規クラスの追加時にテストクラスの作成を忘れた場合、`./gradlew test` の段階でビルドが即座に失敗します。
+- 新規クラスの追加時にテストクラスの作成を忘れた場合、ビルドの段階で即座に失敗します。
 
 ### 2. 動的クエリ実行保証 (Dynamic Smoke Test: `AllRepositoriesDynamicSmokeTest`)
 - `ApplicationContext` から `SpannerRepository` を継承する全 Bean を動的に自動検出。
@@ -111,11 +114,10 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph Gate1["Gate 1: PR Gate (CI)"]
-        G1_1["Detekt 静的解析パス"]
-        G1_2["./gradlew check (全テスト成功)"]
-        G1_3["OpenAPI & Arazzo Lint (Redocly/Spectral)"]
-        G1_4["Trivy / Qodana スキャンパス"]
-        G1_5["Arazzo E2E ワークフロー実行 (npm run test:arazzo)"]
+        G1_1["Detekt / Build Health / OpenAPI・AsyncAPI・DMN Lint"]
+        G1_2["各サービス check & persistenceIntegrationTest (Unit / ArchUnit / Spanner Slice / JaCoCo)"]
+        G1_3["コンテナ統合テスト & Arazzo E2E (scripts/run-container-integration-tests.sh)"]
+        G1_4["Trivy / Qodana / OWASP dep-scan"]
     end
 
     subgraph Gate2["Gate 2: Deploy Gate (CD)"]

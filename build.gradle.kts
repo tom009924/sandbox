@@ -21,6 +21,9 @@ allprojects {
     version = "1.0.0"
 
     repositories {
+        maven {
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2")
+        }
         mavenCentral()
     }
 
@@ -337,6 +340,7 @@ tasks.register("detekt") {
         ":services:api-gateway:detekt",
         ":services:identity-service:detekt",
         ":services:todo-service:detekt",
+        ":integration-tests:detekt",
     )
 }
 
@@ -372,24 +376,42 @@ tasks.register("cyclonedxBom") {
 }
 
 tasks.register("openApiGenerate") {
-    description = "Generates OpenAPI server interfaces and models across services."
+    description = "Generates OpenAPI server interfaces and models for api-gateway."
     group = "openapi tools"
-    dependsOn(
-        ":services:api-gateway:openApiGenerate",
-        ":services:todo-service:openApiGenerate",
-    )
+    dependsOn(":services:api-gateway:openApiGenerate")
 }
 
 tasks.register("integrationTest") {
-    description = "Runs integration tests for todo-service."
+    description = "Runs cross-service containerized integration tests."
     group = "verification"
-    dependsOn(":services:todo-service:integrationTest")
+    dependsOn(":integration-tests:test")
+}
+
+tasks.register("containerIntegrationTest") {
+    description = "Runs cross-service container integration tests against running Docker Compose services."
+    group = "verification"
+    dependsOn(":integration-tests:test")
 }
 
 tasks.register("propertyTest") {
-    description = "Runs property-based tests for todo-service."
+    description = "Runs container-backed property and model-based tests."
     group = "verification"
-    dependsOn(":services:todo-service:propertyTest")
+    dependsOn(":integration-tests:propertyTest")
+}
+
+tasks.register("persistenceIntegrationTest") {
+    description = "Runs Spanner persistence slice and dynamic smoke tests across services."
+    group = "verification"
+    dependsOn(
+        ":services:identity-service:persistenceIntegrationTest",
+        ":services:todo-service:persistenceIntegrationTest",
+    )
+}
+
+tasks.register("apigeeIntegrationTest") {
+    description = "Runs Apigee emulator proxy integration tests."
+    group = "verification"
+    dependsOn(":integration-tests:apigeeIntegrationTest")
 }
 
 tasks.register("generateExternalCallDiagrams") {

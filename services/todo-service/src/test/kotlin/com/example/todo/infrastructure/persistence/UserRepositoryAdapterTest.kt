@@ -7,11 +7,13 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class UserRepositoryAdapterTest @Autowired constructor(
     private val adapter: UserRepositoryAdapter,
@@ -22,8 +24,8 @@ class UserRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save and find user by id and username`() {
-        val username = "user_${UUID.randomUUID().toString().take(8)}"
+    fun saveAndFindUserByIdAndUsername() {
+        val username = "user_${UUID.randomUUID().toString().take(USERNAME_SUFFIX_LENGTH)}"
         val user = User(
             id = null,
             username = username,
@@ -53,8 +55,12 @@ class UserRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `findById returns null when user not found`() {
+    fun findByIdReturnsNullWhenUserNotFound() {
         assertNull(adapter.findById(UUID.randomUUID()))
         assertNull(adapter.findByUsername("unknown_${UUID.randomUUID()}"))
+    }
+
+    private companion object {
+        const val USERNAME_SUFFIX_LENGTH = 8
     }
 }

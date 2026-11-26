@@ -5,12 +5,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.Instant
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class ProjectRepositoryAdapterTest @Autowired constructor(
     private val adapter: ProjectRepositoryAdapter,
@@ -22,7 +24,7 @@ class ProjectRepositoryAdapterTest @Autowired constructor(
     }
 
     @Test
-    fun `save, find, and delete project`() {
+    fun saveFindAndDeleteProject() {
         val creatorId = UUID.randomUUID()
         val now = Instant.parse("2025-04-18T10:00:00Z")
         val saved = adapter.save(

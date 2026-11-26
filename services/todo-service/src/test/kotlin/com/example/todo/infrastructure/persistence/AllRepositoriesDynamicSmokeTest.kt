@@ -5,18 +5,21 @@ import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import java.util.UUID
 
+@Tag("persistence")
 @SpringBootTest(properties = ["identity.service.enabled=false"])
 class AllRepositoriesDynamicSmokeTest @Autowired constructor(
     private val applicationContext: ApplicationContext,
 ) {
     @TestFactory
-    fun `all declared query methods in all Spanner repositories must be executable`(): List<DynamicNode> {
+    @Suppress("SpreadOperator")
+    fun allDeclaredQueryMethodsInAllSpannerRepositoriesMustBeExecutable(): List<DynamicNode> {
         val repositoryBeans = applicationContext.getBeansOfType(SpannerRepository::class.java)
 
         return repositoryBeans.map { (beanName, repositoryInstance) ->
