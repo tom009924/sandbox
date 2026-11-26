@@ -29,16 +29,16 @@ description: APIエンドポイントの新規追加、変更、削除を行う�
 ### Step 3: テストコードの追加・更新
 1. **コントローラーテスト (MockMvc)**:
    - `src/test/kotlin/` にユニットテストを追加し、正常系・異常系（400, 401, 404など）を検証します。
-2. **結合テスト (REST Assured + OpenAPI Validator & Coverage Filter)**:
-   - `src/integrationTest/kotlin/` にテストケースを追加します。
-   - 統合テスト実行時に、`swagger-parser` と Kotest (`OpenApiValidationFilter`) がレスポンスを `docs/openapi.yaml` と自動照合します。
+2. **コンテナ統合テスト (REST Assured + OpenAPI Validator & Coverage Filter)**:
+   - `integration-tests/src/test/kotlin/com/example/integration/api/ContainerTodoApiIntegrationTest.kt` にテストケースを追加します。
+   - 統合テスト実行時に、`swagger-parser` (`OpenApiValidationFilter`) がレスポンスを `docs/dist/openapi.admin.yaml` と自動照合します。
    - **OpenAPI 制約カバレッジ (100% 網羅) の重要要件**:
-     - `OpenApiCoverageFilter` により、OpenAPI で定義されたすべてのレスポンスステータスコードだけでなく、リクエストボディに定義されたバリデーション制約（`required`, `pattern`, `enum`, `minimum` 等）を**100% テストで網羅することが強制**されています。
-     - スキーマに `pattern`（例: `pattern: '.*\S.*'`）や `enum`、`minimum` 等を追加・変更した場合、必ず `src/integrationTest/kotlin/com/example/todo/TodoApiTestCases.kt` の `validationErrorTestCases()`（および `acceptanceCriteria`）に該当制約の違反リクエスト（400 Bad Request を期待するテストケース）を追加してください。
-     - 制約違反テストが不足している場合、`verifyAllOpenApiConstraintsCovered()` によりテストが失敗します。
+     - `OpenApiCoverageFilter` により、OpenAPI で定義されたすべてのレスポンスステータスコード・パラメータだけでなく、リクエストボディに定義されたバリデーション制約（`required`, `pattern`, `enum`, `minimum` 等）を**100% テストで網羅することが強制**されています。
+     - スキーマに `pattern`（例: `pattern: '.*\S.*'`）や `enum`、`minimum` 等を追加・変更した場合、必ず `integration-tests/src/test/kotlin/com/example/integration/api/TodoApiTestCases.kt` の `validationErrorTestCases()`（および `acceptanceCriteria`）に該当制約の違反リクエスト（400 Bad Request を期待するテストケース）を追加してください。
+     - 制約違反テストが不足している場合、`reportAndVerifyOpenApiCoverage()` によりテストが失敗します。
 
 ### Step 4: 外部呼び出しシーケンス図と最終検証
-1. 新規エンドポイントを追加した場合は、`src/test/kotlin/com/example/todo/trace/ExternalCallSequenceDiagramGeneratorTest.kt` にトレースシナリオを追加し、`./gradlew generateExternalCallDiagrams` で `docs/architecture/external-call-sequence.md` を更新します（全 OpenAPI エンドポイントの網羅が自動検証されます）。
+1. 新規エンドポイントを追加した場合は、`services/todo-service/src/test/kotlin/com/example/todo/trace/ExternalCallSequenceDiagramGeneratorTest.kt` にトレースシナリオを追加し、`./gradlew generateExternalCallDiagrams` で `docs/architecture/external-call-sequence.md` を更新します（全 OpenAPI エンドポイントの網羅が自動検証されます）。
 2. 以下のコマンドですべてのテストと Detekt 静的解析がパスすることを確認します:
 ```bash
 ./gradlew check
