@@ -99,13 +99,15 @@ jobs:
 
       - name: Upload CycloneDX SBOM
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom
           path: services/todo-service/build/reports/cyclonedx/bom.json
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload todo-service JAR
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jar-todo-api
@@ -144,13 +146,15 @@ jobs:
 
       - name: Upload ${{ matrix.service }} CycloneDX SBOM
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gradle-cyclonedx-sbom-${{ matrix.service }}
           path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload ${{ matrix.service }} JAR
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jar-${{ matrix.service }}
