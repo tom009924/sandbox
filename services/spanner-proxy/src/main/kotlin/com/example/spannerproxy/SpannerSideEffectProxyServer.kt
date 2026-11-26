@@ -47,6 +47,7 @@ class SpannerSideEffectProxyServer(
     targetPort: Int,
     grpcListenPort: Int,
     adminPort: Int,
+    private val debugLogging: Boolean = false,
 ) : AutoCloseable {
 
     private val recordedMutations = ConcurrentLinkedQueue<RecordedMutation>()
@@ -160,7 +161,9 @@ class SpannerSideEffectProxyServer(
                 object : ServerCall.Listener<ByteArray>() {
                     override fun onMessage(message: ByteArray) {
                         if (tracking) {
-                            System.err.println("spanner-proxy RPC: ${serverCall.methodDescriptor.fullMethodName}")
+                            if (debugLogging) {
+                                System.err.println("spanner-proxy RPC: ${serverCall.methodDescriptor.fullMethodName}")
+                            }
                             runCatching {
                                 inspectPayload(serverCall.methodDescriptor.fullMethodName, message)
                             }.onFailure { err ->
@@ -262,12 +265,14 @@ fun main() {
     val targetPort = System.getenv("SPANNER_TARGET_PORT")?.toIntOrNull() ?: DEFAULT_PORT
     val grpcPort = System.getenv("PROXY_GRPC_PORT")?.toIntOrNull() ?: DEFAULT_PORT
     val adminPort = System.getenv("PROXY_ADMIN_PORT")?.toIntOrNull() ?: DEFAULT_ADMIN_PORT
+    val debugLogging = System.getenv("PROXY_DEBUG_LOGGING")?.equals("true", ignoreCase = true) == true
 
     val server = SpannerSideEffectProxyServer(
         targetHost = targetHost,
         targetPort = targetPort,
         grpcListenPort = grpcPort,
         adminPort = adminPort,
+        debugLogging = debugLogging,
     )
     Runtime.getRuntime().addShutdownHook(Thread { server.close() })
     server.start()
