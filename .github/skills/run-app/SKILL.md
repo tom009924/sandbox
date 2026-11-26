@@ -14,7 +14,7 @@ export SPANNER_EMULATOR_HOST=localhost:9010
 export PUBSUB_EMULATOR_HOST=localhost:8085
 ./gradlew bootRun
 ```
-※ REST API の外部エントリーポイントは `api-gateway`（ポート `8082`）です。すべての REST リクエストは `api-gateway` で gRPC に変換され、`identity-service`（gRPC `9091` / Actuator `8081`）および `todo-service`（gRPC `9092` / Actuator `8080`）へルーティングされます。一括起動とE2E検証は `bash scripts/run-microservices-e2e.sh` でも実行できます。
+※ REST API の外部エントリーポイントは `api-gateway`（ポート `8082`）です。すべての REST リクエストは `api-gateway` で gRPC に変換され、`identity-service`（gRPC `9091` / Actuator `8081`）および `todo-service`（gRPC `9092` / Actuator `8080`）へルーティングされます。コンテナ構成での全サービス一括起動と統合テスト・Arazzo E2E 検証は `bash scripts/run-container-integration-tests.sh` で実行できます。
 
 ### Apigee API プロキシ検証（オプション）
 Apigee APIプロキシをローカルで開発・検証する場合は、Apigee Emulatorを起動してプロキシバンドルをデプロイします。
@@ -30,14 +30,14 @@ Todo APIのエンドポイント（`/api/todos`）はJWT認証が必須です。
 
 ### ユーザー登録
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
+curl -X POST http://localhost:8082/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"password123"}'
 ```
 
 ### ログイン（トークン取得）
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8082/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"alice","password":"password123"}' | jq -r .token)
 echo "JWT Token: $TOKEN"
@@ -45,13 +45,13 @@ echo "JWT Token: $TOKEN"
 
 ### Todo一覧取得
 ```bash
-curl -X GET http://localhost:8080/api/todos \
+curl -X GET http://localhost:8082/api/todos \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Todo新規作成
 ```bash
-curl -X POST http://localhost:8080/api/todos \
+curl -X POST http://localhost:8082/api/todos \
   -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: create-todo-1" \
   -H "Content-Type: application/json" \
@@ -62,7 +62,7 @@ Todo作成では一意な `Idempotency-Key` が必須です。同じキー・同
 ### Todo更新
 `{id}`には作成レスポンスで返されたUUIDを指定します。
 ```bash
-curl -X PUT http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000 \
+curl -X PUT http://localhost:8082/api/todos/550e8400-e29b-41d4-a716-446655440000 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"Buy milk","completed":true}'
@@ -70,21 +70,21 @@ curl -X PUT http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000
 
 ### Todo削除
 ```bash
-curl -X DELETE http://localhost:8080/api/todos/550e8400-e29b-41d4-a716-446655440000 \
+curl -X DELETE http://localhost:8082/api/todos/550e8400-e29b-41d4-a716-446655440000 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ## 3. Arazzo ワークフローによるシナリオ動作確認
 
-Arazzo 仕様（`docs/workflows/todo-workflows.arazzo.yaml`）を利用して、ユーザー登録から Todo の作成・更新・削除、および管理者監査までの一連のシナリオを自動実行して確認できます。
+Arazzo 仕様（`docs/workflows/todo-workflows.arazzo.yaml`）を利用して、ユーザー登録から Todo の作成・更新・削除、プロジェクト協業、および管理者監査までの一連のシナリオを自動実行して確認できます。
 
 ```bash
-# 起動中のアプリケーション（http://localhost:8080）に対して Arazzo ワークフローを実行
+# 起動中の api-gateway（http://localhost:8082）に対して Arazzo ワークフローを実行
 npm run test:arazzo
 ```
 ※ 任意のサーバーURLやカスタム入力値（ユーザー名等）を指定する場合:
 ```bash
-npx redocly respect docs/workflows/todo-workflows.arazzo.yaml --server http://localhost:8080 --input username=test-user-01
+SERVER_URL=http://localhost:8082 ARAZZO_USERNAME=test-user-01 npm run test:arazzo
 ```
 
 ## 4. Emulator の停止
