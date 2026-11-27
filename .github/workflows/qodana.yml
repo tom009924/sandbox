@@ -2,34 +2,9 @@ name: Qodana Code Quality
 
 on:
   workflow_dispatch:
-  # NOTE: Temporarily disabled automatic triggers on pull_request and push due to execution time overhead.
-  # Can be triggered manually via workflow_dispatch when needed.
-  # pull_request:
-  #   branches: [main]
-  #   paths:
-  #     - "services/**"
-  #     - "libs/**"
-  #     - "build.gradle.kts"
-  #     - "settings.gradle.kts"
-  #     - "gradle/**"
-  #     - "docs/openapi.yaml"
-  #     - "docs/overlays/**"
-  #     - "package.json"
-  #     - "qodana.yaml"
-  #     - ".github/workflows/qodana.yml"
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "services/**"
-  #     - "libs/**"
-  #     - "build.gradle.kts"
-  #     - "settings.gradle.kts"
-  #     - "gradle/**"
-  #     - "docs/openapi.yaml"
-  #     - "docs/overlays/**"
-  #     - "package.json"
-  #     - "qodana.yaml"
-  #     - ".github/workflows/qodana.yml"
+  schedule:
+    # Run weekly on Mondays at 02:00 UTC to keep PR latency low while maintaining code quality visibility
+    - cron: "0 2 * * 1"
 
 permissions:
   contents: read
@@ -53,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
@@ -65,16 +40,16 @@ jobs:
           java-version: "21"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install Node dependencies
         run: npm ci
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Generate OpenAPI code
         run: ./gradlew openApiGenerate --no-daemon
