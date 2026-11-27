@@ -34,14 +34,15 @@ jobs:
   build-openapi-docs:
     name: Build OpenAPI HTML Docs
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install Node dependencies
@@ -51,8 +52,9 @@ jobs:
         run: npm run build:docs
 
       - name: Upload OpenAPI HTML docs artifact
+        if: github.event_name != 'pull_request'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openapi-docs-html
           path: build/docs/*.html

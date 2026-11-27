@@ -117,7 +117,7 @@ flowchart LR
         G1_1["Detekt / Build Health / OpenAPI・AsyncAPI・DMN Lint"]
         G1_2["各サービス check & persistenceIntegrationTest (Unit / ArchUnit / Spanner Slice / JaCoCo)"]
         G1_3["コンテナ統合テスト & Arazzo E2E (scripts/run-container-integration-tests.sh)"]
-        G1_4["Trivy / Qodana / OWASP dep-scan"]
+        G1_4["Trivy / OWASP dep-scan / OpenSSF Scorecard / Socket\n(Qodana は週次スケジュール・手動実行)"]
     end
 
     subgraph Gate2["Gate 2: Deploy Gate (CD)"]
