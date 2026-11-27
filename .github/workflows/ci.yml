@@ -27,12 +27,12 @@ env:
 
 jobs:
   lint-and-specs:
-    name: Lint, Specs & Build Health
+    name: Lint, Specs, Libs & Build Health
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -41,98 +41,29 @@ jobs:
           java-version: "21"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install Node dependencies
         run: npm ci
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Run Detekt, API spec linters, and Dependency Analysis
+      - name: Run Detekt, API spec linters, library checks, and Dependency Analysis
         run: |
-          ./gradlew :detekt :lintOpenApi :lintAsyncApi :services:todo-service:openApiValidate :buildHealth \
+          ./gradlew :detekt :lintOpenApi :lintAsyncApi :services:todo-service:openApiValidate :libs:grpc-common:check :buildHealth \
             --no-daemon -PdetektAutoCorrect=false
 
       - name: Verify generated OpenAPI and workflow docs are up-to-date
         run: git diff --exit-code docs/dist docs/workflows/README.md
 
-  verify-monolith:
-    name: Verify todo-service
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      spanner-emulator:
-        image: gcr.io/cloud-spanner-emulator/emulator:latest
-        ports:
-          - 9010:9010
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run unit and persistence tests, coverage, build JARs, and generate SBOM
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-        run: |
-          ./gradlew :services:todo-service:persistenceIntegrationTest :services:todo-service:check :services:todo-service:bootJar :services:todo-service:cyclonedxBom :services:spanner-proxy:bootJar \
-            -x detekt -x openApiValidate \
-            --no-daemon -PdetektAutoCorrect=false
-
-      - name: Verify external call sequence diagram is up-to-date
-        run: |
-          ./gradlew :services:todo-service:generateExternalCallDiagrams --no-daemon
-          git diff --exit-code docs/architecture/external-call-sequence.md
-
-      - name: Upload CycloneDX SBOM
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-cyclonedx-sbom
-          path: services/todo-service/build/reports/cyclonedx/bom.json
-          retention-days: 3
-
-      - name: Upload todo-service JAR
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: jar-todo-api
-          path: services/todo-service/build/libs/app.jar
-          retention-days: 1
-
-      - name: Upload spanner-proxy JAR
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: jar-spanner-proxy
-          path: services/spanner-proxy/build/libs/app.jar
-          retention-days: 1
-
-  verify-microservices:
+  verify-spanner-services:
     name: Verify ${{ matrix.service }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       spanner-emulator:
         image: gcr.io/cloud-spanner-emulator/emulator:latest
@@ -142,57 +73,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - service: todo-service
+            gradle-project: :services:todo-service
+            extra-tasks: ":services:todo-service:persistenceIntegrationTest :services:todo-service:generateExternalCallDiagrams :services:spanner-proxy:check :services:spanner-proxy:bootJar"
+            extra-exclude: -x openApiValidate
+            jar-artifact: jar-todo-api
           - service: identity-service
             gradle-project: :services:identity-service
-            extra-tasks: :services:identity-service:persistenceIntegrationTest
-            jar-path: services/identity-service/build/libs/app.jar
-          - service: api-gateway
-            gradle-project: :services:api-gateway
-            extra-tasks: ""
-            jar-path: services/api-gateway/build/libs/app.jar
+            extra-tasks: ":services:identity-service:persistenceIntegrationTest"
+            extra-exclude: ""
+            jar-artifact: jar-identity-service
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run tests, build JAR, and generate SBOM
-        env:
-          SPANNER_EMULATOR_HOST: localhost:9010
-        run: ./gradlew ${{ matrix.extra-tasks }} ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom -x detekt --no-daemon -PdetektAutoCorrect=false
-
-      - name: Upload ${{ matrix.service }} CycloneDX SBOM
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-cyclonedx-sbom-${{ matrix.service }}
-          path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
-          retention-days: 3
-
-      - name: Upload ${{ matrix.service }} JAR
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: jar-${{ matrix.service }}
-          path: ${{ matrix.jar-path }}
-          retention-days: 1
-
-  container-integration-tests:
-    name: Container Integration Tests
-    needs: [verify-monolith, verify-microservices]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -201,20 +94,137 @@ jobs:
           java-version: "21"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        if: matrix.service == 'todo-service'
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        if: matrix.service == 'todo-service'
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run unit and persistence tests, coverage, build JARs, and generate SBOM
+        env:
+          SPANNER_EMULATOR_HOST: localhost:9010
+        run: |
+          ./gradlew ${{ matrix.extra-tasks }} ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom \
+            -x detekt ${{ matrix.extra-exclude }} \
+            --no-daemon -PdetektAutoCorrect=false
+
+      - name: Verify external call sequence diagram is up-to-date
+        if: matrix.service == 'todo-service'
+        run: git diff --exit-code docs/architecture/external-call-sequence.md
+
+      - name: Upload ${{ matrix.service }} CycloneDX SBOM
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: gradle-cyclonedx-sbom-${{ matrix.service }}
+          path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
+          retention-days: 3
+
+      - name: Upload ${{ matrix.service }} JAR
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.jar-artifact }}
+          path: services/${{ matrix.service }}/build/libs/app.jar
+          retention-days: 1
+
+      - name: Upload spanner-proxy JAR
+        if: matrix.service == 'todo-service'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: jar-spanner-proxy
+          path: services/spanner-proxy/build/libs/app.jar
+          retention-days: 1
+
+  verify-stateless-services:
+    name: Verify ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            gradle-project: :services:api-gateway
+            upload-jar: true
+          - service: project-service
+            gradle-project: :services:project-service
+            upload-jar: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run tests, build JAR, and generate SBOM
+        run: |
+          ./gradlew ${{ matrix.gradle-project }}:check ${{ matrix.gradle-project }}:bootJar ${{ matrix.gradle-project }}:cyclonedxBom \
+            -x detekt --no-daemon -PdetektAutoCorrect=false
+
+      - name: Upload ${{ matrix.service }} CycloneDX SBOM
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: gradle-cyclonedx-sbom-${{ matrix.service }}
+          path: services/${{ matrix.service }}/build/reports/cyclonedx/bom.json
+          retention-days: 3
+
+      - name: Upload ${{ matrix.service }} JAR
+        if: matrix.upload-jar
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: jar-${{ matrix.service }}
+          path: services/${{ matrix.service }}/build/libs/app.jar
+          retention-days: 1
+
+  container-integration-tests:
+    name: Container Integration Tests
+    needs: [verify-spanner-services, verify-stateless-services]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install Node dependencies
         run: npm ci
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Download service JARs
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: jar-*
           path: .ci-jars
