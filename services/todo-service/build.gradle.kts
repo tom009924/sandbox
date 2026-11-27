@@ -77,7 +77,7 @@ val persistenceIntegrationTest = tasks.register<Test>("persistenceIntegrationTes
     }
 }
 
-tasks.register<Test>("generateExternalCallDiagrams") {
+val generateExternalCallDiagrams = tasks.register<Test>("generateExternalCallDiagrams") {
     description = "Generates Mermaid external call sequence diagrams from dynamic traces."
     group = "documentation"
     testClassesDirs = sourceSets.test.get().output.classesDirs
@@ -91,11 +91,14 @@ tasks.register<Test>("generateExternalCallDiagrams") {
         "${rootProject.projectDir}/docs/architecture/external-call-sequence.md",
     )
     outputs.upToDateWhen { false }
+    extensions.configure<JacocoTaskExtension> {
+        isEnabled = false
+    }
 }
 
 val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.test)
-    mustRunAfter(persistenceIntegrationTest)
+    mustRunAfter(persistenceIntegrationTest, generateExternalCallDiagrams)
     executionData.setFrom(
         fileTree(layout.buildDirectory.dir("jacoco")) {
             include("*.exec")
