@@ -14,7 +14,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${SKIP_BOOT_JAR:-false}" != "true" ]; then
-  ./gradlew :bootJar :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
+  ./gradlew :bootJar :integration-tests:testClasses --no-daemon --max-workers=2
 elif [ ! -f services/spanner-proxy/build/libs/app.jar ]; then
   ./gradlew :services:spanner-proxy:bootJar :integration-tests:testClasses --no-daemon --max-workers=2
 else
@@ -34,7 +34,7 @@ if [ "${ENABLE_APIGEE:-false}" = "true" ]; then
   export APIGEE_BACKEND_URL="${APIGEE_BACKEND_URL:-http://api-gateway:8082/api}"
 fi
 
-if ! ./gradlew "${GRADLE_TEST_TASKS[@]}" -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx256m -XX:MaxMetaspaceSize=256m" "$@"; then
+if ! ./gradlew "${GRADLE_TEST_TASKS[@]}" -x compileTestKotlin --no-daemon -Dorg.gradle.jvmargs="-Xmx512m -XX:MaxMetaspaceSize=256m" "$@"; then
   echo "Container integration tests failed. Service logs:"
   "${COMPOSE_CMD[@]}" logs identity-service todo-service api-gateway spanner-proxy
   exit 1

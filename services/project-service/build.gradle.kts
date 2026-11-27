@@ -58,9 +58,9 @@ val jacocoTestReport = tasks.named<JacocoReport>("jacocoTestReport") {
     }
 }
 
-tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+val jacocoTestCoverageVerification = tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(jacocoTestReport)
-    classDirectories.setFrom(jacocoTestReport.get().classDirectories)
+    classDirectories.setFrom(jacocoTestReport.map { it.classDirectories })
     violationRules {
         rule {
             limit {
@@ -68,4 +68,9 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
             }
         }
     }
+}
+
+tasks.check {
+    dependsOn(jacocoTestReport)
+    dependsOn(jacocoTestCoverageVerification)
 }

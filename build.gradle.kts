@@ -328,6 +328,8 @@ tasks.register("detekt") {
         ":libs:grpc-common:detekt",
         ":services:api-gateway:detekt",
         ":services:identity-service:detekt",
+        ":services:project-service:detekt",
+        ":services:spanner-proxy:detekt",
         ":services:todo-service:detekt",
         ":integration-tests:detekt",
     )
@@ -340,6 +342,8 @@ tasks.register("test") {
         ":libs:grpc-common:test",
         ":services:api-gateway:test",
         ":services:identity-service:test",
+        ":services:project-service:test",
+        ":services:spanner-proxy:test",
         ":services:todo-service:test",
     )
 }
@@ -350,6 +354,8 @@ tasks.register("bootJar") {
     dependsOn(
         ":services:api-gateway:bootJar",
         ":services:identity-service:bootJar",
+        ":services:project-service:bootJar",
+        ":services:spanner-proxy:bootJar",
         ":services:todo-service:bootJar",
     )
 }
@@ -360,6 +366,7 @@ tasks.register("cyclonedxBom") {
     dependsOn(
         ":services:api-gateway:cyclonedxBom",
         ":services:identity-service:cyclonedxBom",
+        ":services:project-service:cyclonedxBom",
         ":services:todo-service:cyclonedxBom",
     )
 }
@@ -425,6 +432,8 @@ tasks.register("check") {
         ":libs:grpc-common:check",
         ":services:api-gateway:check",
         ":services:identity-service:check",
+        ":services:project-service:check",
+        ":services:spanner-proxy:check",
         ":services:todo-service:check",
     )
 }
