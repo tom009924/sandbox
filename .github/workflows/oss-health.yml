@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "AGENTS.md"
+      - "docs/adr/**"
+      - "docs/testing/**"
+      - "docs/architecture/**"
+      - ".github/copilot-instructions.md"
+      - ".github/rules/**"
+      - ".github/skills/**"
   schedule:
     - cron: "0 0 * * 1"
   workflow_dispatch:
@@ -20,25 +29,26 @@ jobs:
   scorecard-health:
     name: OpenSSF Scorecard Health Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: ".nvmrc"
 
       - name: Evaluate OpenSSF Scorecard Health
         run: node scripts/check-oss-health.mjs
 
       - name: Upload OSS Health Report Artifact
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oss-health-report
           path: build/reports/oss-health-report.json

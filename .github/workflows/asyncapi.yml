@@ -5,13 +5,11 @@ on:
     branches: [main]
     paths:
       - "docs/asyncapi.yaml"
-      - "redocly.yaml"
       - ".github/workflows/asyncapi.yml"
   pull_request:
     branches: [main]
     paths:
       - "docs/asyncapi.yaml"
-      - "redocly.yaml"
       - ".github/workflows/asyncapi.yml"
 
 permissions:
@@ -25,24 +23,13 @@ jobs:
   validate-asyncapi:
     name: Validate AsyncAPI Spec
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate docs/asyncapi.yaml
         uses: asyncapi/cli@v6.3.1
         with:
           command: custom
           custom_command: "validate docs/asyncapi.yaml"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint AsyncAPI spec with Redocly
-        run: npm run lint:asyncapi

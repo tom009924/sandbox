@@ -3,6 +3,15 @@ name: Socket Security Scan
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "README.md"
+      - "AGENTS.md"
+      - "docs/adr/**"
+      - "docs/testing/**"
+      - "docs/architecture/**"
+      - ".github/copilot-instructions.md"
+      - ".github/rules/**"
+      - ".github/skills/**"
   push:
     branches: [main]
   workflow_dispatch:
@@ -10,10 +19,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: socket-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   socket-scan:
     name: Socket Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -22,7 +36,7 @@ jobs:
       SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
         if: env.SOCKET_SECURITY_API_KEY != ''
@@ -33,11 +47,11 @@ jobs:
 
       - name: Set up Gradle
         if: env.SOCKET_SECURITY_API_KEY != ''
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Generate Socket Gradle Manifest
         if: env.SOCKET_SECURITY_API_KEY != ''
-        run: npx --yes @socketsecurity/cli manifest gradle || true
+        run: npx --yes @socketsecurity/cli@1.17.1 manifest gradle || true
 
       - name: Run Socket Basics
         if: env.SOCKET_SECURITY_API_KEY != ''

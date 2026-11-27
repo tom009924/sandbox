@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -46,10 +46,10 @@ jobs:
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
-      - name: Generate CycloneDX SBOM
-        run: ./gradlew :services:todo-service:cyclonedxBom --no-daemon
+      - name: Generate CycloneDX SBOMs for all services
+        run: ./gradlew :cyclonedxBom --no-daemon
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -64,7 +64,7 @@ jobs:
         run: echo "week=$(date -u +%Y-W%V)" >> "$GITHUB_OUTPUT"
 
       - name: Cache OWASP dep-scan app-only VDB
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/depscan-vdb
           key: depscan-vdb-app-${{ steps.cache-key.outputs.week }}
@@ -81,7 +81,7 @@ jobs:
           fi
           depscan-vdb info || true
 
-      - name: Run OWASP dep-scan on CycloneDX SBOM (EPSS/KEV & VEX)
+      - name: Run OWASP dep-scan on service CycloneDX SBOMs (EPSS/KEV & VEX)
         env:
           VDB_HOME: /tmp/depscan-vdb
         run: |
@@ -89,32 +89,42 @@ jobs:
           if [ -f /tmp/depscan-vdb/.depscan-vdb-image ]; then
             export VDB_DATABASE_URL="$(tr -d '\r\n' < /tmp/depscan-vdb/.depscan-vdb-image)"
           fi
-          depscan \
-            --bom services/todo-service/build/reports/cyclonedx/bom.json \
-            --reports-dir build/reports/depscan \
-            --explain \
-            --profile appsec || true
+          for bom in services/*/build/reports/cyclonedx/bom.json; do
+            [ -f "$bom" ] || continue
+            service="$(basename "$(dirname "$(dirname "$(dirname "$(dirname "$bom")")")")")"
+            out_dir="build/reports/depscan/${service}"
+            mkdir -p "$out_dir"
+            echo "==> Scanning ${service} (${bom})"
+            depscan \
+              --bom "$bom" \
+              --reports-dir "$out_dir" \
+              --explain \
+              --profile appsec || true
+          done
 
       - name: Summarize OWASP dep-scan reports in Job Summary
         if: always()
         run: |
           echo "### 🔍 OWASP dep-scan (EPSS/KEV & VEX Analysis)" >> $GITHUB_STEP_SUMMARY
-          if compgen -G "build/reports/depscan/*.txt" > /dev/null; then
-            for report in build/reports/depscan/*.txt; do
-              echo "#### $(basename "$report")" >> $GITHUB_STEP_SUMMARY
-              echo '```text' >> $GITHUB_STEP_SUMMARY
-              cat "$report" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            done
-          else
+          found=false
+          for report in build/reports/depscan/*/*.txt; do
+            [ -f "$report" ] || continue
+            found=true
+            service="$(basename "$(dirname "$report")")"
+            echo "#### ${service} / $(basename "$report")" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            cat "$report" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          done
+          if [ "$found" = "false" ]; then
             echo "Generated VEX / CycloneDX BOM and SARIF reports in \`build/reports/depscan/\`." >> $GITHUB_STEP_SUMMARY
-            ls -la build/reports/depscan/ || true
+            find build/reports/depscan -maxdepth 2 -ls || true
           fi
 
       - name: Upload OWASP dep-scan VEX, BOM & SARIF artifacts
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: owasp-depscan-reports
           path: build/reports/depscan/
