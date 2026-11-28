@@ -11,6 +11,7 @@ import org.objectweb.asm.Type
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 import java.io.File
+import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
 private data class MethodId(val owner: String, val name: String, val desc: String) {
@@ -56,6 +57,8 @@ private val GENERATED_PREFIXES = listOf(
     "com/example/identity/proto/",
     "com/example/todo/proto/",
     "com/example/gateway/api/",
+    "com/example/gateway/presentation/api/",
+    "com/example/gateway/presentation/model/",
     "com/example/todo/domain/decision/generated/",
 )
 
@@ -87,7 +90,9 @@ private fun annoValueVisitor(out: MutableSet<String>): AnnotationVisitor = objec
 }
 
 fun main(args: Array<String>) {
-    val rootDir = File(args.firstOrNull() ?: ".")
+    val rootDir = File(args.firstOrNull { !it.startsWith("--") } ?: ".")
+    val baselinePath = args.indexOf("--baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
+    val updateBaselinePath = args.indexOf("--update-baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
     val classFiles = listOf("libs", "services").map { File(rootDir, it) }.filter { it.isDirectory }
         .flatMap { g -> g.listFiles()?.filter { it.isDirectory }.orEmpty().map { ":${g.name}:${it.name}" to it } }
         .flatMap { (mod, dir) ->
@@ -272,15 +277,49 @@ fun main(args: Array<String>) {
     val deadClasses = classModules.filterKeys { it !in skippedClasses && it !in referencedClasses && !it.endsWith("\$Companion") }
     val deadMethods = declaredMethods.filterKeys { it !in calledMethods && it.owner !in deadClasses }
 
-    println("ASM Dead Code Report (src/main only, Spring Bean-aware): ${classFiles.size} classes | ${elapsedMs} ms")
-    println("Unreferenced classes / beans (${deadClasses.size}):")
-    deadClasses.entries.sortedWith(compareBy({ it.value }, { it.key })).forEach { (c, m) ->
-        val tag = if (c in diBeanClasses) " [unused bean]" else ""
-        println("  [$m] ${c.replace('/', '.')}$tag")
+    val findings = buildList {
+        deadClasses.entries.sortedWith(compareBy({ it.value }, { it.key })).forEach { (c, m) ->
+            val tag = if (c in diBeanClasses) " [unused bean]" else ""
+            add("class:[$m] ${c.replace('/', '.')}$tag")
+        }
+        deadMethods.entries.sortedWith(compareBy({ it.value }, { it.key.toString() })).forEach { (k, m) ->
+            val tag = if (k in beanFactoryMethods) " [unused @Bean]" else ""
+            add("method:[$m] $k$tag")
+        }
     }
-    println("Unreferenced methods / @Bean (${deadMethods.size}):")
-    deadMethods.entries.sortedWith(compareBy({ it.value }, { it.key.toString() })).forEach { (k, m) ->
-        val tag = if (k in beanFactoryMethods) " [unused @Bean]" else ""
-        println("  [$m] $k$tag")
+
+    println("ASM Dead Code Report (src/main only, Spring Bean-aware): ${classFiles.size} classes | ${elapsedMs} ms")
+    println("Total findings: ${findings.size} (${deadClasses.size} classes/beans, ${deadMethods.size} methods)")
+
+    if (updateBaselinePath != null) {
+        val out = File(updateBaselinePath)
+        out.parentFile?.mkdirs()
+        val header = "# Production dead-code baseline (ASM analyzer). Regenerate with --update-baseline.\n"
+        out.writeText(header + findings.joinToString("\n") + if (findings.isNotEmpty()) "\n" else "")
+        println("Updated baseline (${findings.size} entries) at ${out.path}")
+        return
+    }
+
+    if (baselinePath != null) {
+        val baselineFile = File(baselinePath)
+        val baseline = if (baselineFile.exists()) {
+            baselineFile.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+        } else {
+            emptySet()
+        }
+        val newFindings = findings.filterNot { it in baseline }
+        val staleEntries = baseline.filterNot { it in findings.toSet() }.sorted()
+        if (staleEntries.isNotEmpty()) {
+            println("Stale baseline entries (${staleEntries.size} - can be removed):")
+            staleEntries.forEach { println("  - $it") }
+        }
+        if (newFindings.isNotEmpty()) {
+            println("NEW production dead code detected (${newFindings.size}):")
+            newFindings.forEach { println("  + $it") }
+            exitProcess(1)
+        }
+        println("OK: No new production dead code beyond baseline (${baseline.size} baselined).")
+    } else {
+        findings.forEach { println("  $it") }
     }
 }
