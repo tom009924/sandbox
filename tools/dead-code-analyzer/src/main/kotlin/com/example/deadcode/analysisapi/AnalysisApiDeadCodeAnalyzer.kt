@@ -1,7 +1,6 @@
 package com.example.deadcode.analysisapi
 
 import com.intellij.openapi.util.Disposer
-import com.intellij.psi.PsiElement
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -19,7 +18,6 @@ import org.jetbrains.kotlin.idea.references.KtReference
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtEnumEntry
 import org.jetbrains.kotlin.psi.KtFile
@@ -41,31 +39,19 @@ import kotlin.system.measureTimeMillis
 @Serializable
 private data class Metadata(val sourceRoots: List<String>, val classpath: List<String>)
 
-private val ENTRY_CLASS_ANNOS = setOf(
+private val FRAMEWORK_ANNOS = setOf(
     "SpringBootApplication", "Component", "Service", "Repository", "Controller",
-    "RestController", "ControllerAdvice", "RestControllerAdvice",
-    "Configuration", "ConfigurationProperties", "Table",
+    "RestController", "ControllerAdvice", "RestControllerAdvice", "Configuration",
+    "ConfigurationProperties", "Table", "Bean", "RequestMapping", "GetMapping",
+    "PostMapping", "PutMapping", "PatchMapping", "DeleteMapping", "ExceptionHandler",
+    "Scheduled", "EventListener", "PostConstruct", "PreDestroy", "JsonCreator", "JsonValue",
 )
-
-private val ENTRY_CALLABLE_ANNOS = setOf(
-    "Bean", "RequestMapping", "GetMapping", "PostMapping", "PutMapping",
-    "PatchMapping", "DeleteMapping", "ExceptionHandler", "Scheduled",
-    "EventListener", "PostConstruct", "PreDestroy", "JsonCreator", "JsonValue",
-)
-
-private val OBJECT_METHODS = setOf("toString", "hashCode", "equals")
-
-private fun KtDeclaration.hasAnno(names: Set<String>) = annotationEntries.any { it.shortName?.asString() in names }
-private fun KtDeclaration.isCompanionObj() = this is KtObjectDeclaration && isCompanion()
-private fun PsiElement.lineNum() = containingFile?.viewProvider?.document?.let { it.getLineNumber(textOffset) + 1 } ?: 0
 
 private fun KtDeclaration.fqLabel(): String {
     val pkg = containingKtFile.packageFqName.asString()
-    val owners = parents.filterIsInstance<KtClassOrObject>()
-        .mapNotNull { it.name ?: if (it.isCompanionObj()) "Companion" else null }.toList().reversed()
-    val self = name ?: if (isCompanionObj()) "Companion" else "<anon>"
-    return (listOfNotNull(pkg.takeIf { it.isNotEmpty() }) + owners + self).joinToString(".") +
-        if (this is KtNamedFunction) "()" else ""
+    val owners = parents.filterIsInstance<KtClassOrObject>().mapNotNull { it.name }.toList().reversed()
+    val suffix = if (this is KtNamedFunction) "()" else ""
+    return (listOfNotNull(pkg.takeIf { it.isNotEmpty() }) + owners + (name ?: "<anon>")).joinToString(".") + suffix
 }
 
 fun main(args: Array<String>) {
@@ -78,166 +64,108 @@ fun main(args: Array<String>) {
             session = buildStandaloneAnalysisAPISession(projectDisposable = disposable) {
                 buildKtModuleProvider {
                     this.platform = platform
-                    val jdk = addModule(
-                        buildKtSdkModule {
-                            this.platform = platform
-                            libraryName = "JDK"
-                            addBinaryRootsFromJdkHome(Path.of(System.getProperty("java.home")), isJre = false)
-                        },
-                    )
-                    val libs = addModule(
-                        buildKtLibraryModule {
-                            this.platform = platform
-                            libraryName = "classpath"
-                            meta.classpath.map(Path::of).filter { it.exists() }.forEach(::addBinaryRoot)
-                        },
-                    )
-                    addModule(
-                        buildKtSourceModule {
-                            this.platform = platform
-                            moduleName = "sandbox-main"
-                            meta.sourceRoots.map(Path::of).filter { it.exists() }.forEach(::addSourceRoot)
-                            addRegularDependency(jdk)
-                            addRegularDependency(libs)
-                        },
-                    )
+                    val jdk = addModule(buildKtSdkModule {
+                        this.platform = platform; libraryName = "JDK"
+                        addBinaryRootsFromJdkHome(Path.of(System.getProperty("java.home")), isJre = false)
+                    })
+                    val libs = addModule(buildKtLibraryModule {
+                        this.platform = platform; libraryName = "classpath"
+                        meta.classpath.map(Path::of).filter { it.exists() }.forEach(::addBinaryRoot)
+                    })
+                    addModule(buildKtSourceModule {
+                        this.platform = platform; moduleName = "sandbox-main"
+                        meta.sourceRoots.map(Path::of).filter { it.exists() }.forEach(::addSourceRoot)
+                        addRegularDependency(jdk); addRegularDependency(libs)
+                    })
                 }
             }
         }
 
         val ktFiles = session.modulesWithFiles.entries
-            .filter { it.key is KaSourceModule }
-            .flatMap { it.value.filterIsInstance<KtFile>() }
+            .filter { it.key is KaSourceModule }.flatMap { it.value.filterIsInstance<KtFile>() }
 
-        val decls = linkedSetOf<KtDeclaration>()
-        val entryPoints = mutableSetOf<KtDeclaration>()
-        val edges = mutableMapOf<KtDeclaration, MutableSet<KtDeclaration>>()
-        fun addEdge(from: KtDeclaration, to: KtDeclaration) {
-            if (from != to) edges.computeIfAbsent(from) { mutableSetOf() }.add(to)
-        }
+        val declared = linkedSetOf<KtDeclaration>()
+        val referenced = mutableSetOf<KtDeclaration>()
+        val overridesByBase = mutableMapOf<KtDeclaration, MutableSet<KtDeclaration>>()
 
-        // Pass 1: Collect production declarations and initial entry points
         for (file in ktFiles) {
-            file.accept(
-                object : KtTreeVisitorVoid() {
-                    override fun visitClassOrObject(c: KtClassOrObject) {
-                        if (c !is KtEnumEntry && !c.isLocal) {
-                            decls.add(c)
-                            if (c.hasAnno(ENTRY_CLASS_ANNOS)) entryPoints.add(c)
-                            if (c.isCompanionObj()) c.containingClassOrObject?.let { addEdge(it, c) }
-                        }
-                        super.visitClassOrObject(c)
+            if (file.virtualFilePath.contains("/generated/")) continue
+            file.accept(object : KtTreeVisitorVoid() {
+                override fun visitDeclaration(d: KtDeclaration) {
+                    val isTarget = (d is KtClassOrObject && d !is KtEnumEntry && !d.isLocal) ||
+                        (d is KtNamedFunction && !d.isLocal && d.name != null) ||
+                        (d is KtProperty && !d.isLocal && d.name != null)
+                    if (isTarget) {
+                        declared.add(d)
+                        val isFramework = d.annotationEntries.any { it.shortName?.asString() in FRAMEWORK_ANNOS } ||
+                            (d is KtNamedFunction && d.isTopLevel && d.name == "main") ||
+                            (d is KtClassOrObject && d.superTypeListEntries.any { s -> listOf("ImplBase", "Api", "Filter", "SpannerRepository").any(s.text::contains) })
+                        if (isFramework) referenced.add(d)
                     }
-
-                    override fun visitNamedFunction(f: KtNamedFunction) {
-                        if (!f.isLocal && f.name != null) {
-                            decls.add(f)
-                            if ((f.isTopLevel && f.name == "main") || f.hasAnno(ENTRY_CALLABLE_ANNOS)) entryPoints.add(f)
-                        }
-                        super.visitNamedFunction(f)
-                    }
-
-                    override fun visitProperty(p: KtProperty) {
-                        if (!p.isLocal && p.name != null) {
-                            decls.add(p)
-                            if (p.hasAnno(ENTRY_CALLABLE_ANNOS)) entryPoints.add(p)
-                        }
-                        super.visitProperty(p)
-                    }
-                },
-            )
+                    super.visitDeclaration(d)
+                }
+            })
         }
 
-        fun KaSession.toLocalDecl(sym: KaSymbol): KtDeclaration? {
+        fun KaSession.toLocal(sym: KaSymbol): KtDeclaration? {
             val psi = sym.psi
-            if (psi is KtDeclaration && psi in decls) return psi
+            if (psi is KtDeclaration && psi in declared) return psi
             return when (sym) {
                 is KaPropertyAccessorSymbol -> sym.containingDeclaration?.psi as? KtDeclaration
                 is KaConstructorSymbol -> sym.containingDeclaration?.psi as? KtDeclaration
                 else -> (psi as? KtParameter)?.parents?.filterIsInstance<KtClassOrObject>()?.firstOrNull()
-            }?.takeIf { it in decls }
+            }?.takeIf { it in declared }
         }
 
-        fun enclosingDecl(el: PsiElement): KtDeclaration? {
-            var cur: PsiElement? = el
-            while (cur != null) {
-                if (cur is KtDeclaration && cur in decls) return cur
-                if (cur is KtConstructor<*>) return cur.getContainingClassOrObject().takeIf { it in decls }
-                cur = cur.parent
-            }
-            return null
-        }
-
-        // Pass 2: Resolve references and override hierarchies with K2 Analysis API
         val resolveMs = measureTimeMillis {
             for (file in ktFiles) {
                 analyze(file) {
-                    file.accept(
-                        object : KtTreeVisitorVoid() {
-                            override fun visitImportDirective(d: KtImportDirective) {}
-                            override fun visitPackageDirective(d: KtPackageDirective) {}
-
-                            override fun visitElement(el: PsiElement) {
-                                if (el is KtDeclaration && el in decls) {
-                                    if (el is KtNamedFunction || el is KtProperty) {
-                                        (el.symbol as? KaCallableSymbol)?.allOverriddenSymbols?.forEach { ov ->
-                                            val localOv = toLocalDecl(ov)
-                                            if (localOv != null) addEdge(localOv, el)
-                                            else el.containingClassOrObject?.takeIf { it in decls }?.let { addEdge(it, el) }
-                                        }
-                                    }
-                                    if (el is KtClassOrObject) {
-                                        el.superTypeListEntries.forEach { sup ->
-                                            if (listOf("ImplBase", "Api", "Filter", "SpannerRepository").any { sup.text.contains(it) }) {
-                                                entryPoints.add(el)
-                                            }
-                                        }
-                                    }
+                    file.accept(object : KtTreeVisitorVoid() {
+                        override fun visitImportDirective(d: KtImportDirective) {}
+                        override fun visitPackageDirective(d: KtPackageDirective) {}
+                        override fun visitElement(el: com.intellij.psi.PsiElement) {
+                            if (el in declared && (el is KtNamedFunction || el is KtProperty)) {
+                                ((el as KtDeclaration).symbol as? KaCallableSymbol)?.allOverriddenSymbols?.forEach { ov ->
+                                    val base = toLocal(ov)
+                                    if (base != null) overridesByBase.computeIfAbsent(base) { mutableSetOf() }.add(el)
+                                    else referenced.add(el) // overrides external framework/JDK method
                                 }
-
-                                val owner = enclosingDecl(el)
-                                for (ref in el.references.filterIsInstance<KtReference>()) {
-                                    val targets = runCatching { ref.resolveToSymbols() }.getOrDefault(emptyList())
-                                    for (sym in targets) {
-                                        val target = toLocalDecl(sym) ?: continue
-                                        if (owner != null) addEdge(owner, target)
-                                        target.containingClassOrObject?.takeIf { it in decls }?.let { addEdge(target, it) }
-                                    }
-                                }
-                                super.visitElement(el)
                             }
-                        },
-                    )
+                            for (ref in el.references.filterIsInstance<KtReference>()) {
+                                runCatching { ref.resolveToSymbols() }.getOrDefault(emptyList()).forEach { sym ->
+                                    val target = toLocal(sym) ?: return@forEach
+                                    referenced.add(target)
+                                    target.containingClassOrObject?.takeIf { it in declared }?.let(referenced::add)
+                                }
+                            }
+                            super.visitElement(el)
+                        }
+                    })
                 }
             }
         }
 
-        // Pass 3: BFS reachability from entry points
-        val reachable = mutableSetOf<KtDeclaration>()
-        val q = ArrayDeque<KtDeclaration>()
-        entryPoints.forEach { if (reachable.add(it)) q.add(it) }
-        while (q.isNotEmpty()) {
-            for (next in edges[q.removeFirst()].orEmpty()) if (reachable.add(next)) q.add(next)
-        }
+        // If a base interface/class method is referenced, its overriding implementations are also referenced
+        overridesByBase.forEach { (base, impls) -> if (base in referenced) referenced.addAll(impls) }
 
-        val dead = decls.filter { d ->
-            if (d in reachable || d.containingKtFile.virtualFilePath.contains("/generated/")) return@filter false
+        val dead = declared.filter { d ->
+            if (d in referenced) return@filter false
             val parent = d.containingClassOrObject
-            if (parent != null && parent in decls && parent !in reachable) return@filter false
+            if (parent != null && parent in declared && parent !in referenced) return@filter false
             when (d) {
                 is KtObjectDeclaration -> !d.isCompanion()
-                is KtNamedFunction -> d.name !in OBJECT_METHODS
+                is KtNamedFunction -> d.name !in setOf("toString", "hashCode", "equals")
                 is KtProperty -> (parent as? KtClass)?.isData() != true
                 else -> true
             }
         }
 
         val (deadClasses, deadMembers) = dead.partition { it is KtClassOrObject }
-        println("Analysis API Dead Code Report (src/main only): ${ktFiles.size} files, ${decls.size} decls | ${sessionMs + resolveMs} ms (session=${sessionMs}ms, resolve=${resolveMs}ms)")
-        println("Unreachable classes (${deadClasses.size}):")
-        deadClasses.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.lineNum()})") }
-        println("Unreachable functions/properties (${deadMembers.size}):")
-        deadMembers.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.lineNum()})") }
+        println("Analysis API Dead Code Report (src/main only): ${ktFiles.size} files, ${declared.size} decls | ${sessionMs + resolveMs} ms (session=${sessionMs}ms, resolve=${resolveMs}ms)")
+        println("Unreferenced classes (${deadClasses.size}):")
+        deadClasses.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})") }
+        println("Unreferenced functions/properties (${deadMembers.size}):")
+        deadMembers.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})") }
     } finally {
         Disposer.dispose(disposable)
     }
