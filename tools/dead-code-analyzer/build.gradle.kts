@@ -1,11 +1,21 @@
 plugins {
-    kotlin("jvm") version "2.2.21" apply false
-    kotlin("plugin.serialization") version "2.2.21" apply false
+    kotlin("jvm") version "2.2.21"
+    application
 }
 
-allprojects {
-    repositories {
-        maven("https://maven-central.storage-download.googleapis.com/maven2")
-        mavenCentral()
-    }
+kotlin {
+    jvmToolchain(21)
+}
+
+repositories {
+    maven("https://maven-central.storage-download.googleapis.com/maven2")
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.ow2.asm:asm:9.7.1")
+}
+
+application {
+    mainClass.set("com.example.deadcode.asm.AsmDeadCodeAnalyzerKt")
 }
