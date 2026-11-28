@@ -8,9 +8,11 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.standalone.buildStandaloneAnalysisAPISession
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertyAccessorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtLibraryModule
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSdkModule
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSourceModule
@@ -27,6 +29,7 @@ import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPackageDirective
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtSuperTypeListEntry
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.parents
@@ -39,13 +42,20 @@ import kotlin.system.measureTimeMillis
 @Serializable
 private data class Metadata(val sourceRoots: List<String>, val classpath: List<String>)
 
-private val FRAMEWORK_ANNOS = setOf(
-    "SpringBootApplication", "Component", "Service", "Repository", "Controller",
-    "RestController", "ControllerAdvice", "RestControllerAdvice", "Configuration",
-    "ConfigurationProperties", "Table", "Bean", "RequestMapping", "GetMapping",
-    "PostMapping", "PutMapping", "PatchMapping", "DeleteMapping", "ExceptionHandler",
-    "Scheduled", "EventListener", "PostConstruct", "PreDestroy", "JsonCreator", "JsonValue",
+private val ENTRY_CLASS_ANNOS = setOf(
+    "SpringBootApplication", "Controller", "RestController",
+    "ControllerAdvice", "RestControllerAdvice", "Configuration", "Table",
 )
+
+private val DI_BEAN_ANNOS = setOf("Component", "Service", "Repository", "ConfigurationProperties")
+
+private val ENTRY_METHOD_ANNOS = setOf(
+    "RequestMapping", "GetMapping", "PostMapping", "PutMapping", "PatchMapping",
+    "DeleteMapping", "ExceptionHandler", "Scheduled", "EventListener",
+    "PostConstruct", "PreDestroy", "JsonCreator", "JsonValue",
+)
+
+private fun KtDeclaration.hasAnno(names: Set<String>) = annotationEntries.any { it.shortName?.asString() in names }
 
 private fun KtDeclaration.fqLabel(): String {
     val pkg = containingKtFile.packageFqName.asString()
@@ -86,6 +96,10 @@ fun main(args: Array<String>) {
 
         val declared = linkedSetOf<KtDeclaration>()
         val referenced = mutableSetOf<KtDeclaration>()
+        val diBeans = mutableSetOf<KtClassOrObject>()
+        val beanMethods = mutableMapOf<KtNamedFunction, KtClassOrObject?>() // @Bean -> local return class (null = external)
+        val beanMethodReturnTypeRefs = mutableSetOf<com.intellij.psi.PsiElement>()
+        val subtypes = mutableMapOf<KtDeclaration, MutableSet<KtClassOrObject>>()
         val overridesByBase = mutableMapOf<KtDeclaration, MutableSet<KtDeclaration>>()
 
         for (file in ktFiles) {
@@ -97,10 +111,19 @@ fun main(args: Array<String>) {
                         (d is KtProperty && !d.isLocal && d.name != null)
                     if (isTarget) {
                         declared.add(d)
-                        val isFramework = d.annotationEntries.any { it.shortName?.asString() in FRAMEWORK_ANNOS } ||
-                            (d is KtNamedFunction && d.isTopLevel && d.name == "main") ||
-                            (d is KtClassOrObject && d.superTypeListEntries.any { s -> listOf("ImplBase", "Api", "Filter", "SpannerRepository").any(s.text::contains) })
-                        if (isFramework) referenced.add(d)
+                        when {
+                            d is KtClassOrObject && (d.hasAnno(ENTRY_CLASS_ANNOS) ||
+                                d.superTypeListEntries.any { s -> listOf("ImplBase", "Api", "Filter", "SpannerRepository").any(s.text::contains) }) ->
+                                referenced.add(d)
+                            d is KtClassOrObject && d.hasAnno(DI_BEAN_ANNOS) -> diBeans.add(d)
+                            d is KtNamedFunction && ((d.isTopLevel && d.name == "main") || d.hasAnno(ENTRY_METHOD_ANNOS)) -> {
+                                referenced.add(d)
+                                d.containingClassOrObject?.let(referenced::add)
+                            }
+                            d is KtNamedFunction && d.hasAnno(setOf("Bean")) -> {
+                                d.typeReference?.let(beanMethodReturnTypeRefs::add)
+                            }
+                        }
                     }
                     super.visitDeclaration(d)
                 }
@@ -123,12 +146,31 @@ fun main(args: Array<String>) {
                     file.accept(object : KtTreeVisitorVoid() {
                         override fun visitImportDirective(d: KtImportDirective) {}
                         override fun visitPackageDirective(d: KtPackageDirective) {}
+
+                        override fun visitSuperTypeListEntry(specifier: KtSuperTypeListEntry) {
+                            // Record inheritance for DI bean resolution without marking the supertype as "referenced"
+                            val sub = specifier.parents.filterIsInstance<KtClassOrObject>().firstOrNull()
+                            if (sub != null && sub in declared) {
+                                specifier.typeReference?.typeElement?.references.orEmpty()
+                                    .filterIsInstance<KtReference>()
+                                    .flatMap { runCatching { it.resolveToSymbols() }.getOrDefault(emptyList()) }
+                                    .mapNotNull { toLocal(it) }
+                                    .forEach { sup -> subtypes.computeIfAbsent(sup) { mutableSetOf() }.add(sub) }
+                            }
+                        }
+
                         override fun visitElement(el: com.intellij.psi.PsiElement) {
+                            if (el in beanMethodReturnTypeRefs) return // don't self-mark @Bean return type
+                            if (el is KtNamedFunction && el in declared && el.hasAnno(setOf("Bean"))) {
+                                val retCls = ((el.symbol as? KaCallableSymbol)?.returnType as? KaClassType)
+                                    ?.symbol?.psi as? KtClassOrObject
+                                beanMethods[el] = retCls?.takeIf { it in declared }
+                            }
                             if (el in declared && (el is KtNamedFunction || el is KtProperty)) {
                                 ((el as KtDeclaration).symbol as? KaCallableSymbol)?.allOverriddenSymbols?.forEach { ov ->
                                     val base = toLocal(ov)
                                     if (base != null) overridesByBase.computeIfAbsent(base) { mutableSetOf() }.add(el)
-                                    else referenced.add(el) // overrides external framework/JDK method
+                                    else referenced.add(el)
                                 }
                             }
                             for (ref in el.references.filterIsInstance<KtReference>()) {
@@ -145,7 +187,18 @@ fun main(args: Array<String>) {
             }
         }
 
-        // If a base interface/class method is referenced, its overriding implementations are also referenced
+        // Propagate referenced supertypes/interfaces to implementing DI beans
+        val q = ArrayDeque(referenced.toList())
+        while (q.isNotEmpty()) {
+            for (sub in subtypes[q.removeFirst()].orEmpty()) {
+                if (sub in diBeans && referenced.add(sub)) q.add(sub)
+            }
+        }
+
+        // @Bean methods: alive if returning an external type or a referenced local type
+        beanMethods.forEach { (fn, retCls) -> if (retCls == null || retCls in referenced) referenced.add(fn) }
+
+        // Propagate referenced base methods to overriding implementations
         overridesByBase.forEach { (base, impls) -> if (base in referenced) referenced.addAll(impls) }
 
         val dead = declared.filter { d ->
@@ -161,11 +214,17 @@ fun main(args: Array<String>) {
         }
 
         val (deadClasses, deadMembers) = dead.partition { it is KtClassOrObject }
-        println("Analysis API Dead Code Report (src/main only): ${ktFiles.size} files, ${declared.size} decls | ${sessionMs + resolveMs} ms (session=${sessionMs}ms, resolve=${resolveMs}ms)")
-        println("Unreferenced classes (${deadClasses.size}):")
-        deadClasses.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})") }
+        println("Analysis API Dead Code Report (src/main only, Spring Bean-aware): ${ktFiles.size} files, ${declared.size} decls | ${sessionMs + resolveMs} ms")
+        println("Unreferenced classes / beans (${deadClasses.size}):")
+        deadClasses.sortedBy { it.fqLabel() }.forEach {
+            val tag = if (it in diBeans) " [unused bean]" else ""
+            println("  ${it.fqLabel()}$tag (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})")
+        }
         println("Unreferenced functions/properties (${deadMembers.size}):")
-        deadMembers.sortedBy { it.fqLabel() }.forEach { println("  ${it.fqLabel()} (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})") }
+        deadMembers.sortedBy { it.fqLabel() }.forEach {
+            val tag = if (it in beanMethods) " [unused @Bean]" else ""
+            println("  ${it.fqLabel()}$tag (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})")
+        }
     } finally {
         Disposer.dispose(disposable)
     }
