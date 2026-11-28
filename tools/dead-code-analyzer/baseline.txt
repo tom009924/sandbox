@@ -1,0 +1,26 @@
+# Production dead-code baseline (ASM analyzer). Regenerate with --update-baseline.
+class:[:services:todo-service] com.example.todo.application.TokenIssuer
+method:[:services:identity-service] com.example.identity.infrastructure.persistence.UserRepositoryAdapter.deleteAll()V
+method:[:services:identity-service] com.example.identity.infrastructure.security.JwtTokenProvider.generateToken(Lcom/example/identity/domain/model/AuthenticatedUser;)Ljava/lang/String;
+method:[:services:identity-service] com.example.identity.infrastructure.security.JwtTokenProvider.validateAndGetPrincipal(Ljava/lang/String;)Lcom/example/identity/domain/model/AuthenticatedUser;
+method:[:services:todo-service] com.example.todo.application.TodoIdempotencyHandler$Companion.getRETENTION()Ljava/time/Duration;
+method:[:services:todo-service] com.example.todo.domain.exception.ActiveTodosLimitExceededException.getLimit()I
+method:[:services:todo-service] com.example.todo.domain.exception.UserAlreadyExistsException.getUsername()Ljava/lang/String;
+method:[:services:todo-service] com.example.todo.infrastructure.crypto.GrpcKeyManagementClient$Companion.getDECRYPT_METHOD$todo_service()Lio/grpc/MethodDescriptor;
+method:[:services:todo-service] com.example.todo.infrastructure.crypto.GrpcKeyManagementClient$Companion.getENCRYPT_METHOD$todo_service()Lio/grpc/MethodDescriptor;
+method:[:services:todo-service] com.example.todo.infrastructure.identity.GrpcIdentityUserRepository.deleteAll()V
+method:[:services:todo-service] com.example.todo.infrastructure.identity.GrpcIdentityUserRepository.existsByUsername(Ljava/lang/String;)Z
+method:[:services:todo-service] com.example.todo.infrastructure.identity.GrpcIdentityUserRepository.findAll()Ljava/util/List;
+method:[:services:todo-service] com.example.todo.infrastructure.identity.GrpcIdentityUserRepository.save(Lcom/example/todo/domain/model/User;)Lcom/example/todo/domain/model/User;
+method:[:services:todo-service] com.example.todo.infrastructure.identity.GrpcIdentityUserSettingsRepository.save(Lcom/example/todo/domain/model/UserSettings;)Lcom/example/todo/domain/model/UserSettings;
+method:[:services:todo-service] com.example.todo.infrastructure.notification.HttpEmailNotificationSender.send(Lcom/example/todo/domain/notification/EmailNotification;)Lcom/example/todo/domain/notification/EmailSendResult;
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.TodoCommentRepositoryAdapter.deleteAllByTodoId(Ljava/util/UUID;)V
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.TodoRepositoryAdapter.findAll()Ljava/util/List;
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.TodoRepositoryAdapter.findByIdAndUserId(Ljava/util/UUID;Ljava/util/UUID;)Lcom/example/todo/domain/model/Todo;
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.TodoSubtaskRepositoryAdapter.deleteAllByTodoId(Ljava/util/UUID;)V
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.UserRepositoryAdapter.deleteAll()V
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.UserRepositoryAdapter.existsByUsername(Ljava/lang/String;)Z
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.UserRepositoryAdapter.findAll()Ljava/util/List;
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.UserRepositoryAdapter.save(Lcom/example/todo/domain/model/User;)Lcom/example/todo/domain/model/User;
+method:[:services:todo-service] com.example.todo.infrastructure.persistence.UserSettingsRepositoryAdapter.save(Lcom/example/todo/domain/model/UserSettings;)Lcom/example/todo/domain/model/UserSettings;
+method:[:services:todo-service] com.example.todo.infrastructure.security.JwtTokenProvider.generateToken(Lcom/example/todo/domain/model/AuthenticatedUser;)Ljava/lang/String;
