@@ -8,27 +8,35 @@ import org.objectweb.asm.Handle
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
+import org.objectweb.asm.signature.SignatureReader
+import org.objectweb.asm.signature.SignatureVisitor
 import java.io.File
 import kotlin.system.measureTimeMillis
 
 private data class MethodId(val owner: String, val name: String, val desc: String) {
-    val sig get() = name + desc
     override fun toString() = "${owner.replace('/', '.')}.$name$desc"
 }
 
-private val FRAMEWORK_ANNOS = setOf(
+// Always-alive Spring entry points (invoked directly by the framework / HTTP / scheduler / etc.)
+private val ENTRY_CLASS_ANNOS = setOf(
     "Lorg/springframework/boot/autoconfigure/SpringBootApplication;",
-    "Lorg/springframework/stereotype/Component;",
-    "Lorg/springframework/stereotype/Service;",
-    "Lorg/springframework/stereotype/Repository;",
     "Lorg/springframework/stereotype/Controller;",
     "Lorg/springframework/web/bind/annotation/RestController;",
     "Lorg/springframework/web/bind/annotation/ControllerAdvice;",
     "Lorg/springframework/web/bind/annotation/RestControllerAdvice;",
     "Lorg/springframework/context/annotation/Configuration;",
-    "Lorg/springframework/boot/context/properties/ConfigurationProperties;",
     "Lcom/google/cloud/spring/data/spanner/core/mapping/Table;",
-    "Lorg/springframework/context/annotation/Bean;",
+)
+
+// DI-managed beans: alive only if injected (directly or via supertype/interface) by another class
+private val DI_BEAN_ANNOS = setOf(
+    "Lorg/springframework/stereotype/Component;",
+    "Lorg/springframework/stereotype/Service;",
+    "Lorg/springframework/stereotype/Repository;",
+    "Lorg/springframework/boot/context/properties/ConfigurationProperties;",
+)
+
+private val ENTRY_METHOD_ANNOS = setOf(
     "Lorg/springframework/web/bind/annotation/RequestMapping;",
     "Lorg/springframework/web/bind/annotation/GetMapping;",
     "Lorg/springframework/web/bind/annotation/PostMapping;",
@@ -41,6 +49,8 @@ private val FRAMEWORK_ANNOS = setOf(
     "Ljakarta/annotation/PostConstruct;",
     "Ljakarta/annotation/PreDestroy;",
 )
+
+private const val BEAN_METHOD_ANNO = "Lorg/springframework/context/annotation/Bean;"
 
 private val GENERATED_PREFIXES = listOf(
     "com/example/identity/proto/",
@@ -59,6 +69,23 @@ private fun addTypes(desc: String, out: MutableSet<String>) {
     runCatching { visit(Type.getType(desc)) }
 }
 
+private fun addSignatureTypes(signature: String?, out: MutableSet<String>) {
+    if (signature == null) return
+    runCatching {
+        SignatureReader(signature).accept(object : SignatureVisitor(Opcodes.ASM9) {
+            override fun visitClassType(name: String) { out.add(name) }
+        })
+    }
+}
+
+private fun annoValueVisitor(out: MutableSet<String>): AnnotationVisitor = object : AnnotationVisitor(Opcodes.ASM9) {
+    override fun visit(name: String?, value: Any?) { if (value is Type) addTypes(value.descriptor, out) }
+    override fun visitArray(name: String?): AnnotationVisitor = this
+    override fun visitAnnotation(name: String?, descriptor: String): AnnotationVisitor {
+        addTypes(descriptor, out); return this
+    }
+}
+
 fun main(args: Array<String>) {
     val rootDir = File(args.firstOrNull() ?: ".")
     val classFiles = listOf("libs", "services").map { File(rootDir, it) }.filter { it.isDirectory }
@@ -74,6 +101,9 @@ fun main(args: Array<String>) {
     val calledMethods = mutableSetOf<MethodId>()
     val calledSigsByOwner = mutableMapOf<String, MutableSet<String>>()
     val subtypes = mutableMapOf<String, MutableSet<String>>()
+    val supertypes = mutableMapOf<String, MutableSet<String>>()
+    val diBeanClasses = mutableSetOf<String>()
+    val beanFactoryMethods = mutableMapOf<MethodId, String?>() // @Bean method -> return type internal name
     val skippedClasses = mutableSetOf<String>()
 
     val elapsedMs = measureTimeMillis {
@@ -86,16 +116,16 @@ fun main(args: Array<String>) {
                     var isTable = false
                     var isFrameworkSub = false
                     val localMethods = mutableListOf<Pair<MethodId, Int>>()
-                    val annotatedMethods = mutableSetOf<MethodId>()
+                    val entryMethods = mutableSetOf<MethodId>()
 
                     override fun visit(v: Int, access: Int, name: String, sig: String?, sup: String?, ifaces: Array<out String>?) {
                         cls = name
                         isEnum = (access and Opcodes.ACC_ENUM) != 0
                         classModules[name] = mod
-                        val supers = listOfNotNull(sup) + ifaces.orEmpty()
+                        val supers = listOfNotNull(sup).filter { it != "java/lang/Object" } + ifaces.orEmpty()
                         supers.forEach { s ->
-                            referencedClasses.add(s)
                             subtypes.computeIfAbsent(s) { mutableSetOf() }.add(name)
+                            supertypes.computeIfAbsent(name) { mutableSetOf() }.add(s)
                         }
                         isFrameworkSub = supers.any { s ->
                             s.endsWith("ImplBase") || s == "java/lang/AutoCloseable" || s == "java/io/Closeable" ||
@@ -109,15 +139,16 @@ fun main(args: Array<String>) {
                         ) skippedClasses.add(name)
                     }
 
-                    override fun visitAnnotation(desc: String, visible: Boolean): AnnotationVisitor? {
+                    override fun visitAnnotation(desc: String, visible: Boolean): AnnotationVisitor {
                         addTypes(desc, referencedClasses)
-                        if (desc in FRAMEWORK_ANNOS) referencedClasses.add(cls)
+                        if (desc in ENTRY_CLASS_ANNOS) referencedClasses.add(cls)
+                        if (desc in DI_BEAN_ANNOS) diBeanClasses.add(cls)
                         if (desc == "Lcom/google/cloud/spring/data/spanner/core/mapping/Table;") isTable = true
-                        return null
+                        return annoValueVisitor(referencedClasses)
                     }
 
                     override fun visitField(access: Int, name: String, desc: String, sig: String?, value: Any?): FieldVisitor? {
-                        addTypes(desc, referencedClasses); return null
+                        addTypes(desc, referencedClasses); addSignatureTypes(sig, referencedClasses); return null
                     }
 
                     override fun visitMethod(access: Int, name: String, desc: String, sig: String?, ex: Array<out String>?): MethodVisitor {
@@ -125,23 +156,34 @@ fun main(args: Array<String>) {
                         if (name == "main") referencedClasses.add(cls)
                         if (name == "copy") isDataClass = true
                         localMethods.add(id to access)
-                        addTypes(desc, referencedClasses); ex?.forEach(referencedClasses::add)
+                        val argTypes = mutableSetOf<String>()
+                        val retType = runCatching { Type.getReturnType(desc) }.getOrNull()
+                        runCatching { Type.getArgumentTypes(desc).forEach { addTypes(it.descriptor, argTypes) } }
+                        ex?.forEach(argTypes::add)
+                        var isBeanMethod = false
+
                         return object : MethodVisitor(Opcodes.ASM9) {
-                            override fun visitAnnotation(d: String, v: Boolean): AnnotationVisitor? {
+                            override fun visitAnnotation(d: String, v: Boolean): AnnotationVisitor {
                                 addTypes(d, referencedClasses)
-                                if (d in FRAMEWORK_ANNOS) annotatedMethods.add(id)
-                                return null
+                                if (d in ENTRY_METHOD_ANNOS) {
+                                    entryMethods.add(id); referencedClasses.add(cls)
+                                }
+                                if (d == BEAN_METHOD_ANNO) isBeanMethod = true
+                                return annoValueVisitor(referencedClasses)
                             }
                             override fun visitMethodInsn(op: Int, owner: String, n: String, d: String, itf: Boolean) {
                                 calledMethods.add(MethodId(owner, n, d))
                                 calledSigsByOwner.computeIfAbsent(owner) { mutableSetOf() }.add(n + d)
-                                referencedClasses.add(owner); addTypes(d, referencedClasses)
+                                if (owner != cls) referencedClasses.add(owner)
+                                addTypes(d, referencedClasses)
                             }
                             override fun visitFieldInsn(op: Int, owner: String, n: String, d: String) {
-                                referencedClasses.add(owner); addTypes(d, referencedClasses)
+                                if (owner != cls) referencedClasses.add(owner)
+                                addTypes(d, referencedClasses)
                             }
                             override fun visitTypeInsn(op: Int, type: String) {
-                                if (type.startsWith("[")) addTypes(type, referencedClasses) else referencedClasses.add(type)
+                                val t = if (type.startsWith("[")) null else type
+                                if (t != null) { if (t != cls) referencedClasses.add(t) } else addTypes(type, referencedClasses)
                             }
                             override fun visitLdcInsn(value: Any?) {
                                 if (value is Type) addTypes(value.descriptor, referencedClasses)
@@ -152,9 +194,20 @@ fun main(args: Array<String>) {
                                     is Handle -> {
                                         calledMethods.add(MethodId(arg.owner, arg.name, arg.desc))
                                         calledSigsByOwner.computeIfAbsent(arg.owner) { mutableSetOf() }.add(arg.name + arg.desc)
-                                        referencedClasses.add(arg.owner)
+                                        if (arg.owner != cls) referencedClasses.add(arg.owner)
                                     }
                                     is Type -> addTypes(arg.descriptor, referencedClasses)
+                                }
+                            }
+                            override fun visitEnd() {
+                                referencedClasses.addAll(argTypes)
+                                if (isBeanMethod) {
+                                    // Don't self-mark the returned type as referenced; check if anyone injects it
+                                    val retInternal = retType?.takeIf { it.sort == Type.OBJECT }?.internalName
+                                    beanFactoryMethods[id] = retInternal
+                                } else {
+                                    retType?.let { addTypes(it.descriptor, referencedClasses) }
+                                    addSignatureTypes(sig, referencedClasses)
                                 }
                             }
                         }
@@ -167,7 +220,7 @@ fun main(args: Array<String>) {
                         if (cls in skippedClasses || isFrameworkSub) return
                         for ((m, access) in localMethods) {
                             val isSyn = (access and (Opcodes.ACC_SYNTHETIC or Opcodes.ACC_BRIDGE or Opcodes.ACC_ABSTRACT)) != 0
-                            if (isSyn || m in annotatedMethods) continue
+                            if (isSyn || m in entryMethods) continue
                             if (m.name in setOf("<init>", "<clinit>", "main", "copy", "toString", "hashCode", "equals")) continue
                             if (m.name.contains("\$lambda\$") || m.name.endsWith("\$default")) continue
                             if (m.name.startsWith("component") && m.name.removePrefix("component").all(Char::isDigit)) continue
@@ -182,15 +235,36 @@ fun main(args: Array<String>) {
             )
         }
 
+        // Resolve DI beans: if a supertype/interface is referenced (injected), mark implementing DI beans as referenced
+        val q = ArrayDeque(referencedClasses)
+        val seenSub = mutableSetOf<String>()
+        while (q.isNotEmpty()) {
+            val cur = q.removeFirst()
+            for (sub in subtypes[cur].orEmpty()) {
+                if (sub in diBeanClasses && seenSub.add(sub)) {
+                    referencedClasses.add(sub)
+                    q.add(sub)
+                }
+            }
+        }
+
+        // Resolve @Bean factory methods: alive if returning an external/framework type or a referenced local type
+        for ((beanMethod, retInternal) in beanFactoryMethods) {
+            val isExternal = retInternal == null || retInternal !in classModules
+            val isUsed = isExternal || retInternal in referencedClasses ||
+                supertypes[retInternal].orEmpty().any { it !in classModules || it in referencedClasses }
+            if (isUsed) calledMethods.add(beanMethod)
+        }
+
         // Propagate calls on supertypes to overriding subtype methods
         for ((owner, sigs) in calledSigsByOwner) {
-            val q = ArrayDeque(subtypes[owner].orEmpty())
+            val subQ = ArrayDeque(subtypes[owner].orEmpty())
             val seen = mutableSetOf<String>()
-            while (q.isNotEmpty()) {
-                val sub = q.removeFirst()
+            while (subQ.isNotEmpty()) {
+                val sub = subQ.removeFirst()
                 if (!seen.add(sub)) continue
                 sigs.forEach { sig -> calledMethods.add(MethodId(sub, sig.substringBefore('('), "(" + sig.substringAfter('('))) }
-                q.addAll(subtypes[sub].orEmpty())
+                subQ.addAll(subtypes[sub].orEmpty())
             }
         }
     }
@@ -198,9 +272,15 @@ fun main(args: Array<String>) {
     val deadClasses = classModules.filterKeys { it !in skippedClasses && it !in referencedClasses && !it.endsWith("\$Companion") }
     val deadMethods = declaredMethods.filterKeys { it !in calledMethods && it.owner !in deadClasses }
 
-    println("ASM Dead Code Report (src/main only): ${classFiles.size} classes | ${elapsedMs} ms")
-    println("Unreferenced classes (${deadClasses.size}):")
-    deadClasses.entries.sortedWith(compareBy({ it.value }, { it.key })).forEach { (c, m) -> println("  [$m] ${c.replace('/', '.')}") }
-    println("Unreferenced methods (${deadMethods.size}):")
-    deadMethods.entries.sortedWith(compareBy({ it.value }, { it.key.toString() })).forEach { (k, m) -> println("  [$m] $k") }
+    println("ASM Dead Code Report (src/main only, Spring Bean-aware): ${classFiles.size} classes | ${elapsedMs} ms")
+    println("Unreferenced classes / beans (${deadClasses.size}):")
+    deadClasses.entries.sortedWith(compareBy({ it.value }, { it.key })).forEach { (c, m) ->
+        val tag = if (c in diBeanClasses) " [unused bean]" else ""
+        println("  [$m] ${c.replace('/', '.')}$tag")
+    }
+    println("Unreferenced methods / @Bean (${deadMethods.size}):")
+    deadMethods.entries.sortedWith(compareBy({ it.value }, { it.key.toString() })).forEach { (k, m) ->
+        val tag = if (k in beanFactoryMethods) " [unused @Bean]" else ""
+        println("  [$m] $k$tag")
+    }
 }
