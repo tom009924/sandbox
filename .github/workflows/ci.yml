@@ -60,6 +60,60 @@ jobs:
       - name: Verify generated OpenAPI and workflow docs are up-to-date
         run: git diff --exit-code docs/dist docs/workflows/README.md
 
+  impact-analysis:
+    name: Impact Analysis (ASM)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Compile main and test classes
+        run: |
+          ./gradlew \
+            :libs:grpc-common:classes :libs:grpc-common:testClasses \
+            :libs:identity-proto:classes \
+            :libs:todo-proto:classes \
+            :services:api-gateway:classes :services:api-gateway:testClasses \
+            :services:identity-service:classes :services:identity-service:testClasses \
+            :services:project-service:classes :services:project-service:testClasses \
+            :services:spanner-proxy:classes :services:spanner-proxy:testClasses \
+            :services:todo-service:classes :services:todo-service:testClasses \
+            --no-daemon
+
+      - name: Run ASM impact analysis against PR base
+        run: |
+          set -o pipefail
+          {
+            echo "## Impact Analysis (ASM)"
+            echo '```text'
+          } >> "$GITHUB_STEP_SUMMARY"
+          ./gradlew -p tools/impact-analyzer run --no-daemon -q \
+            --args="$(pwd) --git-diff origin/${{ github.base_ref }}" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   verify-spanner-services:
     name: Verify ${{ matrix.service }}
     runs-on: ubuntu-latest
