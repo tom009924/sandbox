@@ -60,6 +60,50 @@ jobs:
       - name: Verify generated OpenAPI and workflow docs are up-to-date
         run: git diff --exit-code docs/dist docs/workflows/README.md
 
+  dead-code-check:
+    name: Production Dead Code Check (Analysis API)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Export main metadata and build analyzer
+        run: |
+          ./gradlew --init-script tools/dead-code-analyzer/export-metadata.init.gradle.kts exportDeadCodeMetadata --no-daemon
+          ./gradlew -p tools/dead-code-analyzer installDist --no-daemon
+
+      - name: Run Kotlin Analysis API dead-code analyzer against baseline
+        run: |
+          set -o pipefail
+          {
+            echo "## Production Dead Code Check (Kotlin Analysis API)"
+            echo '```text'
+          } >> "$GITHUB_STEP_SUMMARY"
+          ./tools/dead-code-analyzer/build/install/dead-code-analyzer/bin/dead-code-analyzer \
+            "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.json" \
+            --baseline "$(pwd)/tools/dead-code-analyzer/baseline.txt" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   verify-spanner-services:
     name: Verify ${{ matrix.service }}
     runs-on: ubuntu-latest

@@ -65,7 +65,10 @@ private fun KtDeclaration.fqLabel(): String {
 }
 
 fun main(args: Array<String>) {
-    val meta = Json.decodeFromString<Metadata>(File(args.firstOrNull() ?: error("Pass metadata JSON path")).readText())
+    val metaPath = args.firstOrNull { !it.startsWith("--") } ?: error("Pass metadata JSON path")
+    val baselinePath = args.indexOf("--baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
+    val updateBaselinePath = args.indexOf("--update-baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
+    val meta = Json.decodeFromString<Metadata>(File(metaPath).readText())
     val disposable = Disposer.newDisposable("DeadCodeAnalysis")
     try {
         val platform = JvmPlatforms.defaultJvmPlatform
@@ -214,19 +217,53 @@ fun main(args: Array<String>) {
         }
 
         val (deadClasses, deadMembers) = dead.partition { it is KtClassOrObject }
+        val findings = buildList {
+            deadClasses.sortedBy { it.fqLabel() }.forEach {
+                val tag = if (it in diBeans) " [unused bean]" else ""
+                add("class:${it.fqLabel()}$tag" to "${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0}")
+            }
+            deadMembers.sortedBy { it.fqLabel() }.forEach {
+                val tag = if (it in beanMethods) " [unused @Bean]" else ""
+                add("member:${it.fqLabel()}$tag" to "${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0}")
+            }
+        }
+
         println("Analysis API Dead Code Report (src/main only, Spring Bean-aware): ${ktFiles.size} files, ${declared.size} decls | ${sessionMs + resolveMs} ms")
-        println("Unreferenced classes / beans (${deadClasses.size}):")
-        deadClasses.sortedBy { it.fqLabel() }.forEach {
-            val tag = if (it in diBeans) " [unused bean]" else ""
-            println("  ${it.fqLabel()}$tag (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})")
+        println("Total findings: ${findings.size} (${deadClasses.size} classes/beans, ${deadMembers.size} members)")
+
+        var exitCode = 0
+        if (updateBaselinePath != null) {
+            val out = File(updateBaselinePath)
+            out.parentFile?.mkdirs()
+            val header = "# Production dead-code baseline (Kotlin Analysis API analyzer). Regenerate with --update-baseline.\n"
+            out.writeText(header + findings.joinToString("\n") { it.first } + if (findings.isNotEmpty()) "\n" else "")
+            println("Updated baseline (${findings.size} entries) at ${out.path}")
+        } else if (baselinePath != null) {
+            val baselineFile = File(baselinePath)
+            val baseline = if (baselineFile.exists()) {
+                baselineFile.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toSet()
+            } else {
+                emptySet()
+            }
+            val currentKeys = findings.map { it.first }.toSet()
+            val newFindings = findings.filterNot { it.first in baseline }
+            val staleEntries = baseline.filterNot { it in currentKeys }.sorted()
+            if (staleEntries.isNotEmpty()) {
+                println("Stale baseline entries (${staleEntries.size} - can be removed):")
+                staleEntries.forEach { println("  - $it") }
+            }
+            if (newFindings.isNotEmpty()) {
+                println("NEW production dead code detected (${newFindings.size}):")
+                newFindings.forEach { (key, loc) -> println("  + $key ($loc)") }
+                exitCode = 1
+            } else {
+                println("OK: No new production dead code beyond baseline (${baseline.size} baselined).")
+            }
+        } else {
+            findings.forEach { (key, loc) -> println("  $key ($loc)") }
         }
-        println("Unreferenced functions/properties (${deadMembers.size}):")
-        deadMembers.sortedBy { it.fqLabel() }.forEach {
-            val tag = if (it in beanMethods) " [unused @Bean]" else ""
-            println("  ${it.fqLabel()}$tag (${File(it.containingKtFile.virtualFilePath).name}:${it.containingFile.viewProvider.document?.getLineNumber(it.textOffset)?.plus(1) ?: 0})")
-        }
+        exitCode
     } finally {
         Disposer.dispose(disposable)
-    }
-    exitProcess(0)
+    }.let { code -> exitProcess(code) }
 }
