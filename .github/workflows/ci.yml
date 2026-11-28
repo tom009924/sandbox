@@ -99,6 +99,9 @@ jobs:
             :services:todo-service:classes \
             --no-daemon
 
+      - name: Run ASM dead-code analyzer unit tests
+        run: ./gradlew -p tools/dead-code-analyzer test --no-daemon
+
       - name: Run ASM dead-code analyzer against baseline
         run: |
           set -o pipefail
