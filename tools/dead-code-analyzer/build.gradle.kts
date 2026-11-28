@@ -36,9 +36,17 @@ dependencies {
     runtimeOnly("com.github.ben-manes.caffeine:caffeine:3.1.8")
     runtimeOnly("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.7")
     runtimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0") // required at runtime by IntelliJ XmlReader
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    maxHeapSize = "512m"
 }
 
 application {
-    mainClass.set("com.example.deadcode.analysisapi.AnalysisApiDeadCodeAnalyzerKt")
+    mainClass.set("com.example.deadcode.analysisapi.MainKt")
     applicationDefaultJvmArgs = listOf("-Xmx768m")
 }

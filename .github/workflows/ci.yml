@@ -89,7 +89,7 @@ jobs:
       - name: Export main metadata and build analyzer
         run: |
           ./gradlew --init-script tools/dead-code-analyzer/export-metadata.init.gradle.kts exportDeadCodeMetadata --no-daemon
-          ./gradlew -p tools/dead-code-analyzer installDist --no-daemon
+          ./gradlew -p tools/dead-code-analyzer test installDist --no-daemon
 
       - name: Run Kotlin Analysis API dead-code analyzer against baseline
         run: |
