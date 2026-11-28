@@ -1,4 +1,3 @@
-import groovy.json.JsonOutput
 import org.gradle.api.plugins.JavaPluginExtension
 import java.io.File
 
@@ -26,9 +25,10 @@ gradle.projectsEvaluated {
                     .mapTo(classpath) { it.canonicalPath }
             }
 
-            val out = File(root.projectDir, "tools/dead-code-analyzer/build/sandbox-metadata.json")
+            val out = File(root.projectDir, "tools/dead-code-analyzer/build/sandbox-metadata.tsv")
             out.parentFile.mkdirs()
-            out.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(mapOf("sourceRoots" to sourceRoots, "classpath" to classpath))))
+            val lines = sourceRoots.map { "S\t$it" } + classpath.map { "C\t$it" }
+            out.writeText(lines.joinToString("\n", postfix = "\n"))
             logger.lifecycle("Exported ${sourceRoots.size} source roots and ${classpath.size} classpath entries to ${out.canonicalPath}")
         }
     }

@@ -1,6 +1,5 @@
 plugins {
     kotlin("jvm") version "2.2.21"
-    kotlin("plugin.serialization") version "2.2.21"
     application
 }
 
@@ -26,15 +25,17 @@ dependencies {
     listOf(
         "analysis-api-standalone-for-ide",
         "analysis-api-for-ide",
+        "analysis-api-platform-interface-for-ide",
+    ).forEach { implementation("org.jetbrains.kotlin:$it:$kotlinVersion") { isTransitive = false } }
+    listOf(
         "analysis-api-k2-for-ide",
         "analysis-api-impl-base-for-ide",
         "low-level-api-fir-for-ide",
-        "analysis-api-platform-interface-for-ide",
         "symbol-light-classes-for-ide",
-    ).forEach { implementation("org.jetbrains.kotlin:$it:$kotlinVersion") { isTransitive = false } }
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
-    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    ).forEach { runtimeOnly("org.jetbrains.kotlin:$it:$kotlinVersion") { isTransitive = false } }
+    runtimeOnly("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    runtimeOnly("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.7")
+    runtimeOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0") // required at runtime by IntelliJ XmlReader
 }
 
 application {

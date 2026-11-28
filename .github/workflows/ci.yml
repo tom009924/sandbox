@@ -99,7 +99,7 @@ jobs:
             echo '```text'
           } >> "$GITHUB_STEP_SUMMARY"
           ./tools/dead-code-analyzer/build/install/dead-code-analyzer/bin/dead-code-analyzer \
-            "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.json" \
+            "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.tsv" \
             --baseline "$(pwd)/tools/dead-code-analyzer/baseline.txt" \
             | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"

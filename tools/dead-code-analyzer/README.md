@@ -13,11 +13,11 @@ Minimal Spring Bean-aware K2 semantic analyzer (Kotlin Analysis API Standalone) 
 
 # 3. Check against baseline (fails CI on new dead code)
 ./tools/dead-code-analyzer/build/install/dead-code-analyzer/bin/dead-code-analyzer \
-  "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.json" \
+  "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.tsv" \
   --baseline "$(pwd)/tools/dead-code-analyzer/baseline.txt"
 
 # 4. Regenerate baseline after cleaning up dead code
 ./tools/dead-code-analyzer/build/install/dead-code-analyzer/bin/dead-code-analyzer \
-  "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.json" \
+  "$(pwd)/tools/dead-code-analyzer/build/sandbox-metadata.tsv" \
   --update-baseline "$(pwd)/tools/dead-code-analyzer/baseline.txt"
 ```

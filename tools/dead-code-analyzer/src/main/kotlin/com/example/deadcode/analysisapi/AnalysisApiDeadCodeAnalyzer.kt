@@ -1,8 +1,6 @@
 package com.example.deadcode.analysisapi
 
 import com.intellij.openapi.util.Disposer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
@@ -39,8 +37,19 @@ import kotlin.io.path.exists
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
-@Serializable
 private data class Metadata(val sourceRoots: List<String>, val classpath: List<String>)
+
+private fun readMetadata(file: File): Metadata {
+    val sources = mutableListOf<String>()
+    val cp = mutableListOf<String>()
+    file.readLines().forEach { line ->
+        when {
+            line.startsWith("S\t") -> sources.add(line.substring(2))
+            line.startsWith("C\t") -> cp.add(line.substring(2))
+        }
+    }
+    return Metadata(sources, cp)
+}
 
 private val ENTRY_CLASS_ANNOS = setOf(
     "SpringBootApplication", "Controller", "RestController",
@@ -68,7 +77,7 @@ fun main(args: Array<String>) {
     val metaPath = args.firstOrNull { !it.startsWith("--") } ?: error("Pass metadata JSON path")
     val baselinePath = args.indexOf("--baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
     val updateBaselinePath = args.indexOf("--update-baseline").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
-    val meta = Json.decodeFromString<Metadata>(File(metaPath).readText())
+    val meta = readMetadata(File(metaPath))
     val disposable = Disposer.newDisposable("DeadCodeAnalysis")
     try {
         val platform = JvmPlatforms.defaultJvmPlatform
